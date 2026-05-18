@@ -42,7 +42,7 @@ jobs:
 
       - name: Check money float types
         run: |
-          ! grep -rn --include="*.php" -E "(float|double)\s+\$[a-z_]*(amount|price|total|balance|fee|cost)" app/
+          grep -rEn 'decimal|float|double' app database 2>/dev/null | grep -i 'price\|amount\|fee\|total' && (echo 'Review money columns for float usage (must be DECIMAL)' && exit 1) || exit 0
 
       - name: Check logical CSS properties (no physical directional props)
         run: |

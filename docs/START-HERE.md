@@ -2,14 +2,16 @@
 
 Clinic management system built with Laravel + Inertia.
 
-**Stack:** PHP · Laravel + Inertia · Relational DB · Pest · Pint · Larastan
+**Stack:** PHP · Laravel + Inertia · Vue 3 · shadcn-vue · PostgreSQL · Pest · Pint · Larastan · Arabic (RTL)
+UI language is Arabic (RTL); all CSS MUST use logical properties (start/end) per R20.
 
 ## Choose Your Path
 
 ### Path 1 — Develop Locally
 1. Read `docs/ARCHITECTURE.md` (when created)
 2. `composer install && npm install`
-3. `php artisan serve` → http://localhost:8000
+3. `cp .env.example .env && php artisan key:generate`
+4. `php artisan serve` → http://localhost:8000
 
 ### Path 2 — Understand the Architecture
 1. Read `docs/adr/` (canonical decisions)

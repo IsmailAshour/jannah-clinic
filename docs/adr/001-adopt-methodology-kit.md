@@ -46,6 +46,8 @@ runtime_paths: ["app/**","resources/js/**","routes/**","tests/**"]
 - GOLDEN-RULES.md is authoritative and non-negotiable.
 - Re-running the bootstrap on the same YAML is idempotent.
 
+> Note: `handles_pii: no` and `audit_required: no` are deliberate MVP scope deferrals that suppress PII-protection / audit rule generation for this phase. They do NOT reflect the system's actual data profile — jannahclinic does store personal and medical data. See ADR-002 (Basic Security Posture) and its blocking gate before any production deployment with real patient data.
+
 ## Compliance
 
 Enforced by the PR template (`.github/PULL_REQUEST_TEMPLATE.md`) and the

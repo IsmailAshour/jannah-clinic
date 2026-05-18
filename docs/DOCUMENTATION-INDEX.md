@@ -11,6 +11,7 @@ Every document MUST appear here under exactly one authority class
 | docs/CANONICAL-DECISION-REGISTRY.md | governance | Product |
 | docs/DOCS-AUTHORITY-AND-CONFLICT-RESOLUTION.md | docs-governance | Product |
 | docs/DEFINITION-OF-DONE.md | quality | Product |
+| docs/GOLDEN-RULES.md | governance | Product |
 
 ## Level 2 — Implementation Support (ACTIVE-IMPLEMENTATION-SUPPORT)
 > Canonical implementation specs: a limited set, each listed in the registry. See `docs/DOCS-AUTHORITY-AND-CONFLICT-RESOLUTION.md` §2.

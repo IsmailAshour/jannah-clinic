@@ -1,0 +1,49 @@
+# Quality Gate — jannahclinic
+# Example CI workflow. Activate by pushing to the default branch and
+# configuring your CI environment. This file is inert until activated.
+
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: xdebug
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Linter (Pint)
+        run: ./vendor/bin/pint --test
+
+      - name: Static Analysis (Larastan)
+        run: ./vendor/bin/phpstan analyse
+
+      - name: Tests with coverage (Pest)
+        run: ./vendor/bin/pest --coverage --min=60
+
+      - name: Check money float types
+        run: |
+          ! grep -rn --include="*.php" -E "(float|double)\s+\$[a-z_]*(amount|price|total|balance|fee|cost)" app/
+
+      - name: Check logical CSS properties (no physical directional props)
+        run: |
+          ! grep -rn --include="*.css" --include="*.vue" -E "(margin-left|margin-right|padding-left|padding-right|text-align:\s*(left|right)|float:\s*(left|right))" resources/js/

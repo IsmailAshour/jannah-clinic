@@ -67,5 +67,5 @@
 | Linter | `./vendor/bin/pint --test` | Yes |
 | Static Analysis | `./vendor/bin/phpstan analyse` | Yes |
 | Tests | `./vendor/bin/pest --coverage --min=60` | Yes |
-| Money float check | `grep -rn --include="*.php" -E "(float\|double)\s+\\\$[a-z_]*(amount\|price\|total\|balance\|fee\|cost)" app/**` | Yes |
+| Money float check | `grep -rEn 'decimal|float|double' app database \| grep -i 'price\|amount\|fee\|total'` | Yes |
 | Logical CSS check | `grep -rn --include="*.{css,vue,jsx,tsx}" -E "(margin-left\|margin-right\|padding-left\|padding-right\|text-align:\s*(left\|right)\|float:\s*(left\|right))" resources/js/**` | Yes |

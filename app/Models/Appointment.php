@@ -42,4 +42,9 @@ class Appointment extends Model
     {
         return $this->hasOne(ServiceAddress::class);
     }
+
+    public function rescheduledFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'rescheduled_from_id');
+    }
 }

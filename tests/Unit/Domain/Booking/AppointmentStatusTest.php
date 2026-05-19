@@ -23,3 +23,15 @@ it('allows only the defined transitions', function () {
     expect(S::Requested->canTransitionTo(S::Completed))->toBeFalse();
     expect(S::Cancelled->canTransitionTo(S::Requested))->toBeFalse();
 });
+
+it('terminal states have no allowed transitions', function () {
+    foreach ([S::Rejected, S::Completed, S::Cancelled, S::NoShow, S::Rescheduled] as $t) {
+        expect($t->allowedNext())->toBe([]);
+    }
+});
+
+it('no state can transition to itself', function () {
+    foreach (S::cases() as $s) {
+        expect($s->canTransitionTo($s))->toBeFalse();
+    }
+});

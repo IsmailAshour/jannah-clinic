@@ -34,7 +34,7 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255|unique:users,email',
             'phone' => 'nullable|string|max:32|unique:users,phone',
-            'password' => ['required', Rules\Password::defaults()],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         if (empty($validated['email']) && empty($validated['phone'])) {

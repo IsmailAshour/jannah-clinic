@@ -29,4 +29,9 @@ class Service extends Model
             ->using(DoctorServicePivot::class)
             ->withPivot('price_override')->withTimestamps();
     }
+
+    public function slotCount(): int
+    {
+        return intdiv((int) $this->duration_minutes, (int) config('clinic.slot_minutes', 30));
+    }
 }

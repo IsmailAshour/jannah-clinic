@@ -9,7 +9,7 @@ it('creates a service under a category', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $cat = ServiceCategory::create(['name' => 'تدليك', 'slug' => 'massage', 'color_variant' => 'brand']);
     $this->actingAs($m)->post('/admin/catalog/services', [
-        'category_id' => $cat->id, 'name' => 'تدليك علاجي', 'base_price' => 150, 'duration_minutes' => 45,
+        'category_id' => $cat->id, 'name' => 'تدليك علاجي', 'base_price' => 150, 'duration_minutes' => 30,
         'home_service_enabled' => true,
     ])->assertRedirect();
     $s = Service::first();
@@ -31,4 +31,13 @@ it('blocks deleting a category that has services', function () {
     Service::create(['category_id' => $cat->id, 'name' => 's', 'base_price' => 10, 'duration_minutes' => 30]);
     $this->actingAs($m)->delete("/admin/catalog/categories/{$cat->id}")->assertSessionHasErrors('delete');
     expect(ServiceCategory::whereKey($cat->id)->exists())->toBeTrue();
+});
+
+it('rejects a service with duration_minutes not in 30 or 60', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $cat = ServiceCategory::create(['name' => 'x', 'slug' => 'x2', 'color_variant' => 'brand']);
+    $this->actingAs($m)->post('/admin/catalog/services', [
+        'category_id' => $cat->id, 'name' => 'x', 'base_price' => 10, 'duration_minutes' => 45,
+    ])->assertSessionHasErrors('duration_minutes');
+    expect(Service::count())->toBe(0);
 });

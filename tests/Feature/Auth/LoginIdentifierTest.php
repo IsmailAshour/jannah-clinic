@@ -14,3 +14,10 @@ it('logs in staff by email and lands on admin', function () {
     $this->post('/login', ['identifier' => 'mgr@c.com', 'password' => 'secret12'])
         ->assertRedirect(route('admin.dashboard'));
 });
+
+it('rejects a wrong password', function () {
+    User::factory()->create(['email' => 'a@b.com', 'password' => Hash::make('correct-pass')]);
+    $this->post('/login', ['identifier' => 'a@b.com', 'password' => 'wrong-pass'])
+        ->assertSessionHasErrors('identifier');
+    $this->assertGuest();
+});

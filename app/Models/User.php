@@ -49,6 +49,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isStaff(): bool
     {
-        return $this->role->isStaff();
+        return $this->role instanceof UserRole && $this->role->isStaff();
     }
 }

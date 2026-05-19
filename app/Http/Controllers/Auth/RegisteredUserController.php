@@ -37,9 +37,10 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        if (empty($validated['email']) && empty($validated['phone'])) {
+        if (empty($validated['email'] ?? null) && empty($validated['phone'] ?? null)) {
             throw ValidationException::withMessages([
                 'email' => __('يجب توفير البريد الإلكتروني أو رقم الجوال.'),
+                'phone' => __('يجب توفير البريد الإلكتروني أو رقم الجوال.'),
             ]);
         }
 

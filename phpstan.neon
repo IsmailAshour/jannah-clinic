@@ -4,3 +4,4 @@ parameters:
     paths:
         - app
     level: 5
+    treatPhpDocTypesAsCertain: false

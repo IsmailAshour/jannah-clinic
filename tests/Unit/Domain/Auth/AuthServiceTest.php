@@ -18,3 +18,13 @@ it('registers a customer with a profile', function () {
     expect($u->role)->toBe(UserRole::Customer);
     expect($u->customerProfile)->not->toBeNull();
 });
+
+it('registers a phone-only customer with a profile', function () {
+    $u = app(AuthService::class)->registerCustomer([
+        'name' => 'P', 'email' => null, 'phone' => '0599777888', 'password' => 'secret12',
+    ]);
+    expect($u->email)->toBeNull();
+    expect($u->phone)->toBe('0599777888');
+    expect($u->role)->toBe(UserRole::Customer);
+    expect($u->customerProfile)->not->toBeNull();
+});

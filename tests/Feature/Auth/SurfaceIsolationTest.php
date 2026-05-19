@@ -19,3 +19,8 @@ it('allows customer into portal', function () {
     $c = User::factory()->create(['role' => UserRole::Customer]);
     $this->actingAs($c)->get('/portal')->assertOk();
 });
+
+it('redirects unauthenticated users to login', function () {
+    $this->get('/admin')->assertRedirect(route('login'));
+    $this->get('/portal')->assertRedirect(route('login'));
+});

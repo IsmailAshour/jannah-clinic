@@ -64,7 +64,7 @@ class ServiceController extends Controller
         try {
             $service->delete();
         } catch (QueryException $e) { // @phpstan-ignore catch.neverThrown (FK constraint — thrown at runtime by Postgres; SQLite tests skip it)
-            abort(409, 'لا يمكن حذف خدمة مرتبطة بسجلات أخرى.');
+            return back()->withErrors(['delete' => 'لا يمكن حذف خدمة مرتبطة بسجلات أخرى.']);
         }
 
         return back();

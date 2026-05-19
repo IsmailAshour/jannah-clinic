@@ -29,5 +29,6 @@ it('blocks deleting a category that has services', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $cat = ServiceCategory::create(['name' => 'x', 'slug' => 'x', 'color_variant' => 'brand']);
     Service::create(['category_id' => $cat->id, 'name' => 's', 'base_price' => 10, 'duration_minutes' => 30]);
-    $this->actingAs($m)->delete("/admin/catalog/categories/{$cat->id}")->assertStatus(409);
+    $this->actingAs($m)->delete("/admin/catalog/categories/{$cat->id}")->assertSessionHasErrors('delete');
+    expect(ServiceCategory::whereKey($cat->id)->exists())->toBeTrue();
 });

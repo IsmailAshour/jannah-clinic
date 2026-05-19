@@ -81,7 +81,7 @@ function doDelete() {
   useForm({}).delete(`/admin/catalog/categories/${deleteTarget.value.id}`, {
     onSuccess: () => { confirmDelete.value = false; deleteTarget.value = null },
     onError: (errors) => {
-      deleteError.value = errors?.message ?? 'لا يمكن حذف هذه الفئة.'
+      deleteError.value = errors.delete ?? 'لا يمكن حذف هذه الفئة.'
       // Re-open the confirm modal to show the error (ConfirmModal auto-closes on confirm click)
       confirmDelete.value = true
     },

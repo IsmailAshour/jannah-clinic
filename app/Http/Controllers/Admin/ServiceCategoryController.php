@@ -50,7 +50,9 @@ class ServiceCategoryController extends Controller
 
     public function destroy(ServiceCategory $category): RedirectResponse
     {
-        abort_if($category->services()->exists(), 409, 'لا يمكن حذف فئة بها خدمات.');
+        if ($category->services()->exists()) {
+            return back()->withErrors(['delete' => 'لا يمكن حذف فئة بها خدمات.']);
+        }
 
         $category->delete();
 

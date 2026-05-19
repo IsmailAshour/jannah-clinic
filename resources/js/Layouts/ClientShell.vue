@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
+// TODO(P1): real tab routes + aria-current active state; switch to Inertia persistent layout to preserve bottom-nav/shell state across navigation.
 const tabs = [
   { label: 'الرئيسية', href: '/portal' },
   { label: 'الحجز', href: '/portal' },
@@ -13,7 +14,7 @@ const tabs = [
       <span class="font-bold text-brand">عيادة جنّة</span>
       <Link href="/logout" method="post" as="button" class="ms-auto text-xs text-text-secondary">خروج</Link>
     </header>
-    <main class="flex-1 p-4 pb-20"><slot /></main>
+    <main class="flex-1 pb-20"><slot /></main>
     <nav class="z-shell fixed bottom-0 inset-inline-0 mx-auto max-w-md bg-surface-card border-t border-border-default grid grid-cols-4">
       <Link v-for="(t,i) in tabs" :key="i" :href="t.href" class="py-3 text-center text-xs text-text-secondary hover:text-brand">{{ t.label }}</Link>
     </nav>

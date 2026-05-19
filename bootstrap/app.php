@@ -32,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             $status = $response->getStatusCode();
-            if (in_array($status, [403, 404, 419, 429, 500, 503], true) && ! app()->environment('local')) {
+            if (in_array($status, [403, 404, 429, 500, 503], true) && ! app()->environment('local')) {
                 return Inertia::render('Errors/Error', ['status' => $status])
                     ->toResponse($request)
                     ->setStatusCode($status);

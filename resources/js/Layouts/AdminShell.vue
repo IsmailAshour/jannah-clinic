@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
+// TODO(P1): replace placeholder with real nav from route definitions; add aria-current on active item; consider Inertia persistent layout (defineOptions layout) to keep shell state across navigations.
 const nav = [{ label: 'لوحة التحكم', href: '/admin' }]
 </script>
 <template>

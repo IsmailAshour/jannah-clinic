@@ -68,7 +68,7 @@ function openEdit(row) {
   form.display_order = row.display_order
   form.services = (row.services ?? []).map(s => ({
     service_id: s.id,
-    price_override: s.pivot?.price_override ?? '',
+    price_override: s.pivot?.price_override ?? null,
   }))
   showModal.value = true
 }
@@ -86,7 +86,7 @@ function submitForm() {
 }
 
 function addServiceRow() {
-  form.services.push({ service_id: '', price_override: '' })
+  form.services.push({ service_id: '', price_override: null })
 }
 
 function removeServiceRow(index) {
@@ -210,7 +210,7 @@ function doDelete() {
               <option v-for="svc in services" :key="svc.id" :value="svc.id">{{ svc.name }}</option>
             </select>
             <Input
-              v-model.number="row.price_override"
+              v-model="row.price_override"
               type="number"
               min="0"
               step="0.01"

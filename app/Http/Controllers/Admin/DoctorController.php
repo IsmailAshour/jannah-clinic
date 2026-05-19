@@ -11,6 +11,8 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -61,11 +63,12 @@ class DoctorController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email,id,'.$doctor->user_id],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($doctor->user_id)],
             'specialty' => ['required', 'string', 'max:255'],
             'bio' => ['nullable', 'string'],
             'is_bookable' => ['boolean'],
             'display_order' => ['nullable', 'integer', 'min:0'],
+            'password' => ['nullable', 'confirmed', Password::defaults()],
             'services' => ['array'],
             'services.*.service_id' => ['required', 'exists:services,id'],
             'services.*.price_override' => ['nullable', 'numeric', 'min:0'],
@@ -76,6 +79,9 @@ class DoctorController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
             ]);
+            if (! empty($data['password'])) {
+                $doctor->user->update(['password' => Hash::make($data['password'])]);
+            }
             $doctor->update([
                 'specialty' => $data['specialty'],
                 'bio' => $data['bio'] ?? null,
@@ -95,8 +101,7 @@ class DoctorController extends Controller
     public function destroy(DoctorProfile $doctor): RedirectResponse
     {
         try {
-            $doctor->delete();
-            $doctor->user->delete();
+            $doctor->user->delete(); // cascade: deletes doctor_profiles + doctor_service rows
         } catch (QueryException $e) { // @phpstan-ignore catch.neverThrown (FK constraint — thrown at runtime by Postgres; SQLite tests skip it)
             return back()->withErrors(['delete' => 'لا يمكن حذف طبيب مرتبط بمواعيد.']);
         }

@@ -6,7 +6,7 @@
 
 **Architecture:** Laravel domain-service architecture (no logic in controllers/views), Inertia bridging Laravel ↔ Vue 3 SPA, shadcn-vue as the base UI primitive layer, a thin `foundation/` Vue component layer re-expressing building.app's design patterns (tokens, RTL-first, 4-states, tables, forms, overlays). Two route files + role middleware isolate the admin and portal surfaces.
 
-**Tech Stack:** PHP 8.4, Laravel 13, Laravel Breeze (Inertia+Vue 3 starter), Postgres, Inertia.js, Vue 3, Vite, Tailwind CSS, shadcn-vue (reka-ui), Pest (PHP tests), Pint, Larastan.
+**Tech Stack:** PHP 8.4, Laravel 13, Laravel Breeze (Inertia+Vue 3 starter), Postgres, Inertia.js, Vue 3, Vite, Tailwind CSS v4, shadcn-vue (reka-ui), Pest (PHP tests), Pint, Larastan.
 
 **Project root:** `C:\~projects\jannahclinic` (already created, `git init` done, holds `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md`). Windows; use PowerShell. All paths below are absolute or relative to this root.
 

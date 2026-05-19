@@ -96,8 +96,8 @@ runtime_paths: ["app/**","resources/js/**","routes/**","tests/**"]
 - `resources/js/` منظَّم: `Layouts/` (AdminShell, ClientShell)، `Components/ui/` (طبقة shadcn-vue الأساسية)، `Components/foundation/` (مكوّنات building.app المُعاد تعبيرها)، `Pages/Admin/*`, `Pages/Portal/*`, `Pages/Auth/*`.
 - Vite + إعداد Inertia-Vue + SSR غير مطلوب في P0.
 
-### 3.3 نظام التصميم (building.app DNA → Tailwind/shadcn-vue)
-وحدة قائمة بذاتها، واجهتها = توكنات + مكوّنات foundational؛ تعتمد على Tailwind + shadcn-vue فقط.
+### 3.3 نظام التصميم (building.app DNA → Tailwind v4/shadcn-vue)
+وحدة قائمة بذاتها، واجهتها = توكنات + مكوّنات foundational؛ تعتمد على Tailwind v4 + shadcn-vue فقط.
 - **التوكنات** كـ CSS variables + ثيم Tailwind، مشتقّة من تخليق building.app: الألوان (brand، accent، surface/text/border، success/warning/danger/info) **مُعاد تسميتها بدلالات عيادة** (لا «income/expense/مبنى»)، مع دور مالي محايد واحد للفواتير؛ مقاييس spacing(شبكة 4px)، radius(sm6/md8/lg12/xl16/full)، shadow(xs..2xl)، motion(fast100/normal200/slow300 + spring)، z-index(dropdown10/sticky20/shell30/overlay40/modal50/toast60).
 - **الطباعة:** خط **Cairo** مستضاف ذاتيًا (woff2)، سلّم النوع (xs..3xl) وأوزانه كما في التخليق.
 - **RTL-first:** `<html dir="rtl">`، خصائص منطقية فقط (`ps/pe/ms/me`, `text-start/end`, `inset-inline-*`)، أيقونات اتجاهية تنعكس. فحص CI: لا `pl-|pr-|ml-|mr-` في `resources/js/`.
@@ -154,3 +154,5 @@ runtime_paths: ["app/**","resources/js/**","routes/**","tests/**"]
 `jannahclinic` مستودع Git خاص (تمّ `git init`). وثيقتا الـ spec/plan تعيشان في `docs/superpowers/` (مساحة أدوات العملية)، منفصلة عن `docs/` التي تملؤها حوكمة الحزمة عند الإقلاع. الـ commit للوثيقة جزء من هذه المرحلة.
 
 ملاحظة: اعتُمد Laravel 13 (الأحدث المستقر في البيئة) بدل «Laravel 12» الأصلي بقرار المستخدم؛ لا فرق وظيفي للأساس.
+
+ملاحظة: اعتُمد Tailwind v4 (الهدف الأصيل لـ shadcn-vue الحالي) بقرار المستخدم؛ التوكنات بصيغة @theme.

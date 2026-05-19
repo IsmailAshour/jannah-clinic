@@ -45,6 +45,7 @@ runtime_paths: ["app/**","resources/js/**","routes/**","tests/**"]
 - All PRs must satisfy DEFINITION-OF-DONE.md gates.
 - GOLDEN-RULES.md is authoritative and non-negotiable.
 - Re-running the bootstrap on the same YAML is idempotent.
+- Tailwind v4 adopted (shadcn-vue native); see P0 spec §8.
 
 > Note: `handles_pii: no` and `audit_required: no` are deliberate MVP scope deferrals that suppress PII-protection / audit rule generation for this phase. They do NOT reflect the system's actual data profile — jannahclinic does store personal and medical data. See ADR-002 (Basic Security Posture) and its blocking gate before any production deployment with real patient data.
 

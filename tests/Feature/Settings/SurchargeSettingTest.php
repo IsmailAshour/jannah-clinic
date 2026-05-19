@@ -14,3 +14,8 @@ it('rejects a non-numeric or out-of-range percentage', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $this->actingAs($m)->put('/admin/settings/surcharge', ['home_surcharge_pct' => '-5'])->assertSessionHasErrors('home_surcharge_pct');
 });
+
+it('rejects a non-numeric surcharge percentage', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $this->actingAs($m)->put('/admin/settings/surcharge', ['home_surcharge_pct' => 'abc'])->assertSessionHasErrors('home_surcharge_pct');
+});

@@ -24,7 +24,7 @@ class CoverageAreaController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'is_active' => 'boolean',
-            'display_order' => 'nullable|integer',
+            'display_order' => 'nullable|integer|min:0',
         ]);
 
         HomeServiceCoverageArea::create($data);
@@ -37,7 +37,7 @@ class CoverageAreaController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'is_active' => 'boolean',
-            'display_order' => 'nullable|integer',
+            'display_order' => 'nullable|integer|min:0',
         ]);
 
         $area->update($data);
@@ -53,6 +53,6 @@ class CoverageAreaController extends Controller
             return back()->withErrors(['delete' => 'لا يمكن حذف منطقة مرتبطة بحجوزات.']);
         }
 
-        return back();
+        return back()->with('success', 'تم حذف المنطقة.');
     }
 }

@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (P1 acceptance incl. schedule slot-grid redesign — fixed 30-min grid, legacy weekly-window model retired; full DoD gate green)
+> Last updated: 2026-05-19 (post-P1 polish: responsive + collapsible AdminShell sidebar, persisted; sidebar-collapse debt resolved)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -406,10 +406,11 @@ P2–P5 roadmap is in
 - **✅ Booking wizard + both channels (T9):** `BookingWizard`, portal self-booking, admin on-behalf + quick-create customer — all built, feature-tested, and nav-reachable.
 - **✅ Appointment lifecycle (T10):** `AppointmentTransitionService` + `AppointmentPolicy` + admin and portal appointment controllers — all transitions server-side enforced; manual `rescheduled` status blocked at admin endpoint; 17 new tests.
 - **✅ `AppointmentTransitionService` no-lock note:** `transition()` is MVP no-lock (last-write-wins for two concurrent *valid* transitions); acceptable for low-concurrency trusted staff. Documented inline with a TODO for P2 `lockForUpdate`.
+- **✅ AdminShell sidebar collapse (post-P1 polish):** `AdminShell` sidebar is now responsive and user-collapsible — desktop (≥ lg) collapse toggle (preference persisted in `localStorage` key `jannah.adminSidebarCollapsed`, restored on mount, SSR/no-window guarded) and mobile (< lg) off-canvas overlay drawer (RTL-aware logical transforms, backdrop + `Esc` close, `role="dialog"`/`aria-modal`, focus moved into drawer, nav-link click closes it). Single `open`/`collapsed` state + `lg:` responsive classes serve both modes; logical RTL utilities only; covered by `resources/js/Layouts/__tests__/AdminShell.spec.js`.
 
 ### Still-open debt (deferred to post-P1 polish or P2+)
 
-- **AdminShell sidebar collapse:** collapse (256px↔64px) deferred to post-P1 polish pass; side navigation is functional but not collapsible.
+- **✅ RESOLVED — AdminShell sidebar collapse:** responsive hamburger drawer (mobile) + desktop collapsible sidebar, preference persisted to `localStorage`. See "P1 resolved items" above.
 - **Inertia persistent layouts:** `defineOptions` layout for shell state preservation across navigations still deferred (in-file `TODO(P1)`).
 - **ConfirmablePassword phone-only hazard:** `ConfirmablePasswordController` fails for phone-only users (email null); add phone-aware confirmation before any route uses `password.confirm` middleware.
 - **ADR-002 production gate:** medical-record audit logging and at-rest encryption are mandatory before real patient data reaches production. This ADR MUST be superseded before any production deployment with real patient data.

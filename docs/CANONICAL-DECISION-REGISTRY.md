@@ -15,3 +15,5 @@ The registry file itself is the root of the reference graph and is therefore exe
 |----------|-----------|--------|-------|-------|------------|---------------|
 | Adopt Methodology Kit v1.0.1 | docs/adr/001-adopt-methodology-kit.md | ACTIVE-CANONICAL | Product | governance | — | — |
 | Basic Security Posture for MVP | docs/adr/002-basic-security-posture.md | ACTIVE-CANONICAL | Product | security | — | — |
+| P0 Architecture Reference | docs/ARCHITECTURE.md | ACTIVE-IMPLEMENTATION-SUPPORT | Engineering | architecture | — | — |
+| P0 Domain Model Reference | docs/DOMAIN-MODEL.md | ACTIVE-IMPLEMENTATION-SUPPORT | Engineering | domain | — | — |

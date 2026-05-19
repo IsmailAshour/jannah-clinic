@@ -18,6 +18,8 @@ Every document MUST appear here under exactly one authority class
 
 | Doc | Scope | Owner |
 |-----|-------|-------|
+| docs/ARCHITECTURE.md | architecture | Engineering |
+| docs/DOMAIN-MODEL.md | domain | Engineering |
 
 ## Level 3 — Advisory (ADVISORY)
 | Doc | Scope |

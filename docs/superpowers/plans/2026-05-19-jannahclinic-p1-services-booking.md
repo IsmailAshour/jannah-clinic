@@ -2041,3 +2041,448 @@ Plan complete and saved to `docs/superpowers/plans/2026-05-19-jannahclinic-p1-se
 **2. Inline Execution** — execute via executing-plans with checkpoints.
 
 Which approach?
+
+---
+
+# P1 AMENDMENT — Schedule Redesign (Tasks 12–15)
+
+> Spec: `docs/superpowers/specs/2026-05-19-jannahclinic-p1-schedule-redesign-design.md`.
+> Decomposed **additive → engine+fixtures → controller+UI → cleanup+acceptance** so the
+> full suite stays green at the end of every task (we never drop `DoctorSchedule`
+> until nothing references it). Route names are UNCHANGED throughout.
+
+## Task 12: Slot-grid config + `SlotGrid` + additive slot tables + Service {30,60} (purely additive — nothing removed)
+
+**Files:**
+- Modify: `config/clinic.php`
+- Create: `app/Domain/Booking/Slots/SlotGrid.php`
+- Create: migration `..._add_slot_grid_tables_and_service_duration_check.php`
+- Create: `app/Models/DoctorScheduleSlot.php`, `app/Models/ScheduleExceptionSlot.php`
+- Modify: `app/Models/DoctorProfile.php` (ADD `scheduleSlots()`, keep `schedules()`), `app/Models/ScheduleException.php` (ADD `slots()`, keep existing columns/casts), `app/Models/Service.php` (ADD `slotCount()`), `app/Http/Controllers/Admin/ServiceController.php` (duration `in:30,60`)
+- Test: `tests/Unit/Domain/Booking/SlotGridTest.php`; add a duration-validation case to the existing `tests/Feature/Catalog/ServiceCrudTest.php`
+
+- [ ] **Step 1: `config/clinic.php`** — add (keep `home_surcharge_pct`, `booking_lead_minutes`):
+```php
+'slot_minutes' => 30,
+'day_start' => '08:00',
+'day_end' => '22:00',
+'band_split' => '15:00',
+```
+
+- [ ] **Step 2: failing `tests/Unit/Domain/Booking/SlotGridTest.php`**
+```php
+<?php
+use App\Domain\Booking\Slots\SlotGrid;
+
+it('builds the 28-slot half-hour grid', function () {
+    $all = SlotGrid::all();
+    expect($all)->toHaveCount(28);
+    expect($all[0])->toBe('08:00');
+    expect($all[count($all) - 1])->toBe('21:30');
+});
+it('splits morning/evening at band_split', function () {
+    expect(SlotGrid::morning())->toContain('08:00')->not->toContain('15:00');
+    expect(SlotGrid::evening())->toContain('15:00')->not->toContain('14:30');
+});
+it('validates grid membership', function () {
+    expect(SlotGrid::isValid('08:30'))->toBeTrue();
+    expect(SlotGrid::isValid('08:15'))->toBeFalse();
+    expect(SlotGrid::isValid('22:00'))->toBeFalse();
+});
+it('returns consecutive blocks or null past the day end', function () {
+    expect(SlotGrid::blockFrom('09:00', 1))->toBe(['09:00']);
+    expect(SlotGrid::blockFrom('09:00', 2))->toBe(['09:00', '09:30']);
+    expect(SlotGrid::blockFrom('21:00', 2))->toBe(['21:00', '21:30']);
+    expect(SlotGrid::blockFrom('21:30', 2))->toBeNull();
+    expect(SlotGrid::blockFrom('08:15', 1))->toBeNull();
+});
+```
+Run → FAIL.
+
+- [ ] **Step 3: `app/Domain/Booking/Slots/SlotGrid.php`**
+```php
+<?php
+
+namespace App\Domain\Booking\Slots;
+
+class SlotGrid
+{
+    /** @return list<string> */
+    public static function all(): array
+    {
+        $step = (int) config('clinic.slot_minutes', 30);
+        $start = self::toMin((string) config('clinic.day_start', '08:00'));
+        $end = self::toMin((string) config('clinic.day_end', '22:00'));
+        $out = [];
+        for ($m = $start; $m + $step <= $end; $m += $step) {
+            $out[] = self::toHHMM($m);
+        }
+
+        return $out;
+    }
+
+    /** @return list<string> */
+    public static function morning(): array
+    {
+        $split = self::toMin((string) config('clinic.band_split', '15:00'));
+
+        return array_values(array_filter(self::all(), fn ($s) => self::toMin($s) < $split));
+    }
+
+    /** @return list<string> */
+    public static function evening(): array
+    {
+        $split = self::toMin((string) config('clinic.band_split', '15:00'));
+
+        return array_values(array_filter(self::all(), fn ($s) => self::toMin($s) >= $split));
+    }
+
+    public static function isValid(string $hhmm): bool
+    {
+        return in_array($hhmm, self::all(), true);
+    }
+
+    /** @return list<string>|null */
+    public static function blockFrom(string $start, int $count): ?array
+    {
+        $all = self::all();
+        $i = array_search($start, $all, true);
+        if ($i === false || $count < 1) {
+            return null;
+        }
+        $block = array_slice($all, $i, $count);
+
+        return count($block) === $count ? array_values($block) : null;
+    }
+
+    private static function toMin(string $hhmm): int
+    {
+        [$h, $m] = array_map('intval', explode(':', $hhmm));
+
+        return $h * 60 + $m;
+    }
+
+    private static function toHHMM(int $min): string
+    {
+        return sprintf('%02d:%02d', intdiv($min, 60), $min % 60);
+    }
+}
+```
+Run SlotGridTest → PASS.
+
+- [ ] **Step 4: additive migration** `..._add_slot_grid_tables_and_service_duration_check.php` — creates the two new tables and tightens the Service duration constraint. DOES NOT touch `doctor_schedules` or the `schedule_exceptions` columns (those are dropped only in Task 15).
+```php
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('doctor_schedule_slots', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('doctor_profile_id')->constrained()->cascadeOnDelete();
+            $t->unsignedTinyInteger('weekday');
+            $t->string('slot_start', 5);
+            $t->timestamps();
+            $t->unique(['doctor_profile_id', 'weekday', 'slot_start']);
+            $t->index(['doctor_profile_id', 'weekday']);
+        });
+        Schema::create('schedule_exception_slots', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('schedule_exception_id')->constrained()->cascadeOnDelete();
+            $t->string('slot_start', 5);
+            $t->timestamps();
+            $t->unique(['schedule_exception_id', 'slot_start']);
+        });
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE doctor_schedule_slots ADD CONSTRAINT dss_weekday_check CHECK (weekday BETWEEN 0 AND 6)');
+            // Normalise any out-of-set QA durations BEFORE tightening the constraint.
+            DB::statement('UPDATE services SET duration_minutes = CASE WHEN duration_minutes <= 30 THEN 30 ELSE 60 END WHERE duration_minutes NOT IN (30,60)');
+            DB::statement('ALTER TABLE services DROP CONSTRAINT IF EXISTS services_duration_check');
+            DB::statement('ALTER TABLE services ADD CONSTRAINT services_duration_check CHECK (duration_minutes IN (30,60))');
+        } else {
+            DB::table('services')->whereNotIn('duration_minutes', [30, 60])
+                ->update(['duration_minutes' => DB::raw('CASE WHEN duration_minutes <= 30 THEN 30 ELSE 60 END')]);
+        }
+    }
+
+    public function down(): void
+    {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE services DROP CONSTRAINT IF EXISTS services_duration_check');
+            DB::statement('ALTER TABLE services ADD CONSTRAINT services_duration_check CHECK (duration_minutes > 0)');
+        }
+        Schema::dropIfExists('schedule_exception_slots');
+        Schema::dropIfExists('doctor_schedule_slots');
+    }
+};
+```
+
+- [ ] **Step 5: models.**
+`app/Models/DoctorScheduleSlot.php`:
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+#[Fillable(['doctor_profile_id', 'weekday', 'slot_start'])]
+class DoctorScheduleSlot extends Model
+{
+    protected $casts = ['weekday' => 'integer'];
+
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(DoctorProfile::class, 'doctor_profile_id');
+    }
+}
+```
+`app/Models/ScheduleExceptionSlot.php`:
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+#[Fillable(['schedule_exception_id', 'slot_start'])]
+class ScheduleExceptionSlot extends Model
+{
+    public function exception(): BelongsTo
+    {
+        return $this->belongsTo(ScheduleException::class, 'schedule_exception_id');
+    }
+}
+```
+`app/Models/DoctorProfile.php` — ADD (keep the existing `schedules()` method untouched for now):
+```php
+public function scheduleSlots(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(DoctorScheduleSlot::class, 'doctor_profile_id');
+}
+```
+(Use the file's existing import style for `HasMany` — it already imports it; match it, don't inline FQCN if the file uses short names.)
+`app/Models/ScheduleException.php` — ADD (keep existing `custom_start`/`custom_end` in `$casts`/`#[Fillable]` for now; Task 14 stops using them, Task 15 drops them):
+```php
+public function slots(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(ScheduleExceptionSlot::class, 'schedule_exception_id');
+}
+```
+`app/Models/Service.php` — ADD:
+```php
+public function slotCount(): int
+{
+    return intdiv((int) $this->duration_minutes, (int) config('clinic.slot_minutes', 30));
+}
+```
+
+- [ ] **Step 6: `ServiceController` duration rule.** In store AND update validation, change the `duration_minutes` rule to require 30 or 60 (read the file; match its existing rule-array/pipe style exactly), e.g. `'duration_minutes' => ['required','integer','in:30,60']`. Add to `tests/Feature/Catalog/ServiceCrudTest.php` one case: creating a service with `duration_minutes=45` (manager) → `assertSessionHasErrors('duration_minutes')`. Keep existing tests; only add.
+
+- [ ] **Step 7: gate + commit.** `./vendor/bin/pint && ./vendor/bin/pint --test && ./vendor/bin/phpstan analyse --no-progress && php artisan test` (FULL suite green — purely additive, expect prior count + SlotGridTest(4) + 1 service case; 0 regressions). Money grep still empty. `$env:PGPASSWORD='123123'; php artisan migrate` runs the additive migration on the live Postgres DB (creates the 2 tables; normalises any odd QA service durations to 30/60). Commit `feat(p1-redesign/t12): slot-grid config + SlotGrid + additive slot tables + Service {30,60}`.
+
+## Task 13: AvailabilityService grid-engine rewrite + suite fixture migration
+
+**Files:**
+- Rewrite: `app/Domain/Booking/Services/AvailabilityService.php`
+- Modify: `tests/Pest.php` (add shared helpers) — or a dedicated `tests/Support/SlotFixtures.php` autoloaded by Pest
+- Rewrite: `tests/Unit/Domain/Booking/AvailabilityServiceTest.php`
+- Modify (fixtures only): every test that currently does `DoctorSchedule::create([...])` — at minimum `tests/Feature/Booking/AvailabilityEndpointTest.php`, `tests/Feature/Booking/BookingServiceTest.php`, `tests/Feature/Booking/PortalBookingTest.php`, `tests/Feature/Booking/AdminOnBehalfBookingTest.php`, `tests/Unit/Domain/Booking/TransitionServiceTest.php`, `tests/Feature/Appointments/AdminLifecycleTest.php`, `tests/Feature/Appointments/PortalAppointmentTest.php` (grep the whole `tests/` tree for `DoctorSchedule` and convert ALL).
+
+- [ ] **Step 1: shared Pest helper** (in `tests/Pest.php`, following its existing helper style):
+```php
+function enableDoctorSlots(\App\Models\DoctorProfile $doctor, int $weekday, array $starts): void
+{
+    foreach ($starts as $s) {
+        \App\Models\DoctorScheduleSlot::create([
+            'doctor_profile_id' => $doctor->id,
+            'weekday' => $weekday,
+            'slot_start' => $s,
+        ]);
+    }
+}
+/** Contiguous half-hour starts from $from for $count slots, e.g. slotRange('09:00',4) => 09:00,09:30,10:00,10:30 */
+function slotRange(string $from, int $count): array
+{
+    return \App\Domain\Booking\Slots\SlotGrid::blockFrom($from, $count) ?? [];
+}
+```
+
+- [ ] **Step 2: rewrite `AvailabilityService::slotsFor`** (signature & return shape UNCHANGED — keeps T7 §M3 ISO contract, T8/T9/T10 untouched):
+```php
+<?php
+
+namespace App\Domain\Booking\Services;
+
+use App\Domain\Booking\Slots\SlotGrid;
+use App\Enums\AppointmentStatus;
+use App\Models\DoctorProfile;
+use App\Models\Service;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
+
+class AvailabilityService
+{
+    /** @return array<int,array{start:CarbonImmutable,end:CarbonImmutable}> */
+    public function slotsFor(DoctorProfile $doctor, Service $service, CarbonImmutable $date): array
+    {
+        $date = $date->startOfDay();
+        $enabled = $this->enabledFor($doctor, $date);
+        if ($enabled === []) {
+            return [];
+        }
+
+        $need = max(1, $service->slotCount());
+        $duration = (int) $service->duration_minutes;
+        $now = CarbonImmutable::now()->addMinutes((int) config('clinic.booking_lead_minutes', 0));
+
+        /** @var Collection<int,\App\Models\Appointment> $taken */
+        $taken = $doctor->appointments()
+            ->whereIn('status', [AppointmentStatus::Requested, AppointmentStatus::Confirmed])
+            ->whereDate('start_at', $date->toDateString())
+            ->get(['start_at', 'end_at']);
+
+        $enabledSet = array_flip($enabled);
+        $slots = [];
+        foreach (SlotGrid::all() as $s) {
+            $block = SlotGrid::blockFrom($s, $need);
+            if ($block === null) {
+                continue;
+            }
+            $allEnabled = true;
+            foreach ($block as $b) {
+                if (! isset($enabledSet[$b])) {
+                    $allEnabled = false;
+                    break;
+                }
+            }
+            if (! $allEnabled) {
+                continue;
+            }
+            $start = $date->setTimeFromTimeString($s);
+            $end = $start->addMinutes($duration);
+            if ($start->lessThan($now)) {
+                continue;
+            }
+            $overlaps = $taken->contains(
+                fn ($a) => $start->lessThan($a->end_at) && $end->greaterThan($a->start_at)
+            );
+            if (! $overlaps) {
+                $slots[] = ['start' => $start, 'end' => $end];
+            }
+        }
+
+        return $slots;
+    }
+
+    /** @return list<string> enabled 'HH:MM' starts for the date (exception-aware) */
+    private function enabledFor(DoctorProfile $doctor, CarbonImmutable $date): array
+    {
+        /** @var \App\Models\ScheduleException|null $ex */
+        $ex = $doctor->scheduleExceptions()->whereDate('date', $date->toDateString())->first();
+        if ($ex) {
+            if ($ex->type === 'closed') {
+                return [];
+            }
+            if ($ex->type === 'custom') {
+                return $ex->slots()->pluck('slot_start')->all();
+            }
+        }
+
+        return $doctor->scheduleSlots()
+            ->where('weekday', (int) $date->dayOfWeek)
+            ->pluck('slot_start')->all();
+    }
+}
+```
+
+- [ ] **Step 3: rewrite `tests/Unit/Domain/Booking/AvailabilityServiceTest.php`** using `enableDoctorSlots`/`slotRange`. Cover, with a fixed future weekday (`CarbonImmutable::parse('next monday')`, `weekday=(int)$date->dayOfWeek`) and `mkService($dur)` helper (30 or 60):
+  - 30-min service, slots `09:00,09:30,10:00` enabled → 3 slots at those starts.
+  - closed exception that date → `[]`.
+  - custom exception with slots `['14:00','14:30']` (no weekly slots) → only 14:00 (+ 14:30 if 30-min) emitted; nothing in the morning.
+  - 60-min service needs 2 consecutive enabled+free: enable `09:00,09:30,10:30` (gap at 10:00) → 60-min emits only `09:00` (09:30→10:00 fails: 10:00 not enabled; 10:30 has no 11:00).
+  - a 60-min `Confirmed` appointment 09:00–10:00 blocks both halves: with `09:00..11:00` enabled and a 60-min service → `09:00` excluded, next valid start `10:00` (10:00–11:00) emitted.
+  - `Cancelled` appointment does NOT block.
+  - past exclusion (today, enable an early past slot + a future one → only future).
+  - last 60-min start boundary: enable `21:00,21:30`, 60-min → exactly one slot `21:00` (21:00–22:00); a 60-min at `21:30` never offered.
+
+- [ ] **Step 4: migrate ALL dependent fixtures.** `grep -rl DoctorSchedule tests/` and convert every `DoctorSchedule::create([... 'morning_start'=>'09:00','morning_end'=>'10:00' ... 'slot_interval_minutes'=>30 ...])` to the equivalent `enableDoctorSlots($doctor, (int)$date->dayOfWeek, slotRange('09:00', N))` where N covers the same span the test needs (e.g. a 30-min service test that booked 09:00 needs at least `['09:00']`; a test that needs two bookable 30-min slots 09:00 & 09:30 needs `slotRange('09:00',2)`; preserve each test's intent — read each test and enable exactly the slots that make its existing assertions pass). Remove the now-unused `DoctorSchedule` imports from those test files. Do NOT change assertions; only the schedule-seeding lines.
+
+- [ ] **Step 5: gate + commit.** Full suite green (`php artisan test`), pint, phpstan 0 (use precise `@var` like the file already does — NO new `@phpstan-ignore`). The old `DoctorScheduleController`/`Schedule.vue`/`ScheduleCrudTest` still operate on the old `doctor_schedules` table and stay green (untouched this task). `npm run test:js`/`npm run build` unaffected but run them. Commit `feat(p1-redesign/t13): AvailabilityService grid engine + suite fixtures on doctor_schedule_slots`.
+
+## Task 14: DoctorScheduleController + Schedule.vue button-grid + closed/custom exceptions
+
+**Files:**
+- Rewrite: `app/Http/Controllers/Admin/DoctorScheduleController.php`
+- Rewrite: `resources/js/Pages/Admin/Doctors/Schedule.vue`
+- Rewrite: `tests/Feature/Doctors/ScheduleCrudTest.php`
+
+- [ ] **Step 1: controller.** Route names/paths UNCHANGED. `editSchedule(DoctorProfile $doctor)`: Inertia render `Admin/Doctors/Schedule` with `doctor`, `grid` => `['morning'=>SlotGrid::morning(),'evening'=>SlotGrid::evening()]`, `slots` => doctor's `scheduleSlots` grouped weekday→`string[]`, `exceptions` => each `scheduleExceptions` with `{id,date,type,note,slots:[...]}`. `saveSchedule(Request,$doctor)`: validate `slots` is an array keyed 0..6, each an array whose every value passes `SlotGrid::isValid` (use a closure/`Rule`); inside `DB::transaction`, for each weekday delete the doctor's slots for that weekday and re-insert the submitted set (idempotent replace). `back()->with('success','تم حفظ الجدول')`. Manager-only (reuse the existing route-group authz exactly as the current controller did). `addException(Request,$doctor)`: validate `date` (date), `type` (`in:closed,custom`), `slots` (`array`, `required_if:type,custom`, each `SlotGrid::isValid`), `note` (nullable string max:255). `updateOrCreate` the `ScheduleException` by `(doctor,date)` with `type,note`; then sync `schedule_exception_slots`: delete its slots, and if `type==='custom'` insert the submitted ones. `back()->with('success','تمت إضافة الاستثناء')`. `deleteException(DoctorProfile $doctor, ScheduleException $exception)`: keep the existing ownership `abort_unless($exception->doctor_profile_id===$doctor->id,404)`, delete (cascade removes its slots), `back()->with('success','تم حذف الاستثناء')`. Larastan-clean (precise types; no new ignore).
+
+- [ ] **Step 2: `Schedule.vue` button grid.** `AdminShell` + `PageHeader`. For each weekday (الأحد..السبت, index 0..6) a row with two labelled groups (صباحية / مسائية) of toggle buttons built from the `grid.morning`/`grid.evening` props; a button is "selected" (filled, `aria-pressed`) when its `HH:MM` is in that weekday's enabled set; clicking toggles it in a local reactive structure; a "حفظ الجدول" button PUTs the whole `{ slots: {0:[...],1:[...],...} }` to `admin.doctors.schedule.save` via Inertia `useForm`. Exceptions panel: a `<input type="date" dir="ltr">` + a `مغلق`/`مخصّص` choice; when `مخصّص`, render the SAME button grid for that one date; submit to `admin.doctors.exceptions.add`. List existing exceptions (date, type, slot count) each with a delete (`ConfirmModal`, reading `errors.delete`). Foundation components, RTL **logical properties only** (CI greps `resources/js/**/*.vue`), Arabic. Reuse the Arabic weekday array order matching integer 0=الأحد..6=السبت (same mapping the old page used / the controller/AvailabilityService expect).
+
+- [ ] **Step 3: rewrite `tests/Feature/Doctors/ScheduleCrudTest.php`**: manager saves a weekday slot set (PUT) → rows exist in `doctor_schedule_slots` exactly matching; re-saving with a different set replaces (no stale rows); an invalid `slot_start` (e.g. `'08:15'`) → `assertSessionHasErrors`; non-manager staff PUT → 403; manager GET schedule page → 200; add a `closed` exception → row with type closed, no slots; add a `custom` exception with `['09:00','09:30']` → exception + 2 `schedule_exception_slots`; custom exception with an invalid slot → errors; delete exception (ownership 404 for another doctor's exception) cascades its slots. Keep Pest style.
+
+- [ ] **Step 4: gate + commit.** Full `php artisan test` green, `pint`, `phpstan 0`, `npm run test:js`, `npm run build`, RTL grep on `resources/js/Pages/Admin/Doctors` empty. Now NOTHING references `DoctorSchedule` or `custom_start/custom_end`. Commit `feat(p1-redesign/t14): doctor schedule button-grid UI + closed/custom exceptions`.
+
+## Task 15: cleanup migration + P1 re-acceptance + final review + tag
+
+**Files:** Create cleanup migration `..._drop_legacy_doctor_schedules_and_exception_columns.php`; delete `app/Models/DoctorSchedule.php`; docs (`DOMAIN-MODEL.md`, `ARCHITECTURE.md`, `CHANGELOG.md`).
+
+- [ ] **Step 1: verify zero references.** `grep -rn "DoctorSchedule\b\|doctor_schedules\|custom_start\|custom_end\|slot_interval_minutes" app/ tests/ resources/` → only `DoctorScheduleSlot`/`DoctorScheduleController`/`doctor_schedule_slots` may match; NO `DoctorSchedule` model use, NO `doctor_schedules` table use, NO `custom_start/custom_end`, NO `slot_interval_minutes`. If anything remains, fix it before migrating.
+
+- [ ] **Step 2: cleanup migration.**
+```php
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::dropIfExists('doctor_schedules');
+        Schema::table('schedule_exceptions', function (Blueprint $t) {
+            $t->dropColumn(['custom_start', 'custom_end']);
+        });
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE schedule_exceptions DROP CONSTRAINT IF EXISTS schedule_exceptions_type_check");
+            DB::statement("ALTER TABLE schedule_exceptions ADD CONSTRAINT schedule_exceptions_type_check CHECK (type IN ('closed','custom'))");
+        }
+    }
+
+    public function down(): void
+    {
+        // One-way cleanup (legacy weekly-window model retired). Re-add minimally if rolled back.
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE schedule_exceptions DROP CONSTRAINT IF EXISTS schedule_exceptions_type_check");
+            DB::statement("ALTER TABLE schedule_exceptions ADD CONSTRAINT schedule_exceptions_type_check CHECK (type IN ('closed','custom_hours'))");
+        }
+        Schema::table('schedule_exceptions', function (Blueprint $t) {
+            $t->time('custom_start')->nullable();
+            $t->time('custom_end')->nullable();
+        });
+    }
+};
+```
+Delete `app/Models/DoctorSchedule.php`. Run `$env:PGPASSWORD='123123'; php artisan migrate` on the live DB (drops legacy table/columns — QA schedule data under the old model is intentionally not preserved; the dev seeder seeds none; re-enter via the new grid UI).
+
+- [ ] **Step 3: docs (R6/Q.9).** `DOMAIN-MODEL.md`: remove `DoctorSchedule`; document `doctor_schedule_slots`, restructured `ScheduleException` (`closed|custom`), `schedule_exception_slots`, and `SlotGrid`/Service `{30,60}`. `ARCHITECTURE.md`: replace the schedule description with the slot-grid model + `SlotGrid` + the AvailabilityService grid engine + config keys; **delete** the now-moot "Schedule time-field contract (T4 datetime:H:i)" debt bullet; note Service duration constraint. `CHANGELOG.md`: under a re-opened `## [P1] Services & Booking` add the redesign bullets, then re-close with the project date.
+
+- [ ] **Step 4: full P1 re-acceptance gate** (same as Task 11 Step 4, NON-DESTRUCTIVE to the live DB — use a throwaway `jannahclinic_gate` scratch DB for `migrate:fresh`, then drop it; never `migrate:fresh` the live `jannahclinic`): `pint --test`; `phpstan 0`; `php artisan test` ALL green; `npm run test:js`; `npm run build`; RTL grep authored dirs empty; no `{{}}` in kit docs; money grep empty; scratch-DB fresh migrate creates all P0+P1 tables (now including `doctor_schedule_slots`/`schedule_exception_slots`, NOT `doctor_schedules`). Re-run the Task 11 Step 5 acceptance checklist (PASS/FAIL + evidence), with item 2 now reading: weekly slot-grid + closed/custom exceptions saved & reachable.
+
+- [ ] **Step 5: commit (NO tag here — the controller tags after the final whole-P1 review).**
+`git status`; stage only the migration, the deleted model, and the three doc files (no `git add -A`). Commit `chore(p1-redesign/t15): drop legacy schedule model + P1 re-acceptance gate green`.
+
+---

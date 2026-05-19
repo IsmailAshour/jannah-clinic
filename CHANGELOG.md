@@ -7,7 +7,9 @@ every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–
 - Settings store + SettingService (config-driven, R12); config/clinic.php.
 - Service catalog (categories + services): admin CRUD + portal browse.
 - Doctors + doctor_service pivot (+price_override); admin CRUD; AuthService::createStaff.
-- Doctor weekly schedules + date exceptions (admin, manager-only mutations).
+- Doctor weekly schedules + date exceptions (admin, manager-only mutations);
+  time fields use `datetime:H:i` cast (Carbon at runtime, `'HH:MM'` in JSON);
+  enabled-window/custom_hours validation (`required_if` + `after`); success flash.
 
 ## [P0] Foundation — 2026-05-19
 - Adopted methodology-kit v1.0.1 (governance, Golden Rules, Definition of Done, ADR-001/002).

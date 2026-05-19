@@ -1455,7 +1455,8 @@ class AvailabilityService
                 return [];
             }
             if ($exception->type === 'custom_hours' && $exception->custom_start && $exception->custom_end) {
-                return [[substr((string) $exception->custom_start, 0, 5), substr((string) $exception->custom_end, 0, 5)]];
+                // NOTE: custom_start/custom_end are Carbon (datetime:H:i cast, see T4) — use ->format('H:i'), NOT substr((string)...).
+                return [[$exception->custom_start->format('H:i'), $exception->custom_end->format('H:i')]];
             }
         }
 
@@ -1463,12 +1464,13 @@ class AvailabilityService
         if (! $schedule) {
             return [];
         }
+        // NOTE: morning_*/evening_* are Carbon (datetime:H:i cast, see T4) — use ->format('H:i'), NOT substr((string)...).
         $windows = [];
         if ($schedule->morning_enabled && $schedule->morning_start && $schedule->morning_end) {
-            $windows[] = [substr((string) $schedule->morning_start, 0, 5), substr((string) $schedule->morning_end, 0, 5)];
+            $windows[] = [$schedule->morning_start->format('H:i'), $schedule->morning_end->format('H:i')];
         }
         if ($schedule->evening_enabled && $schedule->evening_start && $schedule->evening_end) {
-            $windows[] = [substr((string) $schedule->evening_start, 0, 5), substr((string) $schedule->evening_end, 0, 5)];
+            $windows[] = [$schedule->evening_start->format('H:i'), $schedule->evening_end->format('H:i')];
         }
 
         return $windows;

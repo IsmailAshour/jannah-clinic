@@ -262,6 +262,7 @@ Documented P1 debt items:
 - **Doc/rule numbering note:** the P0 spec text refers to the 4-UI-states rule as "R10"; in the kit-generated `docs/GOLDEN-RULES.md` it is R16 (R10 there = no-double-counting). Code is correct; this is a spec-vs-generated numbering note only.
 - **RTL CI check scoping:** RTL CI check is scoped to authored code (`Layouts/Pages/Components/foundation/resources/css`); vendored `shadcn-vue Components/ui/` is excluded by design (upstream uses physical Tailwind classes; reka-ui/RTL handled at runtime).
 - **Currency symbol ₪ is hardcoded in catalog/portal Vue (single-currency clinic); make config/locale-driven if multi-currency is ever needed.**
+- **Schedule time-field contract (T4 → T7+ interface):** `DoctorSchedule.morning_start/morning_end/evening_start/evening_end` and `ScheduleException.custom_start/custom_end` use the `datetime:H:i` Eloquent cast. Consequence: at runtime they are **Carbon** instances (so `(string)$model->morning_start` yields a full `Y-m-d H:i:s`, NOT `'09:00'` — never `substr((string)...)` them); Inertia/JSON serialization yields `'09:00'` (correct for `<input type="time">` prefill). T7 `AvailabilityService` and any later consumer MUST read these via `->format('H:i')` or Carbon comparison. The P1 plan's T7 `windowsFor()` snippet has been corrected accordingly.
 
 ---
 

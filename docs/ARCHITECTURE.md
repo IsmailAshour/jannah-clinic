@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (P1 Task 10 appointment lifecycle transitions + admin management + customer my-appointments + 5 new routes + nav reachability)
+> Last updated: 2026-05-19 (P1 acceptance — P1 Services & Booking summary added; debt list updated; full DoD gate green)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -230,6 +230,80 @@ HTTP 403. UI element visibility is decoration only (R3).
 
 ---
 
+## P1 — Services & Booking (T1–T10)
+
+P1 delivers the full end-to-end booking capability: service catalog, doctor
+profiles + schedules, availability engine, pricing, transactional booking, and
+appointment lifecycle management across both surfaces. All 10 P1 tasks are
+complete and all route names are locked by `RouteNamesTest`.
+
+### Domain services (`app/Domain/Booking/Services/`)
+
+| Service | Responsibility |
+|---------|---------------|
+| `AvailabilityService` | Slot generation from weekly schedule + date exceptions; excludes past and conflicting (non-terminal) appointments; respects `closed`/`custom_hours` exceptions |
+| `PricingService` | bcmath quote `{base, surcharge, total}` — never IEEE754; home surcharge reads `home_surcharge_pct` via SettingService (DB override → `config/clinic.php` fallback; R12) |
+| `BookingService` | Transactional `book(BookingData)`: `lockForUpdate` doctor row, `AvailabilityService` re-check (double-booking guard), creates `Appointment` + `ServiceAddress` (home only). Throws `SlotUnavailableException` / `InvalidBookingException` |
+| `AppointmentTransitionService` | `transition(Appointment, AppointmentStatus, ?reason)` enforces the 7-state machine via `AppointmentStatus::canTransitionTo()`; throws `InvalidTransitionException`. `reschedule()` runs in `DB::transaction`: new `requested` appointment via `BookingService::book()`, sets `rescheduled_from_id`, marks old `rescheduled` |
+
+### Shared `BookingWizard` + booking channels
+
+**`BookingWizard.vue`** (`Components/booking/BookingWizard.vue`): 3-step wizard
+(step 0 = customer picker for admin only → step 1 = delivery mode → step 2 =
+doctor + service → step 3 = date + slot). The slot picker calls the
+availability endpoint via `fetch` and stores the EXACT ISO8601+offset `start`
+string returned by the endpoint. Client-side price preview is indicative only;
+server recomputes authoritatively via `PricingService`.
+
+Two booking channels share this component:
+- **Portal self-booking** (`Portal\BookingController`): `customerPicker=false`;
+  `createdByRole=Customer`; success redirects to `portal.appointments.index`.
+- **Admin on-behalf** (`Admin\BookingController`): `customerPicker=true`;
+  resolves customer via verified `customer_id` OR quick-creates a new customer
+  via `AuthService::registerCustomer` with a generated password (staff-managed
+  workflow); `createdByRole = $request->user()->role`; success redirects to
+  `admin.appointments.index`.
+
+Both controllers delegate to `BookingService::book(BookingData)` (R7);
+catch `SlotUnavailableException` / `InvalidBookingException` and
+`back()->withErrors(['booking' => $msg])` (Inertia-safe; never abort).
+
+### Availability endpoint
+
+`GET /admin/availability` and `GET /portal/availability` — query params:
+`doctor` (id), `service` (id), `date` (Y-m-d). Returns JSON array of
+`{start, end, label}` (ISO8601+offset strings). Both canonical names locked
+by `RouteNamesTest`.
+
+### R12 surcharge config
+
+`home_surcharge_pct` is stored in the `settings` table (managed via
+`Admin/Settings/Index` — `PUT /admin/settings/surcharge`). Falls back to
+`config('clinic.home_surcharge_pct')` (default `30`) when no DB row exists.
+No hardcoded surcharge anywhere in application logic.
+
+### 7-state lifecycle + `AppointmentPolicy`
+
+States: `requested → confirmed → completed|no_show|cancelled|rescheduled`;
+`requested → rejected|cancelled|rescheduled`. All terminal states: `rejected`,
+`completed`, `cancelled`, `no_show`, `rescheduled`. Enforcement is
+server-side in `AppointmentTransitionService`; the `rescheduled` terminal
+state is further blocked at the admin transition endpoint (only the
+`reschedule()` path may set it).
+
+`AppointmentPolicy` (registered via `Gate::policy` in `AppServiceProvider`):
+- `view`/`cancel`/`reschedule` → staff always; customer only if `customer_id === user->id`
+- `manage` → staff only
+
+### All P1 route names locked by RouteNamesTest
+
+`tests/Feature/RouteNamesTest.php` asserts the exact set of all canonical
+admin and portal route names and that no `admin.admin.*` / `portal.portal.*`
+doubled prefix exists. Covers all T2–T10 routes plus the availability and
+booking wizard routes.
+
+---
+
 ## Authentication
 
 - **Identifier:** email OR phone (`AuthService::resolveByIdentifier` — `LoginRequest`
@@ -317,43 +391,38 @@ all layout uses CSS logical properties (`inline-start/end`, `block-start/end`)
 
 ---
 
-## P0 Boundary and Known P1+ Debt
+## P0 Boundary and Known Debt
 
 P0 delivers auth, roles, two empty shells, the design system, and the quality
-gate. No booking, services, payments, records, loyalty, or notifications are
-present — this is intentional (YAGNI). The P1–P5 roadmap is in
+gate. P1 (T1–T10) delivers the full services-and-booking capability. The
+P2–P5 roadmap is in
 `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md` §2.
 
-Documented P1 debt items:
+### P1 resolved items
 
-- **Avatar cleanup:** old avatar file is not deleted on replace (P1 cleanup).
-- **Shell nav:** ✅ RESOLVED (P1-NAV). `AdminShell` links the 6 real admin
-  routes and `ClientShell` the 2 real portal routes, both with `aria-current`
-  active state (unbuilt portal tabs render disabled, not mislinked). Still
-  deferred: Inertia persistent layouts (`defineOptions` layout) to preserve
-  shell state across navigations — tracked by the honest in-file `TODO(P1)`.
-- **Staff verify/confirm redirect:** `VerifyEmailController` and
-  `ConfirmablePasswordController` redirect to `portal.home` after completion —
-  harmless now (staff cannot reach portal), but needs role-aware redirect logic
-  before staff email-verify gates are added in P1.
-- **Production gate (ADR-002):** medical-record audit logging and at-rest
-  encryption are mandatory before real patient data reaches production. This ADR
-  MUST be superseded and the kit re-bootstrapped before any production deployment
-  with real patient data.
-- **Cairo font format:** Cairo shipped as TTF (~599KB); convert to WOFF2 in P1 (spec §3.3 prescribed woff2).
-- **Missing easing token:** `--easing-spring` cubic-bezier token not yet defined in @theme (spec §3.3); add when overlay animations land in P1.
-- **AdminShell sidebar collapse:** sidebar collapse (256px↔64px, spec §3.3) not implemented — P1 with real nav.
-- **ConfirmablePasswordController phone-only hazard:** fails for phone-only users (email null); add phone-aware confirmation before any P1 route uses `password.confirm` middleware.
-- **Doc/rule numbering note:** the P0 spec text refers to the 4-UI-states rule as "R10"; in the kit-generated `docs/GOLDEN-RULES.md` it is R16 (R10 there = no-double-counting). Code is correct; this is a spec-vs-generated numbering note only.
-- **RTL CI check scoping:** RTL CI check is scoped to authored code (`Layouts/Pages/Components/foundation/resources/css`); vendored `shadcn-vue Components/ui/` is excluded by design (upstream uses physical Tailwind classes; reka-ui/RTL handled at runtime).
-- **Currency symbol ₪ is hardcoded in catalog/portal Vue (single-currency clinic); make config/locale-driven if multi-currency is ever needed.**
-- **App timezone defaults to `Asia/Hebron` (env `APP_TIMEZONE`), explicitly set as the assumption for a Palestinian clinic.** Confirm/adjust this default before any production deployment in a different timezone. Controlled via `config/app.php` → `env('APP_TIMEZONE', 'Asia/Hebron')`.
-- **Redundant weekday-schedule query removed (T7 polish):** `AvailabilityService` previously fetched the `DoctorSchedule` row twice per call (once in `windowsFor`, once in the removed `intervalFor`). The row is now fetched once in `slotsFor` and passed to `windowsFor`; `intervalFor` has been eliminated.
-- **Schedule time-field contract (T4 → T7+ interface):** `DoctorSchedule.morning_start/morning_end/evening_start/evening_end` and `ScheduleException.custom_start/custom_end` use the `datetime:H:i` Eloquent cast. Consequence: at runtime they are **Carbon** instances (so `(string)$model->morning_start` yields a full `Y-m-d H:i:s`, NOT `'09:00'` — never `substr((string)...)` them); Inertia/JSON serialization yields `'09:00'` (correct for `<input type="time">` prefill). T7 `AvailabilityService` and any later consumer MUST read these via `->format('H:i')` or Carbon comparison. The P1 plan's T7 `windowsFor()` snippet has been corrected accordingly.
-- **Appointment Postgres CHECK constraints (T6 data layer; write logic T8+):** The `appointments` table carries four Postgres-only CHECK constraints — `appointments_status_check` (7-value enum), `appointments_mode_check` (center/home), `appointments_price_check` (price >= 0), `appointments_time_check` (end_at > start_at). These are skipped on SQLite test DB (ADR-002); CI Postgres is the authoritative gate.
-- **T8 — Booking domain (pure backend, no routes/controllers):** `PricingService::quote()` returns `{base, surcharge, total}` as bcmath strings (never IEEE754); home surcharge uses the `home_surcharge_pct` setting (DB override → `config/clinic.php` fallback). `BookingService::book(BookingData)` runs inside `DB::transaction`; locks the doctor row (`lockForUpdate`) before the in-transaction slot re-validation through `AvailabilityService::slotsFor()` — this is the double-booking guard. Creates `Appointment` + `ServiceAddress` (home only). Throws `SlotUnavailableException` for unavailable/conflicting slots, `InvalidBookingException` for rule violations. `BookingData` is a typed value object (DTO) carrying all booking intent. Exceptions live in `App\Domain\Booking\Exceptions`.
-- **T9 — Phone-only quick-created customers cannot self-authenticate to portal:** customers quick-created by staff via `Admin\BookingController` receive a `Str::password(16)` they are never shown; they have no way to log into the portal until a password-reset or phone-OTP flow exists. Acceptable MVP (staff-managed workflow); revisit if portal self-login for these customers is required.
-- **Vue `isTerminal` JS array duplicates PHP `AppointmentStatus::isTerminal()` (T10):** the Vue appointment pages (`Admin/Appointments/Index.vue`, `Portal/Appointments/Index.vue`) hardcode the terminal-status set as a JS array. This is acceptable MVP (no shared PHP↔JS schema layer), but BOTH the PHP enum and the JS array must be updated together if the lifecycle grows — revisit with a generated TS enum or endpoint if a status is added. Admin manual `rescheduled` transition is blocked at the endpoint (`Admin\AppointmentController::transition`) since T10 hardening; the reschedule path remains the only valid entry point.
+- **✅ Shell nav (P1-NAV):** `AdminShell` grouped nav reaches catalog (`الخدمات` group), doctors/appointments/booking (`العيادة` group), coverage, and settings. Per-doctor schedule page reachable via a dedicated `الجدول` action on the doctors list. `ClientShell` has 4 real tabs: الرئيسية, الخدمات, الحجز, مواعيدي. All `aria-current` active states wired.
+- **✅ Appointment CHECK constraints (T6+T8):** all four Postgres-only CHECK constraints on `appointments` landed with T6 migration; write logic with T8 enforces them at application layer too.
+- **✅ Booking domain (T8):** `PricingService` (bcmath, R9), `BookingService` (transactional, double-booking guard), `BookingData` DTO, and booking exceptions — all built and unit-tested.
+- **✅ Booking wizard + both channels (T9):** `BookingWizard`, portal self-booking, admin on-behalf + quick-create customer — all built, feature-tested, and nav-reachable.
+- **✅ Appointment lifecycle (T10):** `AppointmentTransitionService` + `AppointmentPolicy` + admin and portal appointment controllers — all transitions server-side enforced; manual `rescheduled` status blocked at admin endpoint; 17 new tests.
+- **✅ `AppointmentTransitionService` no-lock note:** `transition()` is MVP no-lock (last-write-wins for two concurrent *valid* transitions); acceptable for low-concurrency trusted staff. Documented inline with a TODO for P2 `lockForUpdate`.
+
+### Still-open debt (deferred to post-P1 polish or P2+)
+
+- **AdminShell sidebar collapse:** collapse (256px↔64px) deferred to post-P1 polish pass; side navigation is functional but not collapsible.
+- **Inertia persistent layouts:** `defineOptions` layout for shell state preservation across navigations still deferred (in-file `TODO(P1)`).
+- **ConfirmablePassword phone-only hazard:** `ConfirmablePasswordController` fails for phone-only users (email null); add phone-aware confirmation before any route uses `password.confirm` middleware.
+- **ADR-002 production gate:** medical-record audit logging and at-rest encryption are mandatory before real patient data reaches production. This ADR MUST be superseded before any production deployment with real patient data.
+- **Cairo WOFF2:** Cairo shipped as TTF (~599KB); convert to WOFF2 in post-P1 polish (spec §3.3 prescribed woff2).
+- **`--easing-spring` token:** cubic-bezier easing token not yet defined in `@theme`; add when overlay animations land.
+- **Avatar cleanup:** old avatar file is not deleted on replace (post-P1 cleanup).
+- **VerifyEmailController / ConfirmablePasswordController redirect:** redirects to `portal.home` after completion — needs role-aware redirect logic before staff email-verify gates are added.
+- **Currency symbol ₪ hardcoded** in catalog/portal Vue (single-currency clinic); make config/locale-driven if multi-currency is ever needed.
+- **App timezone `Asia/Hebron`:** defaults to `env('APP_TIMEZONE', 'Asia/Hebron')` — confirm/adjust before any production deployment in a different timezone (`config/app.php`).
+- **Schedule time-field contract:** `DoctorSchedule` and `ScheduleException` time columns use `datetime:H:i` Eloquent cast → Carbon instances at runtime; consumers MUST use `->format('H:i')`, never `substr((string)...)`.
+- **Vue `isTerminal` JS array duplicates PHP `AppointmentStatus::isTerminal()` (T10 acceptable MVP):** both must be updated together if the lifecycle grows — revisit with a generated TS enum or endpoint if a status is added.
+- **Phone-only quick-created customers cannot self-authenticate to portal (T9 MVP):** staff-quick-created customers have no known password; needs password-reset or phone-OTP flow before portal self-login is required.
+- **RTL CI check scoping:** RTL CI grep is scoped to authored dirs; vendored `shadcn-vue Components/ui/` excluded by design.
 
 ---
 

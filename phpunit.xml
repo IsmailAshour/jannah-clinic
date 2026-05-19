@@ -23,6 +23,7 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <!-- Local tests run on SQLite (in-memory) for speed. Postgres-only CHECK constraints (users_role_check, users_email_or_phone) are NOT exercised here; CI (quality-gate.yml) runs Postgres and is the authoritative constraint gate. App-layer validation (AuthService, FormRequests) enforces these invariants before the DB. -->
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>

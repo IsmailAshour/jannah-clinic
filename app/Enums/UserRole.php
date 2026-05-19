@@ -13,4 +13,9 @@ enum UserRole: string
     {
         return $this !== self::Customer;
     }
+
+    public function isCustomer(): bool
+    {
+        return $this === self::Customer;
+    }
 }

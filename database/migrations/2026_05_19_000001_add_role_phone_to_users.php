@@ -22,7 +22,12 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
+            DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_or_phone');
+        }
         Schema::table('users', function (Blueprint $table) {
+            $table->string('email')->nullable(false)->change();
             $table->dropColumn(['role', 'phone']);
         });
     }

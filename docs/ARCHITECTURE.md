@@ -180,7 +180,7 @@ all layout uses CSS logical properties (`inline-start/end`, `block-start/end`)
 | Static analysis | `./vendor/bin/phpstan analyse --no-progress` (L5) | Yes |
 | Tests | `php artisan test` (Pest, Postgres service, ≥60% coverage) | Yes |
 | Money float check | grep `\b(float\|double)\b` on money fields | Yes |
-| RTL logical props | grep physical directional props in `resources/js/**` | Yes |
+| RTL logical props | grep physical Tailwind utilities in authored dirs (`Layouts/Pages/Components/foundation/resources/css`); `Components/ui/` excluded | Yes |
 
 `composer quality` mirrors the gate locally.
 
@@ -211,6 +211,7 @@ Documented P1 debt items:
 - **AdminShell sidebar collapse:** sidebar collapse (256px↔64px, spec §3.3) not implemented — P1 with real nav.
 - **ConfirmablePasswordController phone-only hazard:** fails for phone-only users (email null); add phone-aware confirmation before any P1 route uses `password.confirm` middleware.
 - **Doc/rule numbering note:** the P0 spec text refers to the 4-UI-states rule as "R10"; in the kit-generated `docs/GOLDEN-RULES.md` it is R16 (R10 there = no-double-counting). Code is correct; this is a spec-vs-generated numbering note only.
+- **RTL CI check scoping:** RTL CI check is scoped to authored code (`Layouts/Pages/Components/foundation/resources/css`); vendored `shadcn-vue Components/ui/` is excluded by design (upstream uses physical Tailwind classes; reka-ui/RTL handled at runtime).
 
 ---
 

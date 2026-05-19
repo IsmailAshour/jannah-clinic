@@ -68,4 +68,4 @@
 | Static Analysis | `./vendor/bin/phpstan analyse` | Yes |
 | Tests | `./vendor/bin/pest --coverage --min=60` | Yes |
 | Money float check | `grep -rEn '\b(float|double)\b' app database \| grep -i 'price\|amount\|fee\|total'` | Yes |
-| Logical CSS check | `grep -rn --include="*.{css,vue,jsx,tsx}" -E "(margin-left\|margin-right\|padding-left\|padding-right\|text-align:\s*(left\|right)\|float:\s*(left\|right))" resources/js/**` | Yes |
+| RTL logical-properties (authored code only) | `grep -REn '\b(pl-\|pr-\|ml-\|mr-)[0-9]\|\btext-left\b\|\btext-right\b' resources/js/Layouts resources/js/Pages resources/js/Components/foundation resources/css` — fails if any match found; vendored `resources/js/Components/ui/` excluded by design | Yes |

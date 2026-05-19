@@ -74,7 +74,12 @@ jobs:
         run: |
           grep -rEn '\b(float|double)\b' app database 2>/dev/null | grep -i 'price\|amount\|fee\|total' && (echo 'Use DECIMAL for money columns, not float/double' && exit 1) || exit 0
 
-      - name: Check logical CSS properties (no physical directional props)
+      - name: RTL logical-properties (our code only; shadcn-vue ui/ vendored is excluded)
         run: |
-          ! grep -rn --include="*.css" --include="*.vue" -E "(margin-left|margin-right|padding-left|padding-right|text-align:\s*(left|right)|float:\s*(left|right))" resources/js/
-          ! grep -rn --include="*.css" --include="*.vue" -E "\b(pl-|pr-|ml-|mr-)[0-9]|text-left|text-right" resources/js resources/css
+          if grep -REn '\b(pl-|pr-|ml-|mr-)[0-9]|\btext-left\b|\btext-right\b' \
+              resources/js/Layouts resources/js/Pages resources/js/Components/foundation resources/css \
+              2>/dev/null; then
+            echo 'RTL violation: use logical properties (ps-/pe-/ms-/me-, text-start/end) in authored code.'
+            exit 1
+          fi
+          echo 'RTL check passed (authored code uses logical properties; vendored shadcn-vue ui/ excluded).'

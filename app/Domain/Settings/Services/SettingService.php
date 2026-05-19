@@ -8,7 +8,9 @@ class SettingService
 {
     public function get(string $key, mixed $default = null): mixed
     {
-        return Setting::query()->where('key', $key)->value('value') ?? $default;
+        $value = Setting::query()->where('key', $key)->value('value') ?? $default;
+
+        return $value === null ? null : (string) $value;
     }
 
     public function set(string $key, string $value): void

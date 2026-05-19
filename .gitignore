@@ -7,3 +7,11 @@
 .phpunit.result.cache
 
 /database/*.sqlite
+
+/bootstrap/cache/*.php
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/views/
+/storage/logs/
+/storage/*.key
+/.phpunit.cache

@@ -89,3 +89,14 @@ body {
     .z-modal     { z-index: 50; }
     .z-toast     { z-index: 60; }
 }
+
+/* ─────────────────────────────────────────────
+   RTL – select chevron correction
+   ───────────────────────────────────────────── */
+@layer base {
+  [dir="rtl"] select:not([multiple]):not([size]) {
+    background-position: left 0.5rem center;
+    padding-right: 0.75rem;
+    padding-left: 2.5rem;
+  }
+}

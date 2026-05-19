@@ -47,9 +47,9 @@ export default {
                 lg: 'var(--shadow-lg)',
             },
             transitionDuration: {
-                fast:   'var(--duration-fast)',
-                normal: 'var(--duration-normal)',
-                slow:   'var(--duration-slow)',
+                fast:   '100ms',
+                normal: '200ms',
+                slow:   '300ms',
             },
         },
     },

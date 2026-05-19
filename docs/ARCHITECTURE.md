@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (post-P1 polish: responsive + collapsible AdminShell sidebar, persisted; sidebar-collapse debt resolved)
+> Last updated: 2026-05-20 (post-P1 polish: AdminShell sidebar rebuilt on shadcn-vue Sidebar — fixes desktop-RTL off-screen bug)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -406,7 +406,7 @@ P2–P5 roadmap is in
 - **✅ Booking wizard + both channels (T9):** `BookingWizard`, portal self-booking, admin on-behalf + quick-create customer — all built, feature-tested, and nav-reachable.
 - **✅ Appointment lifecycle (T10):** `AppointmentTransitionService` + `AppointmentPolicy` + admin and portal appointment controllers — all transitions server-side enforced; manual `rescheduled` status blocked at admin endpoint; 17 new tests.
 - **✅ `AppointmentTransitionService` no-lock note:** `transition()` is MVP no-lock (last-write-wins for two concurrent *valid* transitions); acceptable for low-concurrency trusted staff. Documented inline with a TODO for P2 `lockForUpdate`.
-- **✅ AdminShell sidebar collapse (post-P1 polish):** `AdminShell` sidebar is now responsive and user-collapsible — desktop (≥ lg) collapse toggle (preference persisted in `localStorage` key `jannah.adminSidebarCollapsed`, restored on mount, SSR/no-window guarded) and mobile (< lg) off-canvas overlay drawer (RTL-aware logical transforms, backdrop + `Esc` close, `role="dialog"`/`aria-modal`, focus moved into drawer, nav-link click closes it). Single `open`/`collapsed` state + `lg:` responsive classes serve both modes; logical RTL utilities only; covered by `resources/js/Layouts/__tests__/AdminShell.spec.js`.
+- **✅ AdminShell sidebar collapse (post-P1 polish):** `AdminShell` sidebar is now responsive and user-collapsible — implemented via the **vendored shadcn-vue Sidebar** (`resources/js/Components/ui/sidebar/**`, reka-ui-based, hand-vendored from the official `default` JS-style registry and converted to this project's object-`defineProps` JS conventions; CLI's `reka-nova` style is TS-only and was incompatible). Desktop (≥ md) `collapsible="offcanvas"` toggle (state persisted via the component's `sidebar_state` cookie — replaces the prior hand-rolled `localStorage` key `jannah.adminSidebarCollapsed`); mobile (< md) opens as a reka-ui Sheet from the inline-start edge with backdrop + `Esc` + focus all handled by the component. Sidebar CSS vars (`--sidebar`, `--sidebar-foreground`, `--sidebar-accent`, `--sidebar-border`, `--sidebar-ring`) are remapped to the brand palette in `resources/css/app.css` (brand bg / white fg / `rgb(255 255 255 / 0.15)` active), preserving the prior visual look. Single `SidebarTrigger` in the header serves both modes via `useSidebar()`. This rebuild also fixed a real Tailwind specificity bug in the prior hand-rolled drawer where `rtl:translate-x-full` out-specified `lg:translate-x-0`, leaving the sidebar off-screen on desktop RTL. Covered by `resources/js/Layouts/__tests__/AdminShell.spec.js`.
 
 ### Still-open debt (deferred to post-P1 polish or P2+)
 

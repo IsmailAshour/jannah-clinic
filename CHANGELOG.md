@@ -28,6 +28,7 @@ every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–
 - Fix: `AdminShell` sidebar routes grouped under `الخدمات` (catalog) and `العيادة` (doctors/appointments/booking) headings for improved navigation clarity.
 - Fix: foundation `Modal` now uses `DialogScrollContent` so tall forms scroll and the footer/submit stays reachable (affected all admin CRUD modals).
 - Fix (polish): proportionate Button padding/sizing — `Button` size variants retuned to a consistent height ladder (xs/sm/default/lg = 28/36/40/44px) with breathing-room horizontal padding and synced icon squares; resolves "button looks disproportionate / needs more padding". Token-driven (Tailwind spacing scale, existing radius tokens); no variant/API/behavior change, no `@theme` change.
+- Fix (polish): AdminShell sidebar rebuilt on the vendored shadcn-vue Sidebar (reka-ui based: `SidebarProvider` + `Sidebar collapsible="offcanvas"` + mobile `Sheet` + `SidebarTrigger` + cookie persistence); replaces the hand-rolled drawer and fixes the desktop-RTL off-screen bug where `rtl:translate-x-full` out-specified `lg:translate-x-0`. Brand-mapped `--sidebar*` CSS vars in `resources/css/app.css` preserve the prior look; nav data/labels (incl. `حجز موعد  لعميل`) preserved verbatim. Also: pinned the `AvailabilityService` past-slot test clock with `Carbon::setTestNow()` so it is deterministic regardless of run time.
 
 ## [P0] Foundation — 2026-05-19
 - Adopted methodology-kit v1.0.1 (governance, Golden Rules, Definition of Done, ADR-001/002).

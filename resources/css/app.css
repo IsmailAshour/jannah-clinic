@@ -134,14 +134,20 @@
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    /*
+     * Sidebar palette — mapped to the clinic brand so the shadcn-vue Sidebar
+     * keeps the AdminShell look (brand background, white foreground, subtle
+     * white/10 hover, white/15 active). All values reuse existing brand tokens
+     * or `#ffffff`/alpha; no new colors are introduced.
+     */
+    --sidebar: var(--color-brand);
+    --sidebar-foreground: #ffffff;
+    --sidebar-primary: #ffffff;
+    --sidebar-primary-foreground: var(--color-brand);
+    --sidebar-accent: rgb(255 255 255 / 0.15);
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: rgb(255 255 255 / 0.10);
+    --sidebar-ring: rgb(255 255 255 / 0.40);
 }
 
 /* ─────────────────────────────────────────────

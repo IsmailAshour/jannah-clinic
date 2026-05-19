@@ -9,7 +9,15 @@ use App\Models\ScheduleExceptionSlot;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\User;
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+
+// Reset the Carbon test-now after every test so the pinned clock in
+// "excludes slots that start in the past" cannot leak into other tests.
+afterEach(function () {
+    CarbonImmutable::setTestNow();
+    Carbon::setTestNow();
+});
 
 function mkService(int $dur = 30): Service
 {
@@ -141,21 +149,33 @@ it('a cancelled appointment does not block its slot', function () {
 });
 
 it('excludes slots that start in the past', function () {
+    // Pin the clock to a fixed wall time where the past/future boundary is
+    // unambiguous: 12:00 local on a known weekday. With "now" at noon, an
+    // 08:00 slot is definitely past and a 21:30 slot is definitely future,
+    // regardless of when the suite actually runs (CI midnight included).
+    // App timezone is Asia/Hebron (config/app.php).
+    $now = CarbonImmutable::parse('2026-05-19 12:00:00', 'Asia/Hebron');
+    CarbonImmutable::setTestNow($now);
+    Carbon::setTestNow($now);
+
     $doc = DoctorProfile::factory()->create();
     $svc = mkService(30);
-    $today = CarbonImmutable::now();
+    $today = $now;
     $wd = (int) $today->dayOfWeek;
     enableDoctorSlots($doc, $wd, ['08:00', '21:30']);
 
     $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $today);
 
-    // Every returned slot must start at or after "now" — and an early 08:00 slot
-    // is guaranteed in the past on a same-day query, so it must never appear.
+    // Every returned slot must start at or after "now" — and the 08:00 slot
+    // is past relative to the pinned 12:00 "now", so it must be excluded.
     $starts = array_map(fn ($x) => $x['start'], $slots);
     foreach ($starts as $start) {
-        expect($start->greaterThanOrEqualTo($today))->toBeTrue();
+        expect($start->greaterThanOrEqualTo($now))->toBeTrue();
     }
     expect(collect($starts)->contains(fn ($s) => $s->equalTo($today->setTimeFromTimeString('08:00'))))->toBeFalse();
+    // Sanity: the future 21:30 slot is present (proves the test isn't trivially
+    // returning empty).
+    expect(collect($starts)->contains(fn ($s) => $s->equalTo($today->setTimeFromTimeString('21:30'))))->toBeTrue();
 });
 
 it('availableDatesFor returns only dates with bookable slots', function () {

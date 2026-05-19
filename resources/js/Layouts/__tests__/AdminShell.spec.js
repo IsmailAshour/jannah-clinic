@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 // Mock @inertiajs/vue3 the way a shell needs it: a passthrough <Link>
 // rendering an <a> (so click/keyboard work) and a usePage() with a url.
@@ -8,10 +9,32 @@ vi.mock('@inertiajs/vue3', () => ({
   Link: {
     name: 'Link',
     props: ['href', 'method', 'as'],
-    template: '<a :href="href"><slot /></a>',
+    // Forward `onClick` (and other attrs) so the AdminShell's NavLink click
+    // handler — which calls setOpenMobile(false) on the sidebar context — runs
+    // when the underlying <a> is clicked in jsdom.
+    template: '<a :href="href" v-bind="$attrs"><slot /></a>',
+    inheritAttrs: false,
   },
   usePage: () => ({ get url() { return currentUrl } }),
 }))
+
+// jsdom has no matchMedia; shadcn-vue's useMediaQuery (in SidebarProvider)
+// needs it. Defaults to "no mobile" (desktop ≥ md) so tests run against the
+// desktop offcanvas layout; individual tests can override before mount.
+let mediaMatches = false
+function installMatchMedia(matches) {
+  mediaMatches = matches
+  window.matchMedia = (query) => ({
+    matches: mediaMatches,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })
+}
 
 import AdminShell from '../AdminShell.vue'
 
@@ -22,98 +45,96 @@ function mountShell() {
   })
 }
 
-describe('AdminShell', () => {
+describe('AdminShell (shadcn-vue Sidebar)', () => {
   beforeEach(() => {
     currentUrl = '/admin/doctors'
-    window.localStorage.clear()
+    document.cookie = 'sidebar_state=; path=/; max-age=0'
+    installMatchMedia(false) // desktop by default
+  })
+  afterEach(() => {
+    document.body.innerHTML = ''
   })
 
   it('renders nav leaves, groups, headings, brand, slot, and active state', () => {
     const w = mountShell()
     const text = w.text()
     // Brand + group headings + the user-authored label preserved verbatim
+    // (including the deliberate double space in "حجز موعد  لعميل").
     expect(text).toContain('عيادة جنّة')
     expect(text).toContain('الخدمات')
     expect(text).toContain('العيادة')
     expect(text).toContain('حجز موعد  لعميل')
     expect(text).toContain('مناطق التغطية')
+    expect(text).toContain('الإعدادات')
     expect(w.find('[data-testid="content"]').exists()).toBe(true)
-    // Active state for current url (/admin/doctors)
+
+    // Active state for current url (/admin/doctors): the sub-menu button
+    // wrapping the link gets data-active="true" and the inner Inertia <Link>
+    // gets aria-current="page".
     const active = w.find('a[href="/admin/doctors"]')
+    expect(active.exists()).toBe(true)
     expect(active.attributes('aria-current')).toBe('page')
-    expect(active.classes()).toContain('bg-white/15')
-    expect(active.classes()).toContain('font-semibold')
+    // The shadcn-vue sub-button container exposes data-active for styling.
+    const activeButton = w.find('[data-sidebar="menu-sub-button"][data-active="true"]')
+    expect(activeButton.exists()).toBe(true)
+
     // Dashboard root not active when on /admin/doctors
     const dash = w.find('a[href="/admin"]')
     expect(dash.attributes('aria-current')).toBeUndefined()
     w.unmount()
   })
 
-  it('hamburger toggles the mobile drawer open/closed (aria-expanded flips)', async () => {
+  it('renders the header logout link and a single sidebar trigger with Arabic aria-label', () => {
     const w = mountShell()
-    const hamburger = w.get('button[aria-label="القائمة"]')
-    expect(hamburger.attributes('aria-expanded')).toBe('false')
-    expect(w.vm.open).toBe(false)
-
-    await hamburger.trigger('click')
-    expect(hamburger.attributes('aria-expanded')).toBe('true')
-    expect(w.vm.open).toBe(true)
+    const trigger = w.get('button[data-sidebar="trigger"]')
+    expect(trigger.attributes('aria-label')).toBe('القائمة')
+    // Logout is an Inertia Link (mocked → <a>) with method=post via attrs.
+    const logout = w.find('a[href="/logout"]')
+    expect(logout.exists()).toBe(true)
+    expect(logout.text()).toBe('تسجيل الخروج')
     w.unmount()
   })
 
-  it('Esc closes the open mobile drawer', async () => {
+  it('SidebarTrigger toggles desktop state via useSidebar (sets sidebar_state cookie)', async () => {
     const w = mountShell()
-    await w.get('button[aria-label="القائمة"]').trigger('click')
-    expect(w.vm.open).toBe(true)
+    // Initial state: provider defaults to !cookie('=false') ⇒ open (expanded)
+    const wrapper = w.find('[data-state="expanded"]')
+    expect(wrapper.exists()).toBe(true)
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    await w.vm.$nextTick()
-    expect(w.vm.open).toBe(false)
+    await w.get('button[data-sidebar="trigger"]').trigger('click')
+    await nextTick()
+
+    // After click, desktop setOpen() writes the cookie. We assert the cookie
+    // flipped to "false" (collapsed) — the persistence contract of the
+    // shadcn-vue sidebar that replaces our old localStorage logic.
+    expect(document.cookie).toContain('sidebar_state=false')
     w.unmount()
   })
 
-  it('backdrop click closes the open mobile drawer', async () => {
+  it('on mobile, the trigger opens the Sheet and a nav click closes it', async () => {
+    installMatchMedia(true) // < md → mobile
     const w = mountShell()
-    await w.get('button[aria-label="القائمة"]').trigger('click')
-    expect(w.vm.open).toBe(true)
 
-    const backdrop = w.get('.z-overlay.fixed.inset-0')
-    await backdrop.trigger('click')
-    expect(w.vm.open).toBe(false)
-    w.unmount()
-  })
+    // Mobile path renders inside a Sheet (Dialog) portalled to body.
+    // Before opening: no nav sheet content visible.
+    expect(document.querySelector('[data-mobile="true"]')).toBeNull()
 
-  it('selecting a nav link closes the mobile drawer', async () => {
-    const w = mountShell()
-    await w.get('button[aria-label="القائمة"]').trigger('click')
-    expect(w.vm.open).toBe(true)
+    await w.get('button[data-sidebar="trigger"]').trigger('click')
+    await nextTick()
+    await nextTick()
+    expect(document.querySelector('[data-mobile="true"]')).not.toBeNull()
 
-    await w.get('a[href="/admin/doctors"]').trigger('click')
-    expect(w.vm.open).toBe(false)
-    w.unmount()
-  })
-
-  it('desktop collapse toggle persists collapsed state to localStorage', async () => {
-    const w = mountShell()
-    const toggle = w.get('button[aria-label="طيّ القائمة"]')
-    expect(toggle.attributes('aria-expanded')).toBe('true')
-    expect(w.vm.collapsed).toBe(false)
-
-    await toggle.trigger('click')
-    expect(w.vm.collapsed).toBe(true)
-    expect(window.localStorage.getItem('jannah.adminSidebarCollapsed')).toBe('1')
-    // aria-label/aria-expanded reflect collapsed state
-    const collapsedToggle = w.get('button[aria-label="إظهار القائمة"]')
-    expect(collapsedToggle.attributes('aria-expanded')).toBe('false')
-    w.unmount()
-  })
-
-  it('restores collapsed state from localStorage on (re)mount', async () => {
-    window.localStorage.setItem('jannah.adminSidebarCollapsed', '1')
-    const w = mountShell()
-    await w.vm.$nextTick()
-    expect(w.vm.collapsed).toBe(true)
-    expect(w.get('button[aria-label="إظهار القائمة"]').exists()).toBe(true)
+    // Clicking a nav link calls setOpenMobile(false) → sheet closes.
+    // The Sheet (reka-ui DialogContent) animates out, so its data-state
+    // flips to "closed" before the DOM node is removed. Asserting on the
+    // state attribute avoids timing flakes from the animation/teardown.
+    const link = document.querySelector('[data-mobile="true"] a[href="/admin/doctors"]')
+    expect(link).not.toBeNull()
+    link.click()
+    await nextTick()
+    await nextTick()
+    const sheet = document.querySelector('[data-mobile="true"]')
+    expect(sheet === null || sheet.getAttribute('data-state') === 'closed').toBe(true)
     w.unmount()
   })
 })

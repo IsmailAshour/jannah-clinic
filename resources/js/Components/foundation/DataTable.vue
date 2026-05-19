@@ -2,7 +2,7 @@
 defineProps({ columns:{type:Array,required:true}, rows:{type:Array,default:()=>[]}, emptyText:{type:String,default:'لا توجد سجلات.'} })
 </script>
 <template>
-  <div class="overflow-x-auto rounded-[var(--radius-lg)] border border-border-default bg-surface-card">
+  <div class="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
     <table class="w-full text-sm">
       <thead class="sticky top-0 bg-surface-sunken">
         <tr><th v-for="c in columns" :key="c.key" class="px-4 py-3 font-medium text-text-secondary" :class="c.align==='end'?'text-end':'text-start'">{{ c.label }}</th></tr>

@@ -1,5 +1,5 @@
 <script setup>
-defineProps({ title:String, description:{type:String,default:''} })
+defineProps({ title:{ type:String, default:'' }, description:{type:String,default:''} })
 </script>
 <template>
   <div role="status" class="flex flex-col items-center justify-center text-center py-16 px-6">

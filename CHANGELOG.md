@@ -3,6 +3,9 @@
 All notable changes to jannahclinic are documented here. Per Definition of Done Q.9,
 every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–P5).
 
+## [P1] Services & Booking — (in progress)
+- Settings store + SettingService (config-driven, R12); config/clinic.php.
+
 ## [P0] Foundation — 2026-05-19
 - Adopted methodology-kit v1.0.1 (governance, Golden Rules, Definition of Done, ADR-001/002).
 - Laravel 13 + Inertia + Vue 3 + Tailwind v4 + shadcn-vue + PostgreSQL scaffold.

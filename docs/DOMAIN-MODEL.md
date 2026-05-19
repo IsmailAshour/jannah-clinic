@@ -115,6 +115,28 @@ Used in: `User::$casts`, `EnsureUserHasRole` middleware, `AuthService`,
 
 ---
 
+### `Setting`
+
+Table: `settings`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `key` | varchar(255) | NOT NULL, unique |
+| `value` | varchar(255) | NOT NULL |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Fillable:** `key`, `value`
+
+**Purpose:** Key/value store for config-driven settings that can be overridden at
+runtime. Serves P1+ features (e.g., booking pricing in P2) with fallback to
+`config/clinic.php` defaults when no row exists. Accessed via
+`App\Domain\Settings\Services\SettingService`.
+
+**Model path:** `app/Models/Setting.php`
+
+---
+
 ## Entity Relationship (P0)
 
 ```
@@ -128,13 +150,15 @@ constraint and `HasOne` / `BelongsTo` pair enforce this at both DB and ORM layer
 
 ## P1+ Entities (OUT OF SCOPE — YAGNI)
 
-The following entities are explicitly deferred to P1–P5. They MUST NOT be
+The following entities are explicitly deferred to P2–P5. They MUST NOT be
 modelled, migrated, or referenced in P0 code. They are listed here only as a
 forward reference for ARCHITECTURE.md §P0 Boundary:
 
 > ServiceCategory, Service, DoctorProfile, DoctorSchedule, DoctorScheduleException,
 > ServiceAddress, Appointment, Payment, Receipt, MedicalRecord, MedicalEntry,
 > Prescription, MembershipPlan, UserMembership, LoyaltyTransaction, Notification
+
+**P1 Entities (now in-scope):** `Setting` (see §Setting above)
 
 Roadmap: `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md` §2
 and the `clinic` reference feature inventory.

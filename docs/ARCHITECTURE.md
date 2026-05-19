@@ -56,6 +56,7 @@ output lives in `docs/`:
 
 - **R7** — Business logic lives in service classes under `app/Domain/{Module}/Services/`.
   Auth logic is in `app/Domain/Auth/Services/AuthService.php`.
+- **R12** — Config-driven values via `config/clinic.php` + `App\Domain\Settings\Services\SettingService` (DB override → config fallback).
 - **R20** — Logical CSS properties only (no `margin-left`, `padding-right`,
   `text-align: left/right`). CI greps `resources/js/**/*.vue` for violations.
 - **R6** — `docs/ARCHITECTURE.md` and `docs/DOMAIN-MODEL.md` are the kit

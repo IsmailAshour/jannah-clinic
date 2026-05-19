@@ -16,6 +16,10 @@ class RegistrationTest extends TestCase
         $response->assertStatus(200);
     }
 
+    // Registration now creates a Customer and redirects to portal.home.
+    // Email is optional (phone-only registration is supported), but at least
+    // one of email/phone must be present. Password confirmation is no longer
+    // required by the backend (AuthService accepts plain password).
     public function test_new_users_can_register(): void
     {
         $response = $this->post('/register', [
@@ -26,6 +30,6 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('portal.home'));
     }
 }

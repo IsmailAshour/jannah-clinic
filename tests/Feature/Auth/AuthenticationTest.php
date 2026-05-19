@@ -17,17 +17,22 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200);
     }
 
+    // Login now accepts 'identifier' (email OR phone) instead of 'email'.
+    // After login, users are redirected based on role:
+    //   staff  → admin.dashboard
+    //   customer → portal.home
+    // Factory default role is Customer, so redirect goes to portal.home.
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
         $user = User::factory()->create();
 
         $response = $this->post('/login', [
-            'email' => $user->email,
+            'identifier' => $user->email,
             'password' => 'password',
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('portal.home'));
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void
@@ -35,7 +40,7 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create();
 
         $this->post('/login', [
-            'email' => $user->email,
+            'identifier' => $user->email,
             'password' => 'wrong-password',
         ]);
 

@@ -9,6 +9,8 @@ it('exposes canonical single-prefixed P1 route names', function () {
         'admin.catalog.services', 'admin.catalog.services.store', 'admin.catalog.services.update', 'admin.catalog.services.destroy',
         'admin.doctors.index', 'admin.doctors.store', 'admin.doctors.update', 'admin.doctors.destroy',
         'admin.doctors.schedule', 'admin.doctors.schedule.save', 'admin.doctors.exceptions.add', 'admin.doctors.exceptions.delete',
+        'admin.coverage.index', 'admin.coverage.store', 'admin.coverage.update', 'admin.coverage.destroy',
+        'admin.settings.index', 'admin.settings.surcharge',
         'portal.services.index',
     ];
     foreach ($names as $n) {

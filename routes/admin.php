@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\ClinicSettingController;
+use App\Http\Controllers\Admin\CoverageAreaController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\DoctorScheduleController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
@@ -21,6 +23,12 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         // Doctor schedule view – readable by all staff
         Route::get('doctors/{doctor}/schedule', [DoctorScheduleController::class, 'editSchedule'])->name('doctors.schedule');
 
+        // Coverage areas – readable by all staff
+        Route::get('coverage', [CoverageAreaController::class, 'index'])->name('coverage.index');
+
+        // Settings – readable by all staff
+        Route::get('settings', [ClinicSettingController::class, 'index'])->name('settings.index');
+
         // Catalog mutations – manager only
         Route::middleware('role:manager')->group(function () {
             Route::post('catalog/categories', [ServiceCategoryController::class, 'store'])->name('catalog.categories.store');
@@ -40,5 +48,13 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::put('doctors/{doctor}/schedule', [DoctorScheduleController::class, 'saveSchedule'])->name('doctors.schedule.save');
             Route::post('doctors/{doctor}/exceptions', [DoctorScheduleController::class, 'addException'])->name('doctors.exceptions.add');
             Route::delete('doctors/{doctor}/exceptions/{exception}', [DoctorScheduleController::class, 'deleteException'])->name('doctors.exceptions.delete');
+
+            // Coverage area mutations – manager only
+            Route::post('coverage', [CoverageAreaController::class, 'store'])->name('coverage.store');
+            Route::put('coverage/{area}', [CoverageAreaController::class, 'update'])->name('coverage.update');
+            Route::delete('coverage/{area}', [CoverageAreaController::class, 'destroy'])->name('coverage.destroy');
+
+            // Settings mutations – manager only
+            Route::put('settings/surcharge', [ClinicSettingController::class, 'updateSurcharge'])->name('settings.surcharge');
         });
     });

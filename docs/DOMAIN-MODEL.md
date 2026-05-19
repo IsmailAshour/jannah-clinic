@@ -4,8 +4,8 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 4 — DoctorSchedule + ScheduleException)
-> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), and P1 Task 4 entities (DoctorSchedule, ScheduleException) added below.
+> Last updated: 2026-05-20 (P1 Task 5 — HomeServiceCoverageArea + home-surcharge setting)
+> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 Task 4 entities (DoctorSchedule, ScheduleException), and P1 Task 5 entities (HomeServiceCoverageArea) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
 migration, enum, or relationship change.
@@ -280,19 +280,6 @@ CONSTRAINT doctor_service_price_check
 
 ---
 
-## Entity Relationship (P0 + P1 Tasks 2–3)
-
-```
-users (1) ─────── (0..1) customer_profiles
-users (1) ─────── (0..1) doctor_profiles
-service_categories (1) ── (*) services
-services (*) ──────────── (*) doctor_profiles  [pivot: doctor_service (+price_override)]
-doctor_profiles (1) ────── (*) doctor_schedules      [Task 4]
-doctor_profiles (1) ────── (*) schedule_exceptions   [Task 4]
-```
-
----
-
 ## P1 Entities (Task 4 — Doctor Schedules + Exceptions)
 
 ### `DoctorSchedule`
@@ -366,6 +353,55 @@ CONSTRAINT schedule_exceptions_type_check CHECK (type IN ('closed','custom_hours
 - Admin mutations (add/delete) are manager-only; the schedule view page is all-staff.
 
 **Model path:** `app/Models/ScheduleException.php`
+
+---
+
+---
+
+## P1 Entities (Task 5 — Coverage Areas + Home-Surcharge Setting)
+
+### `HomeServiceCoverageArea`
+
+Table: `home_service_coverage_areas`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `name` | varchar(255) | NOT NULL |
+| `is_active` | boolean | NOT NULL, default `true` |
+| `display_order` | integer | NOT NULL, default `0` |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Fillable (attribute #[Fillable]):** `name`, `is_active`, `display_order`
+**Casts:** `is_active → boolean`, `display_order → integer`
+
+**Notes:**
+- Admin CRUD is manager-only; list GET is readable by all staff.
+- T6 will add `ServiceAddress.coverage_area_id` as a FK referencing this table with `restrictOnDelete`. The `destroy` method is already structured with a `QueryException` catch to handle that constraint when it arrives.
+
+**Model path:** `app/Models/HomeServiceCoverageArea.php`
+
+---
+
+### `home_surcharge_pct` (runtime setting)
+
+Stored in the `settings` table under key `home_surcharge_pct` via `SettingService`.
+Falls back to `config('clinic.home_surcharge_pct')` (default `30`) when no row exists.
+Managed through `Admin/Settings/Index` (PUT `/admin/settings/surcharge`).
+
+---
+
+## Entity Relationship (P0 + P1 Tasks 2–5)
+
+```
+users (1) ─────── (0..1) customer_profiles
+users (1) ─────── (0..1) doctor_profiles
+service_categories (1) ── (*) services
+services (*) ──────────── (*) doctor_profiles  [pivot: doctor_service (+price_override)]
+doctor_profiles (1) ────── (*) doctor_schedules      [Task 4]
+doctor_profiles (1) ────── (*) schedule_exceptions   [Task 4]
+home_service_coverage_areas (1) ── (*) service_addresses  [FK arrives in T6]
+```
 
 ---
 

@@ -46,7 +46,7 @@ it('customer can book a valid centre appointment via portal', function () {
             'start' => $start,
             'delivery_mode' => 'center',
         ])
-        ->assertRedirect();
+        ->assertRedirect(route('portal.appointments.index'));
 
     $this->assertDatabaseHas('appointments', [
         'customer_id' => $customer->id,
@@ -115,7 +115,7 @@ it('customer can book a valid home appointment via portal', function () {
             'coverage_area_id' => $area->id,
             'address_text' => 'شارع النهضة، مبنى 5',
         ])
-        ->assertRedirect();
+        ->assertRedirect(route('portal.appointments.index'));
 
     $appointment = Appointment::where([
         'customer_id' => $customer->id,

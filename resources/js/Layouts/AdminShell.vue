@@ -11,6 +11,8 @@ const nav = [
     ],
   },
   { label: 'الأطباء', href: '/admin/doctors' },
+  { label: 'المواعيد', href: '/admin/appointments' },
+  { label: 'الحجز', href: '/admin/booking' },
   { label: 'مناطق التغطية', href: '/admin/coverage' },
   { label: 'الإعدادات', href: '/admin/settings' },
 ]

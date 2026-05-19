@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Booking\AvailabilityController;
+use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\BookingController;
 use App\Http\Controllers\Portal\ServiceBrowseController;
 use App\Http\Controllers\ProfileController;
@@ -20,4 +21,9 @@ Route::middleware(['auth', 'role:customer'])
         // Booking wizard — customer self-booking
         Route::get('booking', [BookingController::class, 'create'])->name('booking.create');
         Route::post('booking', [BookingController::class, 'store'])->name('booking.store');
+
+        // My appointments — customer
+        Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+        Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+        Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
     });

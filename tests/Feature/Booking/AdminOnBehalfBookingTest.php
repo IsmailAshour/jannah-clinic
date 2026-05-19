@@ -48,7 +48,7 @@ it('receptionist can book on behalf of an existing customer', function () {
             'delivery_mode' => 'center',
             'customer_id' => $customer->id,
         ])
-        ->assertRedirect();
+        ->assertRedirect(route('admin.appointments.index'));
 
     $this->assertDatabaseHas('appointments', [
         'customer_id' => $customer->id,
@@ -77,7 +77,7 @@ it('receptionist can quick-create a customer and book', function () {
                 'phone' => '0591234567',
             ],
         ])
-        ->assertRedirect();
+        ->assertRedirect(route('admin.appointments.index'));
 
     $newUser = User::where('phone', '0591234567')->first();
     expect($newUser)->not->toBeNull();

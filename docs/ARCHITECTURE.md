@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (P1 Task 9 shared BookingWizard + Portal/Admin booking controllers + 4 booking routes)
+> Last updated: 2026-05-19 (P1 Task 10 appointment lifecycle transitions + admin management + customer my-appointments + 5 new routes + nav reachability)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -154,7 +154,20 @@ Query params: `doctor` (id), `service` (id), `date` (Y-m-d). Returns JSON array 
 | GET | `/admin/booking` | `admin.booking.create` | `Admin\BookingController@create` | all staff |
 | POST | `/admin/booking` | `admin.booking.store` | `Admin\BookingController@store` | all staff |
 
-Vue page: `Pages/Admin/Booking/Create.vue` — wraps `BookingWizard` with `customerPicker=true`; sends customer list + doctors/services/coverageAreas/homeSurchargePct. On store: resolves customer via `customer_id` (verified Customer-role) or quick-creates via `AuthService::registerCustomer` with a `Str::password(16)` generated password. `createdByRole` = `$request->user()->role`.
+Vue page: `Pages/Admin/Booking/Create.vue` — wraps `BookingWizard` with `customerPicker=true`; sends customer list + doctors/services/coverageAreas/homeSurchargePct. On store: resolves customer via `customer_id` (verified Customer-role) or quick-creates via `AuthService::registerCustomer` with a `Str::password(16)` generated password. `createdByRole` = `$request->user()->role`. **T10 note:** on success now redirects to `admin.appointments.index` (was `admin.dashboard`).
+
+**P1 Task 10 appointment management routes (all staff):**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/admin/appointments` | `admin.appointments.index` | `Admin\AppointmentController@index` | all staff |
+| POST | `/admin/appointments/{appointment}/transition` | `admin.appointments.transition` | `Admin\AppointmentController@transition` | all staff |
+
+Vue page: `Pages/Admin/Appointments/Index.vue` — paginated appointments with filter bar (status / doctor / date); per-row action buttons for status transitions gated by current state; cancel uses a `Modal` with reason textarea; delegates to `AppointmentTransitionService` (R7); `Gate::authorize('manage', $appointment)` (policy: isStaff). Error bag: `withErrors(['appointment' => $e->getMessage()])` on `InvalidTransitionException` (never abort).
+
+**`AppointmentTransitionService`** (`app/Domain/Booking/Services/AppointmentTransitionService.php`): encapsulates all appointment lifecycle transitions. `transition(Appointment, AppointmentStatus, ?reason)` enforces the state machine via `AppointmentStatus::canTransitionTo()`, throws `InvalidTransitionException` on illegal transitions, sets `cancellation_reason` when cancelling. `reschedule(Appointment, CarbonImmutable)` runs in `DB::transaction`: creates a new `requested` appointment via `BookingService::book()`, sets `rescheduled_from_id`, marks old appointment `rescheduled`.
+
+**`AppointmentPolicy`** (`app/Policies/AppointmentPolicy.php`): registered via `Gate::policy(Appointment::class, AppointmentPolicy::class)` in `AppServiceProvider::boot`. Abilities: `view`/`cancel`/`reschedule` → staff always; customer only if `customer_id === user->id`. `manage` → staff only.
 
 ### Customer Portal — `routes/portal.php`
 
@@ -191,7 +204,19 @@ Query params: `doctor` (id), `service` (id), `date` (Y-m-d). Returns JSON array 
 | GET | `/portal/booking` | `portal.booking.create` | `Portal\BookingController@create` | customer |
 | POST | `/portal/booking` | `portal.booking.store` | `Portal\BookingController@store` | customer |
 
-Vue page: `Pages/Portal/Booking/Create.vue` — wraps `BookingWizard` with `customerPicker=false`; sends doctors/services/coverageAreas/homeSurchargePct. On store: `customerId = $request->user()->id`, `createdByRole = Customer`. Both booking controllers delegate to `BookingService::book(BookingData)` (R7); catch `SlotUnavailableException`/`InvalidBookingException` and `back()->withErrors(['booking' => $msg])` (Inertia-safe error bag; never abort(409/422)). On success, redirect to an existing route with a flash (T10 will repoint to appointments).
+Vue page: `Pages/Portal/Booking/Create.vue` — wraps `BookingWizard` with `customerPicker=false`; sends doctors/services/coverageAreas/homeSurchargePct. On store: `customerId = $request->user()->id`, `createdByRole = Customer`. Both booking controllers delegate to `BookingService::book(BookingData)` (R7); catch `SlotUnavailableException`/`InvalidBookingException` and `back()->withErrors(['booking' => $msg])` (Inertia-safe error bag; never abort(409/422)). **T10:** on success redirects to `portal.appointments.index` (was `portal.home`).
+
+**P1 Task 10 customer my-appointments routes (customer):**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/portal/appointments` | `portal.appointments.index` | `Portal\AppointmentController@index` | customer |
+| POST | `/portal/appointments/{appointment}/cancel` | `portal.appointments.cancel` | `Portal\AppointmentController@cancel` | customer |
+| POST | `/portal/appointments/{appointment}/reschedule` | `portal.appointments.reschedule` | `Portal\AppointmentController@reschedule` | customer |
+
+Vue page: `Pages/Portal/Appointments/Index.vue` — card list of customer's own appointments; cancel via `Modal` with required reason textarea; reschedule via `Modal` with date + slot picker (fetches from `/portal/availability`, mirrors `BookingWizard` slot fetch pattern); posts EXACT ISO8601 `start` string. `Gate::authorize('cancel'/'reschedule', $appointment)` — policy enforces `customer_id === user->id`, returns 403 on mismatch.
+
+**Nav reachability (T10 — P1-NAV completion):** `AdminShell` nav now includes `المواعيد` (`/admin/appointments`) and `الحجز` (`/admin/booking`) leaves. `ClientShell` bottom tabs now have 4 real tabs: الرئيسية, الخدمات, الحجز (`/portal/booking`), مواعيدي (`/portal/appointments`). All disabled placeholders replaced.
 
 **Shared `BookingWizard` component (`Components/booking/BookingWizard.vue`):**
 3-step wizard (step 0 = customer picker for admin only → step 1 = delivery mode → step 2 = doctor + service → step 3 = date + slot). The slot picker calls the availability endpoint via `fetch` and stores the EXACT ISO8601+offset `start` string returned by the endpoint (never reconstructed). Client-side price preview uses `price_override ?? base_price` + home surcharge estimate; server recomputes authoritatively. Page components own `useForm` and post via Inertia; wizard emits `submit` with the payload object.

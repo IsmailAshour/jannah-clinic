@@ -4,7 +4,7 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 7 — DoctorProfile::appointments() HasMany added for AvailabilityService)
+> Last updated: 2026-05-19 (P1 Task 10 — Appointment::rescheduledFrom() self-relation documented; lifecycle note + InvalidTransitionException added)
 > P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 Task 4 entities (DoctorSchedule, ScheduleException), P1 Task 5 entities (HomeServiceCoverageArea), and P1 Task 6 entities (Appointment, ServiceAddress) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
@@ -482,10 +482,12 @@ CONSTRAINT appointments_time_check    CHECK (end_at > start_at)
 - `doctor(): BelongsTo` → `DoctorProfile` (via `doctor_profile_id`)
 - `service(): BelongsTo` → `Service`
 - `serviceAddress(): HasOne` → `ServiceAddress`
+- `rescheduledFrom(): BelongsTo` → `Appointment` (self-referential via `rescheduled_from_id`) — tracks the original appointment that was rescheduled.
+
+**Lifecycle note (T10):** Status transitions are enforced by `AppointmentTransitionService`. Allowed transitions are defined in `AppointmentStatus::allowedNext()`. Rescheduling creates a NEW appointment with `status=requested` and `rescheduled_from_id = old.id`, sets the old appointment's `status=rescheduled` — both in one `DB::transaction`. Customers may cancel or reschedule their own non-terminal appointments; staff may transition any appointment via the admin panel. Illegal transitions throw `InvalidTransitionException`.
 
 **Notes:**
 - `rescheduled_from_id` self-references `appointments.id` to track rescheduling lineage (nullable, null-on-delete).
-- Booking write logic and status transition enforcement arrive in T8/T10. The `AppointmentStatus` enum defines the pure state machine; no service-layer guard exists yet.
 - Postgres CHECK constraints are skipped on SQLite (tests); CI Postgres is the authoritative gate (ADR-002).
 
 **Model path:** `app/Models/Appointment.php`
@@ -533,7 +535,7 @@ users (1) ─────────────── (*) appointments        
 doctor_profiles (1) ────── (*) appointments
 services (1) ──────────── (*) appointments
 appointments (0..1) ─────── (0..1) service_addresses  [1:1, home-delivery only]
-appointments (0..1) ─────── (*) appointments          [rescheduled_from_id self-ref]
+appointments (0..1) ─────── (*) appointments          [rescheduled_from_id self-ref; T10 — Appointment::rescheduledFrom() BelongsTo]
 ```
 
 ---

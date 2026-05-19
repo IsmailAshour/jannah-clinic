@@ -4,8 +4,8 @@ import { Link, usePage } from '@inertiajs/vue3'
 const tabs = [
   { label: 'الرئيسية', href: '/portal', real: true },
   { label: 'الخدمات', href: '/portal/services', real: true },
-  { label: 'الحجز', href: null, real: false },
-  { label: 'حسابي', href: null, real: false },
+  { label: 'الحجز', href: '/portal/booking', real: true },
+  { label: 'مواعيدي', href: '/portal/appointments', real: true },
 ]
 const page = usePage()
 function isActive(t) {

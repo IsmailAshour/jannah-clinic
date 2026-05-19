@@ -163,7 +163,6 @@ class BookingController extends Controller
             return back()->withErrors(['booking' => $e->getMessage()]);
         }
 
-        // TODO(T10): repoint to the my-appointments route once T10 adds it
-        return redirect()->route('admin.dashboard')->with('success', 'تم إنشاء الحجز.');
+        return redirect()->route('admin.appointments.index')->with('success', 'تم إنشاء الحجز.');
     }
 }

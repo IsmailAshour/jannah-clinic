@@ -1812,6 +1812,10 @@ ARCHITECTURE.md (PricingService/BookingService/exceptions) + CHANGELOG. Commit `
 
 `Admin/BookingController`: `create` → Inertia `Admin/Booking/Create` (same doctor/service/coverage props + a customer picker list). `store`: same validation + `customer_id` (`required` if not quick-create) OR `new_customer` block (name + email|phone) → if quick-create, `app(AuthService::class)->registerCustomer([...])` (reused from P0) then use its id; `createdByRole` = `$request->user()->role`. Same try/catch.
 
+> **Contract (T8 review — binding for both controllers):**
+> - **`startAt` timezone (Important 2):** the wizard submits back the EXACT `start` ISO 8601 string the availability endpoint returned (it embeds the correct `Asia/Hebron` offset for that date — see T7 §M3). The controller MUST build `BookingData.startAt` via `CarbonImmutable::parse($validated['start'])` on that round-tripped string (the embedded offset yields the correct instant, DST-safe, so `->equalTo()` against `AvailabilityService` slots matches). Do NOT reconstruct `startAt` from separate date+time fields and do NOT strip/replace the offset, and do NOT parse a bare local string with a fixed `+03:00` — that breaks across Palestine DST. Validate `start` as `date`.
+> - **`customer_id` integrity (Minor 6):** `BookingService` trusts `customerId` and does not check role/existence. Portal uses `$request->user()->id` (safe). Admin on-behalf MUST validate the picked `customer_id` exists AND is a Customer-role user (`exists:users,id` + an explicit role check, e.g. `User::where('id',$id)->where('role',UserRole::Customer)->exists()`, else 422 `InvalidBookingException`-style error) BEFORE calling `BookingService::book()`; a quick-created customer via `registerCustomer` is Customer by construction. A non-existent id would otherwise surface as an uncaught `QueryException`/500.
+
 - [ ] **Step 2: Failing feature tests**
 
 `tests/Feature/Booking/PortalBookingTest.php`: a customer posts a valid centre booking → redirect + an `Appointment` row (status requested, created_by_role customer); posting an unavailable slot → 409/redirect-with-error and no row; a staff user hitting `/portal/booking` → 403.

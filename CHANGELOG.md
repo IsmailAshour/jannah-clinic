@@ -27,6 +27,7 @@ every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–
 - Fix: Jannah clinic logo replaces default Laravel logo on auth/login screens.
 - Fix: `AdminShell` sidebar routes grouped under `الخدمات` (catalog) and `العيادة` (doctors/appointments/booking) headings for improved navigation clarity.
 - Fix: foundation `Modal` now uses `DialogScrollContent` so tall forms scroll and the footer/submit stays reachable (affected all admin CRUD modals).
+- Fix (polish): proportionate Button padding/sizing — `Button` size variants retuned to a consistent height ladder (xs/sm/default/lg = 28/36/40/44px) with breathing-room horizontal padding and synced icon squares; resolves "button looks disproportionate / needs more padding". Token-driven (Tailwind spacing scale, existing radius tokens); no variant/API/behavior change, no `@theme` change.
 
 ## [P0] Foundation — 2026-05-19
 - Adopted methodology-kit v1.0.1 (governance, Golden Rules, Definition of Done, ADR-001/002).

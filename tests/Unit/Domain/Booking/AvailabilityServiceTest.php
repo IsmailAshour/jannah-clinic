@@ -155,10 +155,7 @@ it('excludes slots that start in the past', function () {
     foreach ($starts as $start) {
         expect($start->greaterThanOrEqualTo($today))->toBeTrue();
     }
-    $earlyOffered = collect($starts)->contains(
-        fn ($s) => $s->equalTo($today->setTimeFromTimeString('08:00'))
-    );
-    expect($earlyOffered && $today->setTimeFromTimeString('08:00')->lessThan($today))->toBeFalse();
+    expect(collect($starts)->contains(fn ($s) => $s->equalTo($today->setTimeFromTimeString('08:00'))))->toBeFalse();
 });
 
 it('honours the last 60-min start boundary at 21:00', function () {

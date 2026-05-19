@@ -34,11 +34,6 @@ class DoctorProfile extends Model
             ->withPivot('price_override')->withTimestamps();
     }
 
-    public function schedules(): HasMany
-    {
-        return $this->hasMany(DoctorSchedule::class);
-    }
-
     public function scheduleExceptions(): HasMany
     {
         return $this->hasMany(ScheduleException::class);

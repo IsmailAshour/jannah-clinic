@@ -2,111 +2,232 @@
 
 use App\Enums\UserRole;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
+use App\Models\DoctorScheduleSlot;
+use App\Models\ScheduleException;
+use App\Models\ScheduleExceptionSlot;
 use App\Models\User;
 
-it('saves a weekly schedule row for a doctor', function () {
+it('lets a manager view the schedule page', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $doc = DoctorProfile::factory()->create();
-    $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
-        'schedules' => [[
-            'weekday' => 1, 'morning_enabled' => true, 'morning_start' => '09:00', 'morning_end' => '12:00',
-            'evening_enabled' => false, 'slot_interval_minutes' => 30,
-        ]],
-    ])->assertRedirect();
-    expect(DoctorSchedule::where('doctor_profile_id', $doc->id)->where('weekday', 1)->exists())->toBeTrue();
+    $this->actingAs($m)->get("/admin/doctors/{$doc->id}/schedule")->assertOk();
 });
 
-it('rejects an out-of-range weekday', function () {
-    $m = User::factory()->create(['role' => UserRole::Manager]);
-    $doc = DoctorProfile::factory()->create();
-    $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
-        'schedules' => [['weekday' => 9, 'slot_interval_minutes' => 30]],
-    ])->assertSessionHasErrors('schedules.0.weekday');
-});
-
-it('upserts (one row per doctor+weekday)', function () {
-    $m = User::factory()->create(['role' => UserRole::Manager]);
-    $doc = DoctorProfile::factory()->create();
-    $payload = ['schedules' => [['weekday' => 2, 'morning_enabled' => true, 'morning_start' => '08:00', 'morning_end' => '10:00', 'evening_enabled' => false, 'slot_interval_minutes' => 20]]];
-    $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", $payload)->assertRedirect();
-    $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", $payload)->assertRedirect();
-    expect(DoctorSchedule::where('doctor_profile_id', $doc->id)->where('weekday', 2)->count())->toBe(1);
-});
-
-it('adds and deletes a schedule exception', function () {
-    $m = User::factory()->create(['role' => UserRole::Manager]);
-    $doc = DoctorProfile::factory()->create();
-    $date = now()->addWeek()->toDateString();
-    $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", ['date' => $date, 'type' => 'closed'])->assertRedirect();
-    expect($doc->scheduleExceptions()->count())->toBe(1);
-    $ex = $doc->scheduleExceptions()->first();
-    $this->actingAs($m)->delete("/admin/doctors/{$doc->id}/exceptions/{$ex->id}")->assertRedirect();
-    expect($doc->scheduleExceptions()->count())->toBe(0);
-});
-
-it('forbids a non-manager staff from saving a schedule', function () {
-    $r = User::factory()->create(['role' => UserRole::Receptionist]);
-    $doc = DoctorProfile::factory()->create();
-    $this->actingAs($r)->put("/admin/doctors/{$doc->id}/schedule", ['schedules' => []])->assertForbidden();
-});
-
-it('lets any staff view the schedule page', function () {
+it('lets any staff view the schedule page (non-manager read allowed)', function () {
     $r = User::factory()->create(['role' => UserRole::Receptionist]);
     $doc = DoctorProfile::factory()->create();
     $this->actingAs($r)->get("/admin/doctors/{$doc->id}/schedule")->assertOk();
 });
 
-it('round-trips time format as H:i', function () {
+it('saves weekly slots for the given weekdays and nothing else', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $doc = DoctorProfile::factory()->create();
+
     $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
-        'schedules' => [[
-            'weekday' => 3, 'morning_enabled' => true, 'morning_start' => '09:00', 'morning_end' => '12:00',
-            'evening_enabled' => false, 'slot_interval_minutes' => 30,
-        ]],
+        'slots' => [1 => ['09:00', '09:30'], 3 => ['17:00']],
     ])->assertRedirect();
-    $row = DoctorSchedule::where('doctor_profile_id', $doc->id)->where('weekday', 3)->firstOrFail();
-    expect($row->morning_start->format('H:i'))->toBe('09:00');
-    expect($row->morning_end->format('H:i'))->toBe('12:00');
+
+    $rows = DoctorScheduleSlot::where('doctor_profile_id', $doc->id)
+        ->orderBy('weekday')->orderBy('slot_start')
+        ->get(['weekday', 'slot_start'])
+        ->map(fn ($r) => [$r->weekday, $r->slot_start])->all();
+
+    expect($rows)->toBe([
+        [1, '09:00'],
+        [1, '09:30'],
+        [3, '17:00'],
+    ]);
 });
 
-it('rejects enabled morning window without times', function () {
+it('replaces a weekday set on re-save (no stale rows)', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $doc = DoctorProfile::factory()->create();
+
     $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
-        'schedules' => [[
-            'weekday' => 1, 'morning_enabled' => true, 'morning_start' => null, 'morning_end' => null,
-            'evening_enabled' => false, 'slot_interval_minutes' => 30,
-        ]],
-    ])->assertSessionHasErrors('schedules.0.morning_start');
+        'slots' => [1 => ['09:00', '09:30']],
+    ])->assertRedirect();
+
+    $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
+        'slots' => [1 => ['10:00']],
+    ])->assertRedirect();
+
+    $rows = DoctorScheduleSlot::where('doctor_profile_id', $doc->id)
+        ->where('weekday', 1)->pluck('slot_start')->sort()->values()->all();
+
+    expect($rows)->toBe(['10:00']);
 });
 
-it('rejects morning_end not after morning_start', function () {
+it('dedupes repeated slot values for a weekday', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $doc = DoctorProfile::factory()->create();
+
     $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
-        'schedules' => [[
-            'weekday' => 1, 'morning_enabled' => true, 'morning_start' => '12:00', 'morning_end' => '09:00',
-            'evening_enabled' => false, 'slot_interval_minutes' => 30,
-        ]],
-    ])->assertSessionHasErrors('schedules.0.morning_end');
+        'slots' => [2 => ['09:00', '09:00', '09:30']],
+    ])->assertRedirect();
+
+    expect(DoctorScheduleSlot::where('doctor_profile_id', $doc->id)->where('weekday', 2)->count())->toBe(2);
 });
 
-it('rejects custom_hours exception without custom_start', function () {
+it('rejects an off-grid slot value and persists nothing', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $doc = DoctorProfile::factory()->create();
+
+    $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
+        'slots' => [1 => ['08:15']],
+    ])->assertSessionHasErrors('schedule');
+
+    expect(DoctorScheduleSlot::where('doctor_profile_id', $doc->id)->count())->toBe(0);
+});
+
+it('rejects a non-canonical slot string (9:00) and persists nothing', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $doc = DoctorProfile::factory()->create();
+
+    $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
+        'slots' => [1 => ['9:00']],
+    ])->assertSessionHasErrors('schedule');
+
+    expect(DoctorScheduleSlot::where('doctor_profile_id', $doc->id)->count())->toBe(0);
+});
+
+it('rejects an out-of-range weekday key', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $doc = DoctorProfile::factory()->create();
+
+    $this->actingAs($m)->put("/admin/doctors/{$doc->id}/schedule", [
+        'slots' => [7 => ['09:00']],
+    ])->assertSessionHasErrors('schedule');
+
+    expect(DoctorScheduleSlot::where('doctor_profile_id', $doc->id)->count())->toBe(0);
+});
+
+it('forbids a non-manager staff from saving a schedule', function () {
+    $r = User::factory()->create(['role' => UserRole::Receptionist]);
+    $doc = DoctorProfile::factory()->create();
+    $this->actingAs($r)->put("/admin/doctors/{$doc->id}/schedule", ['slots' => []])->assertForbidden();
+});
+
+it('adds a closed exception with zero slot rows', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $doc = DoctorProfile::factory()->create();
+    $date = now()->addWeek()->toDateString();
+
+    $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", [
+        'date' => $date, 'type' => 'closed', 'note' => 'إجازة',
+    ])->assertRedirect();
+
+    $ex = $doc->scheduleExceptions()->firstOrFail();
+    expect($ex->type)->toBe('closed');
+    expect($ex->note)->toBe('إجازة');
+    expect($ex->slots()->count())->toBe(0);
+});
+
+it('adds a custom exception with its slots', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $doc = DoctorProfile::factory()->create();
     $date = now()->addWeeks(2)->toDateString();
+
     $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", [
-        'date' => $date, 'type' => 'custom_hours', 'custom_start' => null, 'custom_end' => null,
-    ])->assertSessionHasErrors('custom_start');
+        'date' => $date, 'type' => 'custom', 'slots' => ['09:00', '09:30'],
+    ])->assertRedirect();
+
+    $ex = $doc->scheduleExceptions()->firstOrFail();
+    expect($ex->type)->toBe('custom');
+    expect($ex->slots()->orderBy('slot_start')->pluck('slot_start')->all())->toBe(['09:00', '09:30']);
 });
 
-it('rejects custom_hours exception with custom_end before custom_start', function () {
+it('updateOrCreate replaces an exception and its slots on the same date', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     $doc = DoctorProfile::factory()->create();
     $date = now()->addWeeks(3)->toDateString();
+
     $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", [
-        'date' => $date, 'type' => 'custom_hours', 'custom_start' => '14:00', 'custom_end' => '10:00',
-    ])->assertSessionHasErrors('custom_end');
+        'date' => $date, 'type' => 'custom', 'slots' => ['09:00', '09:30'],
+    ])->assertRedirect();
+
+    $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", [
+        'date' => $date, 'type' => 'closed',
+    ])->assertRedirect();
+
+    expect($doc->scheduleExceptions()->count())->toBe(1);
+    $ex = $doc->scheduleExceptions()->firstOrFail();
+    expect($ex->type)->toBe('closed');
+    expect($ex->slots()->count())->toBe(0);
+});
+
+it('rejects a custom exception with an off-grid slot and persists nothing', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $doc = DoctorProfile::factory()->create();
+    $date = now()->addWeeks(4)->toDateString();
+
+    $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", [
+        'date' => $date, 'type' => 'custom', 'slots' => ['08:15'],
+    ])->assertSessionHasErrors('slots');
+
+    expect($doc->scheduleExceptions()->count())->toBe(0);
+});
+
+it('rejects a custom exception with no slots (required_if)', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $doc = DoctorProfile::factory()->create();
+    $date = now()->addWeeks(5)->toDateString();
+
+    $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", [
+        'date' => $date, 'type' => 'custom',
+    ])->assertSessionHasErrors('slots');
+
+    expect($doc->scheduleExceptions()->count())->toBe(0);
+});
+
+it('rejects an invalid exception type', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $doc = DoctorProfile::factory()->create();
+    $date = now()->addWeeks(6)->toDateString();
+
+    $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", [
+        'date' => $date, 'type' => 'custom_hours',
+    ])->assertSessionHasErrors('type');
+
+    expect($doc->scheduleExceptions()->count())->toBe(0);
+});
+
+it('forbids a non-manager staff from adding an exception', function () {
+    $r = User::factory()->create(['role' => UserRole::Receptionist]);
+    $doc = DoctorProfile::factory()->create();
+    $this->actingAs($r)->post("/admin/doctors/{$doc->id}/exceptions", [
+        'date' => now()->addWeek()->toDateString(), 'type' => 'closed',
+    ])->assertForbidden();
+});
+
+it('deletes an exception and cascades its slots', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $doc = DoctorProfile::factory()->create();
+    $date = now()->addWeek()->toDateString();
+
+    $this->actingAs($m)->post("/admin/doctors/{$doc->id}/exceptions", [
+        'date' => $date, 'type' => 'custom', 'slots' => ['09:00', '09:30'],
+    ])->assertRedirect();
+
+    $ex = $doc->scheduleExceptions()->firstOrFail();
+    $exId = $ex->id;
+
+    $this->actingAs($m)->delete("/admin/doctors/{$doc->id}/exceptions/{$ex->id}")->assertRedirect();
+
+    expect($doc->scheduleExceptions()->count())->toBe(0);
+    expect(ScheduleExceptionSlot::where('schedule_exception_id', $exId)->count())->toBe(0);
+});
+
+it('returns 404 when deleting another doctor exception (ownership guard)', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    $docA = DoctorProfile::factory()->create();
+    $docB = DoctorProfile::factory()->create();
+
+    $ex = ScheduleException::create([
+        'doctor_profile_id' => $docB->id,
+        'date' => now()->addWeek()->toDateString(),
+        'type' => 'closed',
+    ]);
+
+    $this->actingAs($m)->delete("/admin/doctors/{$docA->id}/exceptions/{$ex->id}")->assertNotFound();
+    expect(ScheduleException::whereKey($ex->id)->exists())->toBeTrue();
 });

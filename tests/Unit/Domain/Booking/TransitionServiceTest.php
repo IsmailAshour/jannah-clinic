@@ -117,9 +117,11 @@ it('throws InvalidTransitionException for cancelled → requested', function () 
 it('reschedule creates a new requested appointment and sets old status to rescheduled', function () {
     [$appt, $doc, $svc, $customer, $date] = makeTransitionFixture();
 
+    // makeTransitionFixture books $slots[0]; recomputing here excludes that
+    // slot, so the 6-slot grid (slotRange('09:00', 6)) yields 5 remaining.
     $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
-    // Use the second available slot for reschedule (first is already booked)
-    $newStart = isset($slots[1]) ? $slots[1]['start'] : $slots[0]['start']->addMinutes(30);
+    expect($slots)->toHaveCount(5);
+    $newStart = $slots[1]['start'];
 
     $transitionSvc = app(AppointmentTransitionService::class);
     $newAppt = $transitionSvc->reschedule($appt, $newStart);
@@ -163,8 +165,9 @@ it('reschedule of a home-delivery appointment carries the ServiceAddress to the 
         locationNote: 'الطابق الثاني',
     ));
 
-    // Use the second slot for reschedule
-    $newStart = isset($slots[1]) ? $slots[1]['start'] : $slots[0]['start']->addMinutes(30);
+    // $slots is computed before the booking above, so all 6 grid slots are present.
+    expect($slots)->toHaveCount(6);
+    $newStart = $slots[1]['start'];
 
     $newAppt = app(AppointmentTransitionService::class)->reschedule($oldAppt, $newStart);
 

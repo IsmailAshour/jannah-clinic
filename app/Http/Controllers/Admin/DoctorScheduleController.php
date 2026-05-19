@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Booking\Slots\SlotGrid;
 use App\Http\Controllers\Controller;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
+use App\Models\DoctorScheduleSlot;
 use App\Models\ScheduleException;
+use App\Models\ScheduleExceptionSlot;
+use App\Models\User;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,44 +21,91 @@ class DoctorScheduleController extends Controller
 {
     public function editSchedule(DoctorProfile $doctor): Response
     {
+        /** @var array<int,list<string>> $slots */
+        $slots = [];
+        foreach (range(0, 6) as $weekday) {
+            $slots[$weekday] = [];
+        }
+        foreach ($doctor->scheduleSlots()->orderBy('slot_start')->get() as $row) {
+            /** @var DoctorScheduleSlot $row */
+            $slots[(int) $row->weekday][] = (string) $row->slot_start;
+        }
+
+        /** @var Collection<int,ScheduleException> $exceptionModels */
+        $exceptionModels = $doctor->scheduleExceptions()
+            ->with('slots')
+            ->orderBy('date')
+            ->get();
+        $exceptions = $exceptionModels
+            ->map(fn (ScheduleException $ex) => [
+                'id' => $ex->id,
+                'date' => $ex->date->format('Y-m-d'),
+                'type' => $ex->type,
+                'note' => $ex->note,
+                'slots' => $ex->slots->pluck('slot_start')->map(fn ($s) => (string) $s)->all(),
+            ])
+            ->all();
+
+        /** @var User $user */
+        $user = $doctor->user;
+
         return Inertia::render('Admin/Doctors/Schedule', [
-            'doctor' => $doctor->load('user'),
-            'schedules' => $doctor->schedules()->orderBy('weekday')->get(),
-            'exceptions' => $doctor->scheduleExceptions()->orderBy('date')->get(),
+            'doctor' => [
+                'id' => $doctor->id,
+                'name' => $user->name,
+            ],
+            'grid' => [
+                'morning' => SlotGrid::morning(),
+                'evening' => SlotGrid::evening(),
+            ],
+            'slots' => $slots,
+            'exceptions' => $exceptions,
         ]);
     }
 
     public function saveSchedule(Request $request, DoctorProfile $doctor): RedirectResponse
     {
-        $request->validate([
-            'schedules' => ['array'],
-            'schedules.*.weekday' => ['required', 'integer', 'between:0,6'],
-            'schedules.*.morning_enabled' => ['boolean'],
-            'schedules.*.evening_enabled' => ['boolean'],
-            'schedules.*.morning_start' => ['nullable', 'required_if:schedules.*.morning_enabled,true', 'date_format:H:i'],
-            'schedules.*.morning_end' => ['nullable', 'required_if:schedules.*.morning_enabled,true', 'date_format:H:i', 'after:schedules.*.morning_start'],
-            'schedules.*.evening_start' => ['nullable', 'required_if:schedules.*.evening_enabled,true', 'date_format:H:i'],
-            'schedules.*.evening_end' => ['nullable', 'required_if:schedules.*.evening_enabled,true', 'date_format:H:i', 'after:schedules.*.evening_start'],
-            'schedules.*.slot_interval_minutes' => ['required', 'integer', 'min:5', 'max:120'],
-        ]);
-
-        foreach ($request->input('schedules', []) as $row) {
-            DoctorSchedule::updateOrCreate(
-                [
-                    'doctor_profile_id' => $doctor->id,
-                    'weekday' => $row['weekday'],
-                ],
-                [
-                    'morning_enabled' => $row['morning_enabled'] ?? false,
-                    'morning_start' => $row['morning_start'] ?? null,
-                    'morning_end' => $row['morning_end'] ?? null,
-                    'evening_enabled' => $row['evening_enabled'] ?? false,
-                    'evening_start' => $row['evening_start'] ?? null,
-                    'evening_end' => $row['evening_end'] ?? null,
-                    'slot_interval_minutes' => $row['slot_interval_minutes'],
-                ]
-            );
+        $slots = $request->input('slots');
+        if (! is_array($slots)) {
+            return back()->withErrors(['schedule' => 'فترة غير صالحة.']);
         }
+
+        /** @var array<int,list<string>> $clean */
+        $clean = [];
+        foreach ($slots as $weekday => $values) {
+            if (! is_numeric($weekday) || (int) $weekday < 0 || (int) $weekday > 6 || (string) (int) $weekday !== (string) $weekday) {
+                return back()->withErrors(['schedule' => 'فترة غير صالحة.']);
+            }
+            if (! is_array($values)) {
+                return back()->withErrors(['schedule' => 'فترة غير صالحة.']);
+            }
+            $set = [];
+            foreach ($values as $value) {
+                if (! is_string($value) || ! SlotGrid::isValid($value)) {
+                    return back()->withErrors(['schedule' => 'فترة غير صالحة.']);
+                }
+                $set[$value] = true;
+            }
+            $clean[(int) $weekday] = array_keys($set);
+        }
+
+        DB::transaction(function () use ($doctor, $clean): void {
+            foreach (range(0, 6) as $weekday) {
+                $doctor->scheduleSlots()->where('weekday', $weekday)->delete();
+                $values = $clean[$weekday] ?? [];
+                if ($values === []) {
+                    continue;
+                }
+                $now = now();
+                DoctorScheduleSlot::insert(array_map(fn (string $s) => [
+                    'doctor_profile_id' => $doctor->id,
+                    'weekday' => $weekday,
+                    'slot_start' => $s,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ], $values));
+            }
+        });
 
         return back()->with('success', 'تم حفظ الجدول');
     }
@@ -61,21 +114,49 @@ class DoctorScheduleController extends Controller
     {
         $data = $request->validate([
             'date' => ['required', 'date'],
-            'type' => ['required', 'in:closed,custom_hours'],
-            'custom_start' => ['nullable', 'required_if:type,custom_hours', 'date_format:H:i'],
-            'custom_end' => ['nullable', 'required_if:type,custom_hours', 'date_format:H:i', 'after:custom_start'],
+            'type' => ['required', 'in:closed,custom'],
+            'slots' => ['array', 'required_if:type,custom', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! is_array($value)) {
+                    return;
+                }
+                foreach ($value as $slot) {
+                    if (! is_string($slot) || ! SlotGrid::isValid($slot)) {
+                        $fail('فترة غير صالحة.');
+
+                        return;
+                    }
+                }
+            }],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $doctor->scheduleExceptions()->updateOrCreate(
-            ['date' => $data['date']],
-            [
-                'type' => $data['type'],
-                'custom_start' => $data['custom_start'] ?? null,
-                'custom_end' => $data['custom_end'] ?? null,
-                'note' => $data['note'] ?? null,
-            ]
-        );
+        $date = CarbonImmutable::parse($data['date'])->toDateString();
+
+        DB::transaction(function () use ($doctor, $data, $date): void {
+            /** @var ScheduleException $exception */
+            $exception = $doctor->scheduleExceptions()
+                ->whereDate('date', $date)
+                ->first()
+                ?? $doctor->scheduleExceptions()->make(['date' => $date]);
+
+            $exception->type = $data['type'];
+            $exception->note = $data['note'] ?? null;
+            $exception->save();
+
+            $exception->slots()->delete();
+
+            if ($data['type'] === 'custom') {
+                /** @var list<string> $values */
+                $values = array_values(array_unique($data['slots'] ?? []));
+                $now = now();
+                ScheduleExceptionSlot::insert(array_map(fn (string $s) => [
+                    'schedule_exception_id' => $exception->id,
+                    'slot_start' => $s,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ], $values));
+            }
+        });
 
         return back()->with('success', 'تمت إضافة الاستثناء');
     }

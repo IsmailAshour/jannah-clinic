@@ -63,15 +63,10 @@ it('customer cannot cancel another customers appointment', function () {
 it('customer can reschedule their own appointment to a valid new slot', function () {
     [$appt, $doc, $svc, $customer, $date, $slots] = makePortalApptFixture();
 
-    // Use the second slot for rescheduling (first is already booked)
-    $newSlot = $slots[1] ?? null;
-    if ($newSlot === null) {
-        // If only one slot, use a different day
-        $nextDate = $date->addDays(7);
-        enableDoctorSlots($doc, (int) $nextDate->dayOfWeek, slotRange('09:00', 6));
-        $newSlots = app(AvailabilityService::class)->slotsFor($doc, $svc, $nextDate);
-        $newSlot = $newSlots[0];
-    }
+    // Fixture seeds slotRange('09:00', 6) and books $slots[0]; $slots is
+    // computed before the booking so all 6 grid slots are present.
+    expect($slots)->toHaveCount(6);
+    $newSlot = $slots[1];
 
     $newStart = $newSlot['start']->toIso8601String();
 

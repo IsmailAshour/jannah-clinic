@@ -39,5 +39,6 @@ function enableDoctorSlots(DoctorProfile $doctor, int $weekday, array $starts): 
 /** Contiguous half-hour grid starts from $from for $count slots (e.g. slotRange('09:00',4) => ['09:00','09:30','10:00','10:30']) */
 function slotRange(string $from, int $count): array
 {
-    return SlotGrid::blockFrom($from, $count) ?? [];
+    return SlotGrid::blockFrom($from, $count)
+        ?? throw new InvalidArgumentException("slotRange: invalid grid start $from / count $count");
 }

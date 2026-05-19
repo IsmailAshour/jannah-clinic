@@ -1593,7 +1593,10 @@ class PricingService
         $override = $doctor->services()
             ->where('services.id', $service->id)
             ->first()?->pivot?->price_override;
-        $base = number_format((float) ($override ?? $service->base_price), 2, '.', '');
+        // bcmath-pure: NO (float) cast — `app/database` lines containing price/amount/fee/total
+        // must not match \b(float|double)\b (quality-gate.yml money check). base_price/price_override
+        // are `decimal:2` casts (numeric strings); bcadd(...,'0',2) normalises to a 2-dp string.
+        $base = bcadd((string) ($override ?? $service->base_price), '0', 2);
 
         $surcharge = '0.00';
         if ($mode === DeliveryMode::Home) {
@@ -1783,6 +1786,8 @@ class BookingService
 
 - [ ] **Step 7: Run BookingService tests — PASS** (fix until green; the double-booking test relies on the in-transaction availability re-check + lock).
 
+> **Contract (T7 review I3):** the slot re-validation MUST go through `AvailabilityService::slotsFor()` — it is the single source of truth for the overlap/past/window/status rule. Do NOT reimplement the overlap predicate inline in `BookingService`. The `DoctorProfile::query()->lockForUpdate()->findOrFail(...)` row lock is the load-bearing double-booking guard: it serializes concurrent `book()` calls for the same doctor so the second caller's `slotsFor()` re-check sees the first's `Requested` appointment and throws `SlotUnavailableException`. Do not remove or weaken the lock or move the re-check outside the transaction.
+
 - [ ] **Step 8: gate + docs + commit**
 ```powershell
 php artisan test --filter="PricingServiceTest|BookingServiceTest"
@@ -1832,7 +1837,7 @@ Route::post('booking', [\App\Http\Controllers\Admin\BookingController::class,'st
 - [ ] **Step 4: `BookingWizard.vue` (shared)** — props: `doctors` (each with `services[]` incl. `price_override`), `coverageAreas`, `availabilityUrl` (route differs per surface), optional `customerPicker` (boolean — admin shows a customer select / quick-create block before step 1). Three steps using foundation `PageStates`/`FormGroup`/`Modal` + tokens + RTL:
   1. Delivery mode (`center`/`home`); if `home`: coverage-area `<select>` (active) + `address_text` + `location_note`.
   2. Doctor `<select>` (bookable) → Service `<select>` filtered to that doctor's services (and `home_service_enabled` when mode=home).
-  3. Date input → on change `fetch(availabilityUrl + ?doctor&service&date)` → render slot buttons (label HH:MM); footer shows a client-side price preview = `price_override ?? base_price` (+ surcharge% when home; surcharge% passed as a prop from the server `home_surcharge_pct`) — clearly a preview; the server recomputes authoritatively.
+  3. Date input → on change `fetch(availabilityUrl + ?doctor&service&date)` → render slot buttons. **Endpoint contract (T7 review M3):** the JSON is `{start,end,label}[]` where `start`/`end` are ISO 8601 **with timezone offset** (e.g. `2026-06-02T09:00:00+03:00`, app tz `Asia/Hebron`) and `label` is the `HH:MM` display string. Use `label` for the button text; submit the slot's `start` value back as-is (the server re-parses and authoritatively re-validates it). Footer shows a client-side price preview = `price_override ?? base_price` (+ surcharge% when home; surcharge% passed as a prop from the server `home_surcharge_pct`) — clearly a preview; the server recomputes authoritatively.
   Emits `submit` with the assembled payload; the page component posts it via Inertia `useForm`.
   `Portal/Booking/Create.vue` wraps `<ClientShell>` + `<BookingWizard :customerPicker="false" availabilityUrl="/portal/availability" .../>`. `Admin/Booking/Create.vue` wraps `<AdminShell>` + `<BookingWizard :customerPicker="true" availabilityUrl="/admin/availability" .../>` plus the customer select/quick-create.
 

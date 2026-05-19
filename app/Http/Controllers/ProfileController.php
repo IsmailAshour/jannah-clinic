@@ -41,6 +41,18 @@ class ProfileController extends Controller
     }
 
     /**
+     * Update the customer's avatar image.
+     */
+    public function updateAvatar(Request $request): RedirectResponse
+    {
+        $request->validate(['avatar' => ['required', 'image', 'max:2048']]);
+        $path = $request->file('avatar')->store('avatars', 'public');
+        $request->user()->customerProfile()->update(['avatar_path' => $path]);
+
+        return back();
+    }
+
+    /**
      * Delete the user's account.
      */
     public function destroy(Request $request): RedirectResponse

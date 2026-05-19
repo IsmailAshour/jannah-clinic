@@ -4,8 +4,8 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 2 — service catalog)
-> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service) added below.
+> Last updated: 2026-05-20 (P1 Task 3 — doctor profiles + service assignment)
+> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service) and P1 Task 3 entities (DoctorProfile, doctor_service pivot) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
 migration, enum, or relationship change.
@@ -213,18 +213,82 @@ CONSTRAINT services_duration_check    CHECK (duration_minutes > 0)
 
 **Relationships:**
 - `category(): BelongsTo` → `ServiceCategory`
-- `doctors(): BelongsToMany` → `DoctorProfile` via `doctor_service` pivot (Task 3)
+- `doctors(): BelongsToMany` → `DoctorProfile` via `doctor_service` pivot (using `DoctorServicePivot`)
 
 **Model path:** `app/Models/Service.php`
 
 ---
 
-## Entity Relationship (P0 + P1 Task 2)
+## P1 Entities (Task 3 — Doctor Profiles + Service Assignment)
+
+### `DoctorProfile`
+
+Table: `doctor_profiles`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `user_id` | bigint unsigned | NOT NULL, FK → `users.id`, CASCADE DELETE, UNIQUE |
+| `specialty` | varchar(255) | NOT NULL |
+| `bio` | text | nullable |
+| `rating_average` | decimal(2,1) | nullable |
+| `is_bookable` | boolean | NOT NULL, default `true` |
+| `display_order` | integer | NOT NULL, default `0` |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Fillable (attribute #[Fillable]):** `user_id`, `specialty`, `bio`, `rating_average`, `is_bookable`, `display_order`
+**Casts:** `rating_average → decimal:1`, `is_bookable → boolean`, `display_order → integer`
+
+**Relationships:**
+- `user(): BelongsTo` → `User`
+- `services(): BelongsToMany` → `Service` via `doctor_service` pivot (using `DoctorServicePivot`)
+- `schedules(): HasMany` → `DoctorSchedule` (Task 4 forward-reference; class created in Task 4)
+- `scheduleExceptions(): HasMany` → `ScheduleException` (Task 4 forward-reference; class created in Task 4)
+
+**Notes:**
+- Created by `DoctorController::store` via `AuthService::createStaff` (role=doctor) + `DoctorProfile::create` inside a `DB::transaction`.
+- Admin CRUD is manager-only; list GET is readable by all staff.
+
+**Model path:** `app/Models/DoctorProfile.php`
+**Factory:** `Database\Factories\DoctorProfileFactory`
+
+---
+
+### `doctor_service` (pivot)
+
+Table: `doctor_service`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `doctor_profile_id` | bigint unsigned | NOT NULL, FK → `doctor_profiles.id`, CASCADE DELETE |
+| `service_id` | bigint unsigned | NOT NULL, FK → `services.id`, CASCADE DELETE |
+| `price_override` | decimal(10,2) | nullable |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Unique:** `(doctor_profile_id, service_id)`
+
+**Postgres-only CHECK constraint:**
+
+```sql
+CONSTRAINT doctor_service_price_check
+    CHECK (price_override IS NULL OR price_override >= 0)
+```
+
+**Pivot model:** `App\Models\DoctorServicePivot` (extends `Pivot`)
+**Cast:** `price_override → decimal:2`
+
+---
+
+## Entity Relationship (P0 + P1 Tasks 2–3)
 
 ```
 users (1) ─────── (0..1) customer_profiles
+users (1) ─────── (0..1) doctor_profiles
 service_categories (1) ── (*) services
-services (*) ──────────── (*) doctor_profiles  [pivot: doctor_service — Task 3]
+services (*) ──────────── (*) doctor_profiles  [pivot: doctor_service (+price_override)]
+doctor_profiles (1) ────── (*) doctor_schedules      [Task 4]
+doctor_profiles (1) ────── (*) schedule_exceptions   [Task 4]
 ```
 
 ---
@@ -234,12 +298,14 @@ services (*) ──────────── (*) doctor_profiles  [pivot: d
 The following entities are explicitly deferred to P2–P5. They MUST NOT be
 modelled, migrated, or referenced until their phase begins:
 
-> DoctorProfile, DoctorSchedule, DoctorScheduleException,
-> ServiceAddress, Appointment, Payment, Receipt, MedicalRecord, MedicalEntry,
-> Prescription, MembershipPlan, UserMembership, LoyaltyTransaction, Notification
+> DoctorSchedule, ScheduleException, ServiceAddress, Appointment, Payment,
+> Receipt, MedicalRecord, MedicalEntry, Prescription, MembershipPlan,
+> UserMembership, LoyaltyTransaction, Notification
 
-Note: `DoctorProfile` is deferred to Task 3 (P1). `Service.doctors()` carries a
-forward-reference with `@phpstan-ignore-next-line` annotation until Task 3 lands.
+Note: `DoctorSchedule` and `ScheduleException` are deferred to Task 4 (P1).
+`DoctorProfile.schedules()` and `DoctorProfile.scheduleExceptions()` carry
+inline `// @phpstan-ignore class.notFound, argument.type` annotations until
+Task 4 lands (same documented-temporary pattern used for T2→T3 forward-ref).
 
 Roadmap: `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md` §2
 and the `clinic` reference feature inventory.

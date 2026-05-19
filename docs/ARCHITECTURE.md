@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 2 — service catalog)
+> Last updated: 2026-05-20 (P1 Task 3 — doctor profiles + service assignment)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -97,6 +97,17 @@ Entry point: `GET /admin` → `admin.dashboard` → `Pages/Admin/Dashboard.vue`.
 
 Vue pages: `Pages/Admin/Catalog/Categories.vue`, `Pages/Admin/Catalog/Services.vue`.
 
+**P1 Task 3 doctor routes:**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/admin/doctors` | `admin.doctors.index` | `Admin\DoctorController@index` | all staff |
+| POST | `/admin/doctors` | `admin.doctors.store` | `Admin\DoctorController@store` | manager only |
+| PUT | `/admin/doctors/{doctor}` | `admin.doctors.update` | `Admin\DoctorController@update` | manager only |
+| DELETE | `/admin/doctors/{doctor}` | `admin.doctors.destroy` | `Admin\DoctorController@destroy` | manager only |
+
+Vue page: `Pages/Admin/Doctors/Index.vue`.
+
 ### Customer Portal — `routes/portal.php`
 
 ```
@@ -133,6 +144,9 @@ HTTP 403. UI element visibility is decoration only (R3).
 - **Registration:** `AuthService::registerCustomer` wraps `User` creation
   (role=customer) and `CustomerProfile` creation in a single `DB::transaction`.
   At least one of email/phone is required (validated in `RegisteredUserController`).
+- **Staff creation:** `AuthService::createStaff(array $data, UserRole $role): User`
+  creates a staff user (no CustomerProfile) in a `DB::transaction`. Used by
+  `DoctorController::store` (role=Doctor); mirrors `registerCustomer` structure.
 - **Post-login redirect:** `isStaff()` → `admin.dashboard`; customer →
   `portal.home` (in `AuthenticatedSessionController::store`).
 - **Email verification:** `User implements MustVerifyEmail`. Portal routes

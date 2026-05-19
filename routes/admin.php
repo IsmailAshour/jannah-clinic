@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,9 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::get('catalog/categories', [ServiceCategoryController::class, 'index'])->name('catalog.categories');
         Route::get('catalog/services', [ServiceController::class, 'index'])->name('catalog.services');
 
+        // Doctors list – readable by all staff
+        Route::get('doctors', [DoctorController::class, 'index'])->name('doctors.index');
+
         // Catalog mutations – manager only
         Route::middleware('role:manager')->group(function () {
             Route::post('catalog/categories', [ServiceCategoryController::class, 'store'])->name('catalog.categories.store');
@@ -22,5 +26,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::post('catalog/services', [ServiceController::class, 'store'])->name('catalog.services.store');
             Route::put('catalog/services/{service}', [ServiceController::class, 'update'])->name('catalog.services.update');
             Route::delete('catalog/services/{service}', [ServiceController::class, 'destroy'])->name('catalog.services.destroy');
+
+            // Doctor mutations – manager only
+            Route::post('doctors', [DoctorController::class, 'store'])->name('doctors.store');
+            Route::put('doctors/{doctor}', [DoctorController::class, 'update'])->name('doctors.update');
+            Route::delete('doctors/{doctor}', [DoctorController::class, 'destroy'])->name('doctors.destroy');
         });
     });

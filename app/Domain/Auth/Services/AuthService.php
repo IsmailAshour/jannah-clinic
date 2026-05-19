@@ -33,4 +33,17 @@ class AuthService
             return $user->fresh('customerProfile');
         });
     }
+
+    public function createStaff(array $data, UserRole $role): User
+    {
+        return DB::transaction(function () use ($data, $role) {
+            return User::create([
+                'name' => $data['name'],
+                'email' => $data['email'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'password' => Hash::make($data['password']),
+                'role' => $role,
+            ]);
+        });
+    }
 }

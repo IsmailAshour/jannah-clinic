@@ -28,3 +28,11 @@ it('registers a phone-only customer with a profile', function () {
     expect($u->role)->toBe(UserRole::Customer);
     expect($u->customerProfile)->not->toBeNull();
 });
+
+it('creates a staff user with the given role and no customer profile', function () {
+    $u = app(AuthService::class)->createStaff([
+        'name' => 'د. علي', 'email' => 'ali@c.com', 'password' => 'secret12',
+    ], UserRole::Doctor);
+    expect($u->role)->toBe(UserRole::Doctor);
+    expect($u->customerProfile)->toBeNull();
+});

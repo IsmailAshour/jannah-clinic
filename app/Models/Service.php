@@ -25,8 +25,8 @@ class Service extends Model
 
     public function doctors(): BelongsToMany
     {
-        // @phpstan-ignore-next-line (DoctorProfile created in Task 3; forward reference intentional)
         return $this->belongsToMany(DoctorProfile::class, 'doctor_service')
+            ->using(DoctorServicePivot::class)
             ->withPivot('price_override')->withTimestamps();
     }
 }

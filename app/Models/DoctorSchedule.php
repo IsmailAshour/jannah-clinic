@@ -12,7 +12,11 @@ class DoctorSchedule extends Model
     protected $casts = [
         'weekday' => 'integer',
         'morning_enabled' => 'boolean',
+        'morning_start' => 'datetime:H:i',
+        'morning_end' => 'datetime:H:i',
         'evening_enabled' => 'boolean',
+        'evening_start' => 'datetime:H:i',
+        'evening_end' => 'datetime:H:i',
         'slot_interval_minutes' => 'integer',
     ];
 

@@ -29,11 +29,11 @@ class DoctorScheduleController extends Controller
             'schedules.*.weekday' => ['required', 'integer', 'between:0,6'],
             'schedules.*.morning_enabled' => ['boolean'],
             'schedules.*.evening_enabled' => ['boolean'],
-            'schedules.*.morning_start' => ['nullable', 'date_format:H:i'],
-            'schedules.*.morning_end' => ['nullable', 'date_format:H:i'],
-            'schedules.*.evening_start' => ['nullable', 'date_format:H:i'],
-            'schedules.*.evening_end' => ['nullable', 'date_format:H:i'],
-            'schedules.*.slot_interval_minutes' => ['required', 'integer', 'min:5'],
+            'schedules.*.morning_start' => ['nullable', 'required_if:schedules.*.morning_enabled,true', 'date_format:H:i'],
+            'schedules.*.morning_end' => ['nullable', 'required_if:schedules.*.morning_enabled,true', 'date_format:H:i', 'after:schedules.*.morning_start'],
+            'schedules.*.evening_start' => ['nullable', 'required_if:schedules.*.evening_enabled,true', 'date_format:H:i'],
+            'schedules.*.evening_end' => ['nullable', 'required_if:schedules.*.evening_enabled,true', 'date_format:H:i', 'after:schedules.*.evening_start'],
+            'schedules.*.slot_interval_minutes' => ['required', 'integer', 'min:5', 'max:120'],
         ]);
 
         foreach ($request->input('schedules', []) as $row) {
@@ -54,7 +54,7 @@ class DoctorScheduleController extends Controller
             );
         }
 
-        return back();
+        return back()->with('success', 'تم حفظ الجدول');
     }
 
     public function addException(Request $request, DoctorProfile $doctor): RedirectResponse
@@ -62,8 +62,8 @@ class DoctorScheduleController extends Controller
         $data = $request->validate([
             'date' => ['required', 'date'],
             'type' => ['required', 'in:closed,custom_hours'],
-            'custom_start' => ['nullable', 'date_format:H:i'],
-            'custom_end' => ['nullable', 'date_format:H:i'],
+            'custom_start' => ['nullable', 'required_if:type,custom_hours', 'date_format:H:i'],
+            'custom_end' => ['nullable', 'required_if:type,custom_hours', 'date_format:H:i', 'after:custom_start'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -77,7 +77,7 @@ class DoctorScheduleController extends Controller
             ]
         );
 
-        return back();
+        return back()->with('success', 'تمت إضافة الاستثناء');
     }
 
     public function deleteException(DoctorProfile $doctor, ScheduleException $exception): RedirectResponse
@@ -85,6 +85,6 @@ class DoctorScheduleController extends Controller
         abort_unless($exception->doctor_profile_id === $doctor->id, 404);
         $exception->delete();
 
-        return back();
+        return back()->with('success', 'تم حذف الاستثناء');
     }
 }

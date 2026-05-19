@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 6 — Appointment + ServiceAddress entities + status/mode enums)
+> Last updated: 2026-05-20 (P1 Task 6 entities; P1-NAV real shell nav; T4/T5 route-table accuracy fix; foundation Modal scroll fix)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -112,12 +112,29 @@ Vue page: `Pages/Admin/Doctors/Index.vue`.
 
 | Method | Path | Name | Controller | Auth |
 |--------|------|------|------------|------|
-| GET | `/admin/doctors/{doctor}/schedule` | `admin.admin.doctors.schedule` | `Admin\DoctorScheduleController@editSchedule` | all staff |
-| PUT | `/admin/doctors/{doctor}/schedule` | `admin.admin.doctors.schedule.save` | `Admin\DoctorScheduleController@saveSchedule` | manager only |
-| POST | `/admin/doctors/{doctor}/exceptions` | `admin.admin.doctors.exceptions.add` | `Admin\DoctorScheduleController@addException` | manager only |
-| DELETE | `/admin/doctors/{doctor}/exceptions/{exception}` | `admin.admin.doctors.exceptions.delete` | `Admin\DoctorScheduleController@deleteException` | manager only |
+| GET | `/admin/doctors/{doctor}/schedule` | `admin.doctors.schedule` | `Admin\DoctorScheduleController@editSchedule` | all staff |
+| PUT | `/admin/doctors/{doctor}/schedule` | `admin.doctors.schedule.save` | `Admin\DoctorScheduleController@saveSchedule` | manager only |
+| POST | `/admin/doctors/{doctor}/exceptions` | `admin.doctors.exceptions.add` | `Admin\DoctorScheduleController@addException` | manager only |
+| DELETE | `/admin/doctors/{doctor}/exceptions/{exception}` | `admin.doctors.exceptions.delete` | `Admin\DoctorScheduleController@deleteException` | manager only |
+
+These canonical names are locked by `tests/Feature/RouteNamesTest.php` (asserts the
+exact set and that no `admin.admin.*` / `portal.portal.*` doubled prefix exists).
 
 Vue page: `Pages/Admin/Doctors/Schedule.vue`.
+
+**P1 Task 5 coverage + clinic-settings routes:**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/admin/coverage` | `admin.coverage.index` | `Admin\CoverageAreaController@index` | all staff |
+| POST | `/admin/coverage` | `admin.coverage.store` | `Admin\CoverageAreaController@store` | manager only |
+| PUT | `/admin/coverage/{area}` | `admin.coverage.update` | `Admin\CoverageAreaController@update` | manager only |
+| DELETE | `/admin/coverage/{area}` | `admin.coverage.destroy` | `Admin\CoverageAreaController@destroy` | manager only |
+| GET | `/admin/settings` | `admin.settings.index` | `Admin\ClinicSettingController@index` | all staff |
+| PUT | `/admin/settings/surcharge` | `admin.settings.surcharge` | `Admin\ClinicSettingController@updateSurcharge` | manager only |
+
+Vue pages: `Pages/Admin/Coverage/Index.vue`, `Pages/Admin/Settings/Index.vue`.
+`updateSurcharge` writes `home_surcharge_pct` via `SettingService::set` (R12).
 
 ### Customer Portal — `routes/portal.php`
 
@@ -245,8 +262,11 @@ present — this is intentional (YAGNI). The P1–P5 roadmap is in
 Documented P1 debt items:
 
 - **Avatar cleanup:** old avatar file is not deleted on replace (P1 cleanup).
-- **Shell nav:** `AdminShell` and `ClientShell` carry placeholder navigation;
-  real routes, `aria-current`, and Inertia persistent layouts are P1.
+- **Shell nav:** ✅ RESOLVED (P1-NAV). `AdminShell` links the 6 real admin
+  routes and `ClientShell` the 2 real portal routes, both with `aria-current`
+  active state (unbuilt portal tabs render disabled, not mislinked). Still
+  deferred: Inertia persistent layouts (`defineOptions` layout) to preserve
+  shell state across navigations — tracked by the honest in-file `TODO(P1)`.
 - **Staff verify/confirm redirect:** `VerifyEmailController` and
   `ConfirmablePasswordController` redirect to `portal.home` after completion —
   harmless now (staff cannot reach portal), but needs role-aware redirect logic

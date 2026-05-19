@@ -23,6 +23,10 @@ class BookingService
     public function book(BookingData $d): Appointment
     {
         return DB::transaction(function () use ($d) {
+            // Serialises concurrent book() calls for the same doctor on PostgreSQL.
+            // lockForUpdate() is a no-op on SQLite (test driver) — the double-booking
+            // test proves the re-check logic, not the lock itself; production
+            // correctness depends on PostgreSQL row-level locking. Do not remove.
             $doctor = DoctorProfile::query()->lockForUpdate()->findOrFail($d->doctorProfileId);
             $service = Service::query()->findOrFail($d->serviceId);
 

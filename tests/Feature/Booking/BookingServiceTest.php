@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Booking\Data\BookingData;
+use App\Domain\Booking\Exceptions\InvalidBookingException;
 use App\Domain\Booking\Exceptions\SlotUnavailableException;
 use App\Domain\Booking\Services\BookingService;
 use App\Enums\AppointmentStatus;
@@ -48,7 +49,8 @@ it('books a home appointment with a ServiceAddress and surcharge', function () {
     ));
     expect($appt->delivery_mode)->toBe(DeliveryMode::Home);
     expect($appt->serviceAddress->address_text)->toBe('شارع 1');
-    expect(bccomp($appt->home_surcharge_amount, '0', 2))->toBe(1);
+    expect($appt->home_surcharge_amount)->toBe('30.00');   // base 100 @ 30% => '30.00'
+    expect($appt->price_at_booking)->toBe('130.00');         // '130.00'
 });
 
 it('rejects booking a slot that is not available', function () {
@@ -64,4 +66,24 @@ it('prevents double-booking the same slot', function () {
     $data = fn () => new BookingData(customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s->id, startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center, createdByRole: UserRole::Customer);
     app(BookingService::class)->book($data());
     expect(fn () => app(BookingService::class)->book($data()))->toThrow(SlotUnavailableException::class);
+});
+
+it('rejects a service the doctor does not offer', function () {
+    ['d' => $d,'date' => $date,'cust' => $cust] = bookingFixture();
+    $c2 = ServiceCategory::create(['name' => 'y', 'slug' => uniqid(), 'color_variant' => 'brand']);
+    $s2 = Service::create(['category_id' => $c2->id, 'name' => 's2', 'base_price' => 50, 'duration_minutes' => 30, 'home_service_enabled' => false]);
+    expect(fn () => app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s2->id,
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center, createdByRole: UserRole::Customer,
+    )))->toThrow(InvalidBookingException::class);
+});
+
+it('rejects a home booking for a service not enabled for home', function () {
+    ['s' => $s,'d' => $d,'date' => $date,'cust' => $cust] = bookingFixture(home: false);
+    $area = HomeServiceCoverageArea::create(['name' => 'نابلس', 'is_active' => true]);
+    expect(fn () => app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s->id,
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Home, createdByRole: UserRole::Customer,
+        coverageAreaId: $area->id, addressText: 'شارع 2',
+    )))->toThrow(InvalidBookingException::class);
 });

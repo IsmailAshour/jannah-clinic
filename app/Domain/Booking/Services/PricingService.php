@@ -28,6 +28,7 @@ class PricingService
         $surcharge = '0.00';
         if ($mode === DeliveryMode::Home) {
             $pct = (string) $this->settings->get('home_surcharge_pct', config('clinic.home_surcharge_pct'));
+            // bcmath truncates at scale 2 (intentional): never over-charges the patient; max sub-cent effect.
             $surcharge = bcdiv(bcmul($base, $pct, 4), '100', 2);
         }
 

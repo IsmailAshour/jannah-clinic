@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm, router } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
@@ -97,6 +97,10 @@ const confirmDelete = ref(false)
 const deleteTarget = ref(null)
 const deleteError = ref(null)
 
+function openSchedule(row) {
+  router.visit(`/admin/doctors/${row.id}/schedule`)
+}
+
 function askDelete(row) {
   deleteTarget.value = row
   deleteError.value = null
@@ -131,6 +135,7 @@ function doDelete() {
           </template>
           <template #cell-actions="{ row }">
             <div class="flex justify-end gap-2">
+              <Button variant="outline" size="sm" @click="openSchedule(row)">الجدول</Button>
               <Button variant="outline" size="sm" @click="openEdit(row)">تعديل</Button>
               <Button variant="outline" size="sm" class="text-danger" @click="askDelete(row)">حذف</Button>
             </div>

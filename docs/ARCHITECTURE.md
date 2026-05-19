@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 7 AvailabilityService slot engine + availability endpoint)
+> Last updated: 2026-05-19 (P1 Task 8 PricingService + transactional BookingService + BookingData + booking exceptions)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -57,6 +57,8 @@ output lives in `docs/`:
 - **R7** — Business logic lives in service classes under `app/Domain/{Module}/Services/`.
   Auth logic is in `app/Domain/Auth/Services/AuthService.php`.
   Availability slot engine is in `app/Domain/Booking/Services/AvailabilityService.php`.
+  Pricing (bcmath quote) is in `app/Domain/Booking/Services/PricingService.php`.
+  Transactional booking writes are in `app/Domain/Booking/Services/BookingService.php`.
 - **R12** — Config-driven values via `config/clinic.php` + `App\Domain\Settings\Services\SettingService` (DB override → config fallback).
 - **R20** — Logical CSS properties only (no `margin-left`, `padding-right`,
   `text-align: left/right`). CI greps `resources/js/**/*.vue` for violations.
@@ -302,7 +304,8 @@ Documented P1 debt items:
 - **App timezone defaults to `Asia/Hebron` (env `APP_TIMEZONE`), explicitly set as the assumption for a Palestinian clinic.** Confirm/adjust this default before any production deployment in a different timezone. Controlled via `config/app.php` → `env('APP_TIMEZONE', 'Asia/Hebron')`.
 - **Redundant weekday-schedule query removed (T7 polish):** `AvailabilityService` previously fetched the `DoctorSchedule` row twice per call (once in `windowsFor`, once in the removed `intervalFor`). The row is now fetched once in `slotsFor` and passed to `windowsFor`; `intervalFor` has been eliminated.
 - **Schedule time-field contract (T4 → T7+ interface):** `DoctorSchedule.morning_start/morning_end/evening_start/evening_end` and `ScheduleException.custom_start/custom_end` use the `datetime:H:i` Eloquent cast. Consequence: at runtime they are **Carbon** instances (so `(string)$model->morning_start` yields a full `Y-m-d H:i:s`, NOT `'09:00'` — never `substr((string)...)` them); Inertia/JSON serialization yields `'09:00'` (correct for `<input type="time">` prefill). T7 `AvailabilityService` and any later consumer MUST read these via `->format('H:i')` or Carbon comparison. The P1 plan's T7 `windowsFor()` snippet has been corrected accordingly.
-- **Appointment Postgres CHECK constraints (T6 data layer; write logic T8/T10):** The `appointments` table carries four Postgres-only CHECK constraints — `appointments_status_check` (7-value enum), `appointments_mode_check` (center/home), `appointments_price_check` (price >= 0), `appointments_time_check` (end_at > start_at). These are skipped on SQLite test DB (ADR-002); CI Postgres is the authoritative gate. Booking write/transition logic (service classes enforcing `AppointmentStatus::canTransitionTo`) arrives in T8/T10.
+- **Appointment Postgres CHECK constraints (T6 data layer; write logic T8+):** The `appointments` table carries four Postgres-only CHECK constraints — `appointments_status_check` (7-value enum), `appointments_mode_check` (center/home), `appointments_price_check` (price >= 0), `appointments_time_check` (end_at > start_at). These are skipped on SQLite test DB (ADR-002); CI Postgres is the authoritative gate.
+- **T8 — Booking domain (pure backend, no routes/controllers):** `PricingService::quote()` returns `{base, surcharge, total}` as bcmath strings (never IEEE754); home surcharge uses the `home_surcharge_pct` setting (DB override → `config/clinic.php` fallback). `BookingService::book(BookingData)` runs inside `DB::transaction`; locks the doctor row (`lockForUpdate`) before the in-transaction slot re-validation through `AvailabilityService::slotsFor()` — this is the double-booking guard. Creates `Appointment` + `ServiceAddress` (home only). Throws `SlotUnavailableException` for unavailable/conflicting slots, `InvalidBookingException` for rule violations. `BookingData` is a typed value object (DTO) carrying all booking intent. Exceptions live in `App\Domain\Booking\Exceptions`.
 
 ---
 

@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Domain\Booking\Data;
+
+use App\Enums\DeliveryMode;
+use App\Enums\UserRole;
+use Carbon\CarbonImmutable;
+
+final class BookingData
+{
+    public function __construct(
+        public int $customerId,
+        public int $doctorProfileId,
+        public int $serviceId,
+        public CarbonImmutable $startAt,
+        public DeliveryMode $deliveryMode,
+        public UserRole $createdByRole,
+        public ?int $coverageAreaId = null,
+        public ?string $addressText = null,
+        public ?string $locationNote = null,
+    ) {}
+}

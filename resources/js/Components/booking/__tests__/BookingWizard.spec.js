@@ -32,6 +32,43 @@ const stubComponents = {
   },
 }
 
+// Deterministic future month: the first day of next month is always fully
+// in the future and entirely within a single calendar month, so every day
+// button in that month is enabled iff it is in the available set.
+function pad(n) { return String(n).padStart(2, '0') }
+const NOW = new Date()
+const NEXT_MONTH = new Date(NOW.getFullYear(), NOW.getMonth() + 1, 1)
+const FM_YEAR = NEXT_MONTH.getFullYear()
+const FM_MONTH = NEXT_MONTH.getMonth() // 0-based
+const day = (d) => `${FM_YEAR}-${pad(FM_MONTH + 1)}-${pad(d)}`
+
+// URL-aware fetch mock: days endpoint vs slots endpoint, order-independent.
+function makeFetchMock(daysData, slotsData) {
+  return vi.fn(async (url) => {
+    if (String(url).includes('/availability/days')) {
+      return { ok: true, json: async () => daysData }
+    }
+    return { ok: true, json: async () => slotsData }
+  })
+}
+
+// Open step 3 with the calendar anchored on next month.
+// The wizard's watch(doctorId) resets serviceId to null on the next flush,
+// so set doctorId first, let that settle, THEN set serviceId. Seed
+// selectedDate after serviceId (its watcher clears it) so the real
+// MonthCalendar opens on next month.
+async function openStep3NextMonth(wrapper) {
+  wrapper.vm.doctorId = 1
+  await wrapper.vm.$nextTick()
+  wrapper.vm.serviceId = 10
+  await wrapper.vm.$nextTick()
+  wrapper.vm.selectedDate = day(1)
+  wrapper.vm.step = 3
+  await wrapper.vm.$nextTick()
+  await flushPromises()
+  await wrapper.vm.$nextTick()
+}
+
 const sampleDoctors = [
   {
     id: 1,
@@ -61,6 +98,7 @@ function mountWizard(overrideProps = {}) {
       doctors: sampleDoctors,
       coverageAreas: sampleAreas,
       availabilityUrl: '/portal/availability',
+      availabilityDaysUrl: '/portal/availability/days',
       homeSurchargePct: 30,
       customerPicker: false,
       ...overrideProps,
@@ -231,6 +269,75 @@ describe('BookingWizard', () => {
     expect(wrapper.vm.slotsEmpty).toBe(false)
     expect(wrapper.vm.slotsError).toBe(false)
     expect(wrapper.vm.selectedStart).toBeNull()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('selecting an available calendar day triggers the slot fetch and renders slots', async () => {
+    const mockFetch = makeFetchMock(
+      [day(2), day(9)],
+      [{ start: `${day(2)}T09:00:00+03:00`, end: `${day(2)}T09:30:00+03:00`, label: '09:00' }],
+    )
+    vi.stubGlobal('fetch', mockFetch)
+
+    const wrapper = mountWizard()
+    await openStep3NextMonth(wrapper)
+
+    // Days endpoint was hit
+    const daysCall = mockFetch.mock.calls.find(c => String(c[0]).includes('/availability/days'))
+    expect(daysCall).toBeTruthy()
+    expect(wrapper.vm.availableDays).toEqual([day(2), day(9)])
+
+    // The real calendar renders an enabled button for an available day
+    const dayBtn = wrapper.find(`button[data-date="${day(2)}"]`)
+    expect(dayBtn.exists()).toBe(true)
+    expect(dayBtn.element.disabled).toBe(false)
+    await dayBtn.trigger('click')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.selectedDate).toBe(day(2))
+    // Slot endpoint was hit and slots rendered below
+    const slotCall = mockFetch.mock.calls.find(
+      c => String(c[0]).includes('/availability?') && String(c[0]).includes(`date=${day(2)}`),
+    )
+    expect(slotCall).toBeTruthy()
+    expect(wrapper.vm.slots.length).toBe(1)
+    expect(wrapper.text()).toContain('09:00')
+
+    vi.unstubAllGlobals()
+  })
+
+  it('a day not in the available set is disabled / not selectable', async () => {
+    const mockFetch = makeFetchMock([day(2)], [])
+    vi.stubGlobal('fetch', mockFetch)
+
+    const wrapper = mountWizard()
+    await openStep3NextMonth(wrapper)
+
+    // day(15) is NOT in the available set → its calendar button is disabled
+    const unavailable = wrapper.find(`button[data-date="${day(15)}"]`)
+    expect(unavailable.exists()).toBe(true)
+    expect(unavailable.element.disabled).toBe(true)
+    expect(unavailable.attributes('data-available')).toBe('false')
+
+    // Clicking it does not select it
+    await unavailable.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.selectedDate).not.toBe(day(15))
+
+    vi.unstubAllGlobals()
+  })
+
+  it('shows the no-available-days hint when the days response is empty', async () => {
+    const mockFetch = makeFetchMock([], [])
+    vi.stubGlobal('fetch', mockFetch)
+
+    const wrapper = mountWizard()
+    await openStep3NextMonth(wrapper)
+
+    expect(wrapper.vm.availableDays).toEqual([])
+    expect(wrapper.text()).toContain('لا أيام متاحة هذا الشهر')
 
     vi.unstubAllGlobals()
   })

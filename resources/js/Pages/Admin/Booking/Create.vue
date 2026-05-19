@@ -51,6 +51,7 @@ function handleSubmit(payload) {
         :doctors="doctors"
         :coverage-areas="coverageAreas"
         :availability-url="'/admin/availability'"
+        :availability-days-url="'/admin/availability/days'"
         :home-surcharge-pct="homeSurchargePct"
         :customer-picker="true"
         :customers="customers"

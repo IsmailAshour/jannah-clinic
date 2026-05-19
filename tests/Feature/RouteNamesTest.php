@@ -13,6 +13,7 @@ it('exposes canonical single-prefixed P1 route names', function () {
         'admin.settings.index', 'admin.settings.surcharge',
         'portal.services.index',
         'admin.availability', 'portal.availability',
+        'admin.availability.days', 'portal.availability.days',
         'portal.booking.create', 'portal.booking.store',
         'admin.booking.create', 'admin.booking.store',
         'admin.appointments.index', 'admin.appointments.transition',

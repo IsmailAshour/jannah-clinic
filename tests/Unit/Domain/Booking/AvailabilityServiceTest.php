@@ -158,6 +158,57 @@ it('excludes slots that start in the past', function () {
     expect(collect($starts)->contains(fn ($s) => $s->equalTo($today->setTimeFromTimeString('08:00'))))->toBeFalse();
 });
 
+it('availableDatesFor returns only dates with bookable slots', function () {
+    $doc = DoctorProfile::factory()->create();
+    $svc = mkService(30);
+    $monday = CarbonImmutable::parse('next monday');
+    $wd = (int) $monday->dayOfWeek;
+    enableDoctorSlots($doc, $wd, ['09:00', '09:30']);
+
+    // 14-day inclusive window starting on the first matching Monday → two Mondays.
+    $from = $monday;
+    $to = $monday->addDays(13);
+    $expected = [$monday->toDateString(), $monday->addDays(7)->toDateString()];
+
+    $dates = app(AvailabilityService::class)->availableDatesFor($doc, $svc, $from, $to);
+
+    expect($dates)->toBe($expected);
+});
+
+it('availableDatesFor drops a closed exception day', function () {
+    $doc = DoctorProfile::factory()->create();
+    $svc = mkService(30);
+    $monday = CarbonImmutable::parse('next monday');
+    $wd = (int) $monday->dayOfWeek;
+    enableDoctorSlots($doc, $wd, ['09:00', '09:30']);
+    ScheduleException::create([
+        'doctor_profile_id' => $doc->id,
+        'date' => $monday->toDateString(),
+        'type' => 'closed',
+    ]);
+
+    $dates = app(AvailabilityService::class)->availableDatesFor(
+        $doc, $svc, $monday, $monday->addDays(13)
+    );
+
+    // First Monday removed by the closed exception; second Monday remains.
+    expect($dates)->toBe([$monday->addDays(7)->toDateString()]);
+});
+
+it('availableDatesFor excludes a fully-past day', function () {
+    $doc = DoctorProfile::factory()->create();
+    $svc = mkService(30);
+    $yesterday = CarbonImmutable::now()->subDay()->startOfDay();
+    // Enable slots on yesterday's weekday so only the past-day rule can exclude it.
+    enableDoctorSlots($doc, (int) $yesterday->dayOfWeek, ['09:00', '09:30']);
+
+    $dates = app(AvailabilityService::class)->availableDatesFor(
+        $doc, $svc, $yesterday, $yesterday
+    );
+
+    expect($dates)->toBe([]);
+});
+
 it('honours the last 60-min start boundary at 21:00', function () {
     $doc = DoctorProfile::factory()->create();
     $svc = mkService(60);

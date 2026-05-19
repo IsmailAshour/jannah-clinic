@@ -65,6 +65,21 @@ class AvailabilityService
         return $slots;
     }
 
+    /** @return list<string> 'Y-m-d' dates in [$from,$to] (inclusive) that have >=1 bookable slot */
+    public function availableDatesFor(DoctorProfile $doctor, Service $service, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $from = $from->startOfDay();
+        $to = $to->startOfDay();
+        $out = [];
+        for ($d = $from; $d->lessThanOrEqualTo($to); $d = $d->addDay()) {
+            if ($this->slotsFor($doctor, $service, $d) !== []) {
+                $out[] = $d->toDateString();
+            }
+        }
+
+        return $out;
+    }
+
     /** @return list<string> */
     private function enabledFor(DoctorProfile $doctor, CarbonImmutable $date): array
     {

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\DoctorScheduleController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Booking\AvailabilityController;
+use App\Http\Controllers\Booking\AvailableDaysController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -34,6 +35,7 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
 
         // Availability – readable by all staff
         Route::get('availability', AvailabilityController::class)->name('availability');
+        Route::get('availability/days', AvailableDaysController::class)->name('availability.days');
 
         // Booking wizard — admin on-behalf booking (all staff)
         Route::get('booking', [BookingController::class, 'create'])->name('booking.create');

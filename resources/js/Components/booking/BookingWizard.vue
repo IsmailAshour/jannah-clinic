@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { FormGroup, FormSection, PageStates } from '@/Components/foundation'
+import { FormGroup, FormSection, PageStates, MonthCalendar } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
@@ -8,6 +8,7 @@ const props = defineProps({
   doctors: { type: Array, default: () => [] },
   coverageAreas: { type: Array, default: () => [] },
   availabilityUrl: { type: String, required: true },
+  availabilityDaysUrl: { type: String, required: true },
   homeSurchargePct: { type: [String, Number], default: 0 },
   customerPicker: { type: Boolean, default: false },
   customers: { type: Array, default: () => [] },
@@ -62,6 +63,48 @@ const slotsEmpty = ref(false)
 const slotsError = ref(false)
 const selectedStart = ref(null)
 
+// Available days (calendar gating)
+const availableDays = ref([])
+const daysLoading = ref(false)
+const daysError = ref(false)
+const calMonth = ref(null) // { from, to } of the visible month
+
+async function fetchDays() {
+  if (!doctorId.value || !serviceId.value || !calMonth.value) return
+  daysLoading.value = true
+  daysError.value = false
+  try {
+    const { from, to } = calMonth.value
+    const url = `${props.availabilityDaysUrl}?doctor=${doctorId.value}&service=${serviceId.value}&from=${from}&to=${to}`
+    const res = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    availableDays.value = Array.isArray(data) ? data : []
+  } catch {
+    daysError.value = true
+    availableDays.value = []
+  } finally {
+    daysLoading.value = false
+  }
+}
+
+function onCalendarMonthChange(range) {
+  calMonth.value = range
+  fetchDays()
+}
+
+function onCalendarSelect(date) {
+  selectedDate.value = date
+}
+
+// Refresh days when entering step 3 or changing doctor/service
+watch(step, (s) => {
+  if (s === 3) fetchDays()
+})
+watch([doctorId, serviceId], () => {
+  if (step.value === 3) fetchDays()
+})
+
 async function fetchSlots() {
   if (!doctorId.value || !serviceId.value || !selectedDate.value) return
   slotsLoading.value = true
@@ -93,19 +136,29 @@ watch(serviceId, () => {
   slotsEmpty.value = false
   slotsError.value = false
   selectedStart.value = null
+  availableDays.value = []
+  daysError.value = false
 })
 
 // Expose internals for testing
 defineExpose({
   step, doctorId, serviceId, deliveryMode, selectedDate,
   slots, slotsEmpty, slotsLoading, slotsError, selectedStart,
-  fetchSlots,
+  availableDays, daysLoading, daysError, calMonth,
+  fetchSlots, fetchDays,
   // Test helper: call fetchSlots with pre-set values
   async fetchSlotsForTest(dId, sId, date) {
     doctorId.value = dId
     serviceId.value = sId
     selectedDate.value = date
     await fetchSlots()
+  },
+  // Test helper: set doctor/service + visible month, then fetch days
+  async fetchDaysForTest(dId, sId, range) {
+    doctorId.value = dId
+    serviceId.value = sId
+    calMonth.value = range
+    await fetchDays()
   },
 })
 
@@ -373,16 +426,26 @@ function handleSubmit() {
     <!-- Step 3: Date and time slot -->
     <FormSection v-if="step === 3" title="التاريخ والموعد">
       <FormGroup label="تاريخ الموعد" name="booking_date" required>
-        <template #default="{ describedby }">
-          <input
-            id="booking_date"
+        <template #default>
+          <div
+            v-if="daysError"
+            class="rounded-md bg-danger/10 border border-danger/20 p-3 text-sm text-danger"
+            role="alert"
+          >
+            تعذّر تحميل الأيام المتاحة، حاول مرة أخرى.
+          </div>
+          <MonthCalendar
             v-model="selectedDate"
-            type="date"
-            name="booking_date"
-            :aria-describedby="describedby"
-            dir="ltr"
-            class="rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+            :available-days="availableDays"
+            @select="onCalendarSelect"
+            @month-change="onCalendarMonthChange"
           />
+          <p
+            v-if="!daysLoading && !daysError && availableDays.length === 0"
+            class="mt-2 text-sm text-text-secondary"
+          >
+            لا أيام متاحة هذا الشهر
+          </p>
         </template>
       </FormGroup>
 

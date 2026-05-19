@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Booking\AvailabilityController;
+use App\Http\Controllers\Booking\AvailableDaysController;
 use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\BookingController;
 use App\Http\Controllers\Portal\ServiceBrowseController;
@@ -17,6 +18,7 @@ Route::middleware(['auth', 'role:customer'])
 
         // Availability
         Route::get('availability', AvailabilityController::class)->name('availability');
+        Route::get('availability/days', AvailableDaysController::class)->name('availability.days');
 
         // Booking wizard — customer self-booking
         Route::get('booking', [BookingController::class, 'create'])->name('booking.create');

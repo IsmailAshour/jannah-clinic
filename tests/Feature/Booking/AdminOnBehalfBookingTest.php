@@ -90,6 +90,7 @@ it('receptionist can quick-create a customer and book', function () {
         'doctor_profile_id' => $doc->id,
         'service_id' => $svc->id,
         'status' => AppointmentStatus::Requested->value,
+        'created_by_role' => UserRole::Receptionist->value,
     ]);
 });
 

@@ -59,20 +59,27 @@ const selectedDate = ref('')
 const slots = ref([])
 const slotsLoading = ref(false)
 const slotsEmpty = ref(false)
+const slotsError = ref(false)
 const selectedStart = ref(null)
 
 async function fetchSlots() {
   if (!doctorId.value || !serviceId.value || !selectedDate.value) return
   slotsLoading.value = true
   slotsEmpty.value = false
+  slotsError.value = false
   slots.value = []
   selectedStart.value = null
   try {
     const url = `${props.availabilityUrl}?doctor=${doctorId.value}&service=${serviceId.value}&date=${selectedDate.value}`
     const res = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     slots.value = data
     slotsEmpty.value = data.length === 0
+  } catch {
+    slotsError.value = true
+    slots.value = []
+    slotsEmpty.value = false
   } finally {
     slotsLoading.value = false
   }
@@ -80,10 +87,18 @@ async function fetchSlots() {
 
 watch(selectedDate, fetchSlots)
 
+watch(serviceId, () => {
+  selectedDate.value = ''
+  slots.value = []
+  slotsEmpty.value = false
+  slotsError.value = false
+  selectedStart.value = null
+})
+
 // Expose internals for testing
 defineExpose({
   step, doctorId, serviceId, deliveryMode, selectedDate,
-  slots, slotsEmpty, slotsLoading, selectedStart,
+  slots, slotsEmpty, slotsLoading, slotsError, selectedStart,
   fetchSlots,
   // Test helper: call fetchSlots with pre-set values
   async fetchSlotsForTest(dId, sId, date) {
@@ -106,7 +121,6 @@ const previewPrice = computed(() => {
 })
 
 // Navigation
-const totalSteps = computed(() => props.customerPicker ? 4 : 3)
 
 function canAdvanceStep0() {
   if (customerMode.value === 'existing') return !!selectedCustomerId.value
@@ -377,6 +391,14 @@ function handleSubmit() {
 
         <div v-if="slotsLoading" class="text-sm text-text-secondary">
           جارٍ تحميل الفترات...
+        </div>
+
+        <div
+          v-else-if="slotsError"
+          class="rounded-md bg-danger/10 border border-danger/20 p-3 text-sm text-danger"
+          role="alert"
+        >
+          تعذّر تحميل الفترات، حاول مرة أخرى.
         </div>
 
         <PageStates v-else :is-empty="slotsEmpty">

@@ -11,8 +11,10 @@ use App\Enums\DeliveryMode;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\DoctorProfile;
+use App\Models\DoctorServicePivot;
 use App\Models\HomeServiceCoverageArea;
 use App\Models\Service;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,18 +43,22 @@ class BookingController extends Controller
             $services = [];
             foreach ($d->services as $s) {
                 /** @var Service $s */
+                /** @var DoctorServicePivot $pivot */
+                $pivot = $s->pivot; // @phpstan-ignore-line  (Larastan does not propagate the BelongsToMany TPivotModel through this collection-iteration pattern)
                 $services[] = [
                     'id' => $s->id,
                     'name' => $s->name,
                     'base_price' => $s->base_price,
-                    'price_override' => $s->pivot->price_override, // @phpstan-ignore-line
+                    'price_override' => $pivot->price_override,
                     'duration_minutes' => $s->duration_minutes,
                     'home_service_enabled' => $s->home_service_enabled,
                 ];
             }
+            /** @var User $user */
+            $user = $d->user;
             $doctors[] = [
                 'id' => $d->id,
-                'name' => $d->user->name, // @phpstan-ignore-line
+                'name' => $user->name,
                 'services' => $services,
             ];
         }

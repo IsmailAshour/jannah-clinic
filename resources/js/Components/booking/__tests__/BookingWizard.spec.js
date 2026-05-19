@@ -156,6 +156,7 @@ describe('BookingWizard', () => {
 
   it('shows empty state text when fetch returns no slots', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
       json: async () => [],
     })
     vi.stubGlobal('fetch', mockFetch)
@@ -178,6 +179,58 @@ describe('BookingWizard', () => {
     // slotsEmpty should be true after empty response
     expect(wrapper.vm.slotsEmpty).toBe(true)
     expect(wrapper.text()).toContain('لا فترات متاحة')
+
+    vi.unstubAllGlobals()
+  })
+
+  it('shows error message when fetch fails (non-ok response)', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const wrapper = mountWizard()
+    wrapper.vm.step = 3
+    await wrapper.vm.$nextTick()
+
+    await wrapper.vm.fetchSlotsForTest(1, 10, '2026-06-02')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.slotsError).toBe(true)
+    expect(wrapper.vm.slotsEmpty).toBe(false)
+    expect(wrapper.text()).toContain('تعذّر تحميل الفترات')
+
+    vi.unstubAllGlobals()
+  })
+
+  it('clears stale slots when serviceId changes (I3 watcher)', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ start: '2026-06-02T09:00:00+03:00', end: '2026-06-02T09:30:00+03:00', label: '09:00' }],
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const wrapper = mountWizard()
+
+    // Simulate having fetched slots for a service
+    await wrapper.vm.fetchSlotsForTest(1, 10, '2026-06-02')
+    await flushPromises()
+
+    expect(wrapper.vm.slots.length).toBeGreaterThan(0)
+    expect(wrapper.vm.selectedDate).toBe('2026-06-02')
+
+    // Now change serviceId (as happens when doctor/delivery_mode changes)
+    wrapper.vm.serviceId = 11
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.selectedDate).toBe('')
+    expect(wrapper.vm.slots).toHaveLength(0)
+    expect(wrapper.vm.slotsEmpty).toBe(false)
+    expect(wrapper.vm.slotsError).toBe(false)
+    expect(wrapper.vm.selectedStart).toBeNull()
 
     vi.unstubAllGlobals()
   })

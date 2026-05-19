@@ -6,6 +6,7 @@ import {
   PageHeader,
   DataTable,
   Modal,
+  ConfirmModal,
   PageStates,
   StatusBadge,
   FormGroup,
@@ -76,10 +77,25 @@ function isTerminal(status) {
   return ['completed', 'cancelled', 'rejected', 'no_show', 'rescheduled'].includes(status)
 }
 
-// Quick transitions (no reason needed)
+// Quick transitions — routed through ConfirmModal before posting
+const confirmOpen = ref(false)
+const pendingTransition = ref(null)
+
+function requestTransition(appt, status) {
+  pendingTransition.value = { appt, status }
+  confirmOpen.value = true
+}
+
 function doTransition(appt, status) {
   const form = useForm({ status, reason: null })
   form.post(`/admin/appointments/${appt.id}/transition`, { preserveScroll: true })
+}
+
+function handleConfirmTransition() {
+  if (!pendingTransition.value) return
+  const { appt, status } = pendingTransition.value
+  pendingTransition.value = null
+  doTransition(appt, status)
 }
 
 // Cancel with reason
@@ -164,10 +180,10 @@ function submitCancel() {
           <template #cell-actions="{ row }">
             <div class="flex justify-end gap-2 flex-wrap">
               <template v-if="!isTerminal(row.status)">
-                <Button v-if="row.status === 'requested'" variant="outline" size="sm" @click="doTransition(row, 'confirmed')">تأكيد</Button>
-                <Button v-if="row.status === 'requested'" variant="outline" size="sm" class="text-danger" @click="doTransition(row, 'rejected')">رفض</Button>
-                <Button v-if="row.status === 'confirmed'" variant="outline" size="sm" @click="doTransition(row, 'completed')">إكمال</Button>
-                <Button v-if="row.status === 'confirmed'" variant="outline" size="sm" class="text-warning" @click="doTransition(row, 'no_show')">لم يحضر</Button>
+                <Button v-if="row.status === 'requested'" variant="outline" size="sm" @click="requestTransition(row, 'confirmed')">تأكيد</Button>
+                <Button v-if="row.status === 'requested'" variant="outline" size="sm" class="text-danger" @click="requestTransition(row, 'rejected')">رفض</Button>
+                <Button v-if="row.status === 'confirmed'" variant="outline" size="sm" @click="requestTransition(row, 'completed')">إكمال</Button>
+                <Button v-if="row.status === 'confirmed'" variant="outline" size="sm" class="text-warning" @click="requestTransition(row, 'no_show')">لم يحضر</Button>
                 <Button variant="outline" size="sm" class="text-danger" @click="openCancelModal(row)">إلغاء</Button>
               </template>
               <span v-else class="text-xs text-text-tertiary">—</span>
@@ -189,6 +205,17 @@ function submitCancel() {
         </div>
       </PageStates>
     </div>
+
+    <!-- Quick-transition confirmation modal -->
+    <ConfirmModal
+      :open="confirmOpen"
+      title="تأكيد تغيير الحالة"
+      :message="pendingTransition ? `هل أنت متأكد من تغيير حالة الموعد إلى &quot;${statusMap[pendingTransition.status]?.label ?? pendingTransition.status}&quot;؟` : ''"
+      confirm-text="تأكيد"
+      cancel-text="تراجع"
+      @confirm="handleConfirmTransition"
+      @update:open="confirmOpen = $event"
+    />
 
     <!-- Cancel with reason modal -->
     <Modal

@@ -18,9 +18,22 @@ vi.mock('@inertiajs/vue3', () => ({
   usePage: () => ({ get url() { return currentUrl } }),
 }))
 
+// jsdom has no ResizeObserver; reka-ui's CollapsibleContent (used by every
+// group in the sidebar-07 pattern) calls `new ResizeObserver()` on mount to
+// animate the content height. A no-op stub is enough — we never assert on
+// the observed size, only on data-state.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  class RO {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = RO
+}
+
 // jsdom has no matchMedia; shadcn-vue's useMediaQuery (in SidebarProvider)
 // needs it. Defaults to "no mobile" (desktop ≥ md) so tests run against the
-// desktop offcanvas layout; individual tests can override before mount.
+// desktop icon-collapsible layout; individual tests can override before mount.
 let mediaMatches = false
 function installMatchMedia(matches) {
   mediaMatches = matches
@@ -45,7 +58,7 @@ function mountShell() {
   })
 }
 
-describe('AdminShell (shadcn-vue Sidebar)', () => {
+describe('AdminShell (sidebar-07 icon-collapsible)', () => {
   beforeEach(() => {
     currentUrl = '/admin/doctors'
     document.cookie = 'sidebar_state=; path=/; max-age=0'
@@ -55,10 +68,11 @@ describe('AdminShell (shadcn-vue Sidebar)', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders nav leaves, groups, headings, brand, slot, and active state', () => {
+  it('renders brand, leaves, group labels, slot, and preserves the double-space label verbatim', () => {
     const w = mountShell()
     const text = w.text()
-    // Brand + group headings + the user-authored label preserved verbatim
+    // Brand + group labels (now rendered as SidebarMenuButton text, not
+    // SidebarGroupLabel) + the user-authored label preserved verbatim
     // (including the deliberate double space in "حجز موعد  لعميل").
     expect(text).toContain('عيادة جنّة')
     expect(text).toContain('الخدمات')
@@ -66,21 +80,46 @@ describe('AdminShell (shadcn-vue Sidebar)', () => {
     expect(text).toContain('حجز موعد  لعميل')
     expect(text).toContain('مناطق التغطية')
     expect(text).toContain('الإعدادات')
+    expect(text).toContain('لوحة التحكم')
     expect(w.find('[data-testid="content"]').exists()).toBe(true)
+    w.unmount()
+  })
 
+  it('active sub-item has aria-current=page; its parent Collapsible is default-open with sub-items in the DOM', () => {
+    const w = mountShell()
     // Active state for current url (/admin/doctors): the sub-menu button
     // wrapping the link gets data-active="true" and the inner Inertia <Link>
     // gets aria-current="page".
     const active = w.find('a[href="/admin/doctors"]')
     expect(active.exists()).toBe(true)
     expect(active.attributes('aria-current')).toBe('page')
-    // The shadcn-vue sub-button container exposes data-active for styling.
     const activeButton = w.find('[data-sidebar="menu-sub-button"][data-active="true"]')
     expect(activeButton.exists()).toBe(true)
 
     // Dashboard root not active when on /admin/doctors
     const dash = w.find('a[href="/admin"]')
     expect(dash.attributes('aria-current')).toBeUndefined()
+
+    // Parent group العيادة (Clinic) is default-open because /admin/doctors
+    // is one of its children. The Collapsible's reka-ui root exposes
+    // data-state="open" once mounted with default-open=true. We also assert
+    // the sibling sub-items are present in the DOM (would not render
+    // otherwise — CollapsibleContent unmountOnHide closes hide them).
+    const openCollapsible = w.find('[data-state="open"][data-slot="collapsible-root"]')
+    // reka-ui labels the Collapsible root with data-state; the exact data-slot
+    // selector above is the strictest form, but reka may version that — fall
+    // back to the data-state pair when needed.
+    const hasOpenState = openCollapsible.exists()
+      || w.findAll('[data-state="open"]').some((el) => el.findAll('a[href="/admin/doctors"]').length > 0)
+    expect(hasOpenState).toBe(true)
+
+    // The other group (الخدمات / Services) is NOT default-open — its sub-link
+    // /admin/catalog/services should not appear yet (CollapsibleContent
+    // unmounts hidden content). It's enough to assert the appointments link
+    // (also a child of العيادة, same group as doctors) IS rendered.
+    expect(w.find('a[href="/admin/appointments"]').exists()).toBe(true)
+    expect(w.find('a[href="/admin/booking"]').exists()).toBe(true)
+
     w.unmount()
   })
 

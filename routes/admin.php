@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\DoctorScheduleController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
+use App\Http\Controllers\Booking\AvailabilityController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -28,6 +29,9 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
 
         // Settings – readable by all staff
         Route::get('settings', [ClinicSettingController::class, 'index'])->name('settings.index');
+
+        // Availability – readable by all staff
+        Route::get('availability', AvailabilityController::class)->name('availability');
 
         // Catalog mutations – manager only
         Route::middleware('role:manager')->group(function () {

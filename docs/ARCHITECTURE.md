@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 6 entities; P1-NAV real shell nav; T4/T5 route-table accuracy fix; foundation Modal scroll fix)
+> Last updated: 2026-05-20 (P1 Task 7 AvailabilityService slot engine + availability endpoint)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -56,6 +56,7 @@ output lives in `docs/`:
 
 - **R7** — Business logic lives in service classes under `app/Domain/{Module}/Services/`.
   Auth logic is in `app/Domain/Auth/Services/AuthService.php`.
+  Availability slot engine is in `app/Domain/Booking/Services/AvailabilityService.php`.
 - **R12** — Config-driven values via `config/clinic.php` + `App\Domain\Settings\Services\SettingService` (DB override → config fallback).
 - **R20** — Logical CSS properties only (no `margin-left`, `padding-right`,
   `text-align: left/right`). CI greps `resources/js/**/*.vue` for violations.
@@ -136,6 +137,14 @@ Vue page: `Pages/Admin/Doctors/Schedule.vue`.
 Vue pages: `Pages/Admin/Coverage/Index.vue`, `Pages/Admin/Settings/Index.vue`.
 `updateSurcharge` writes `home_surcharge_pct` via `SettingService::set` (R12).
 
+**P1 Task 7 availability route (all staff):**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/admin/availability` | `admin.availability` | `Booking\AvailabilityController` | all staff |
+
+Query params: `doctor` (id), `service` (id), `date` (Y-m-d). Returns JSON array of `{start, end, label}`.
+
 ### Customer Portal — `routes/portal.php`
 
 ```
@@ -155,6 +164,14 @@ Key P0 routes: `GET /portal` → `portal.home`; `POST /portal/profile/avatar`
 | GET | `/portal/services` | `portal.services.index` | `Portal\ServiceBrowseController@index` |
 
 Vue page: `Pages/Portal/Services/Index.vue` — browse-only (no booking; wizard is Task 4+).
+
+**P1 Task 7 availability route (customer):**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/portal/availability` | `portal.availability` | `Booking\AvailabilityController` | customer |
+
+Query params: `doctor` (id), `service` (id), `date` (Y-m-d). Returns JSON array of `{start, end, label}`.
 
 ### Surface isolation
 

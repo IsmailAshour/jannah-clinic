@@ -4,6 +4,7 @@ All notable changes to jannahclinic are documented here. Per Definition of Done 
 every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–P5).
 
 ## [P1] Services & Booking — (in progress)
+- **T7 — AvailabilityService slot engine + availability endpoint:** `AvailabilityService::slotsFor` (pure domain, unit-tested); respects closed/custom_hours exceptions, excludes past slots and non-terminal conflicts; `GET /admin/availability` + `GET /portal/availability` (JSON `{start,end,label}[]`); `DoctorProfile::appointments()` HasMany added; 2 new canonical route names (`admin.availability`, `portal.availability`); 9 new tests (6 unit + 3 feature).
 - Settings store + SettingService (config-driven, R12); config/clinic.php.
 - Service catalog (categories + services): admin CRUD + portal browse.
 - Doctors + doctor_service pivot (+price_override); admin CRUD; AuthService::createStaff.

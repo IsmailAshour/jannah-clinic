@@ -4,7 +4,7 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 6 — Appointment + ServiceAddress entities + AppointmentStatus/DeliveryMode enums)
+> Last updated: 2026-05-20 (P1 Task 7 — DoctorProfile::appointments() HasMany added for AvailabilityService)
 > P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 Task 4 entities (DoctorSchedule, ScheduleException), P1 Task 5 entities (HomeServiceCoverageArea), and P1 Task 6 entities (Appointment, ServiceAddress) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
@@ -244,6 +244,7 @@ Table: `doctor_profiles`
 - `services(): BelongsToMany` → `Service` via `doctor_service` pivot (using `DoctorServicePivot`)
 - `schedules(): HasMany` → `DoctorSchedule`
 - `scheduleExceptions(): HasMany` → `ScheduleException`
+- `appointments(): HasMany` → `Appointment` (via `doctor_profile_id`) — added T7 for `AvailabilityService`
 
 **Notes:**
 - Created by `DoctorController::store` via `AuthService::createStaff` (role=doctor) + `DoctorProfile::create` inside a `DB::transaction`.

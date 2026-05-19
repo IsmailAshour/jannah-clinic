@@ -13,8 +13,9 @@ class ServiceBrowseController extends Controller
     {
         return Inertia::render('Portal/Services/Index', [
             'categories' => ServiceCategory::where('is_active', true)
-                ->with(['services' => fn ($q) => $q->where('is_active', true)->orderBy('display_order')])
+                ->with(['services' => fn ($q) => $q->where('is_active', true)->orderBy('display_order')->orderBy('id')])
                 ->orderBy('display_order')
+                ->orderBy('id')
                 ->get(),
         ]);
     }

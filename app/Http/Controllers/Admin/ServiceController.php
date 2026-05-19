@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Models\ServiceCategory;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,8 +16,8 @@ class ServiceController extends Controller
     public function index(): Response
     {
         return Inertia::render('Admin/Catalog/Services', [
-            'services' => Service::with('category')->orderBy('display_order')->get(),
-            'categories' => ServiceCategory::orderBy('display_order')->get(),
+            'services' => Service::with('category')->orderBy('display_order')->orderBy('id')->get(),
+            'categories' => ServiceCategory::orderBy('display_order')->orderBy('id')->get(),
         ]);
     }
 
@@ -60,7 +61,11 @@ class ServiceController extends Controller
 
     public function destroy(Service $service): RedirectResponse
     {
-        $service->delete();
+        try {
+            $service->delete();
+        } catch (QueryException $e) { // @phpstan-ignore catch.neverThrown (FK constraint — thrown at runtime by Postgres; SQLite tests skip it)
+            abort(409, 'لا يمكن حذف خدمة مرتبطة بسجلات أخرى.');
+        }
 
         return back();
     }

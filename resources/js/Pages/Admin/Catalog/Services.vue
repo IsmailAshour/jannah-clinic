@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
@@ -28,10 +28,10 @@ const columns = [
   { key: 'actions', label: 'إجراءات', align: 'end' },
 ]
 
-const rows = props.services.map(s => ({
+const rows = computed(() => props.services.map(s => ({
   ...s,
   category_name: s.category?.name ?? '—',
-}))
+})))
 
 const showModal = ref(false)
 const editingId = ref(null)

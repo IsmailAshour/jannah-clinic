@@ -14,7 +14,7 @@ class ServiceCategoryController extends Controller
     public function index(): Response
     {
         return Inertia::render('Admin/Catalog/Categories', [
-            'categories' => ServiceCategory::orderBy('display_order')->get(),
+            'categories' => ServiceCategory::orderBy('display_order')->orderBy('id')->get(),
         ]);
     }
 

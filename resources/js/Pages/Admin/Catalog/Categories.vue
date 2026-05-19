@@ -68,15 +68,23 @@ function submitForm() {
 
 const confirmDelete = ref(false)
 const deleteTarget = ref(null)
+const deleteError = ref('')
 
 function askDelete(row) {
   deleteTarget.value = row
+  deleteError.value = ''
   confirmDelete.value = true
 }
 
 function doDelete() {
+  deleteError.value = ''
   useForm({}).delete(`/admin/catalog/categories/${deleteTarget.value.id}`, {
     onSuccess: () => { confirmDelete.value = false; deleteTarget.value = null },
+    onError: (errors) => {
+      deleteError.value = errors?.message ?? 'لا يمكن حذف هذه الفئة.'
+      // Re-open the confirm modal to show the error (ConfirmModal auto-closes on confirm click)
+      confirmDelete.value = true
+    },
   })
 }
 </script>
@@ -160,7 +168,7 @@ function doDelete() {
     <ConfirmModal
       :open="confirmDelete"
       title="حذف الفئة"
-      :message="`هل أنت متأكد من حذف فئة «${deleteTarget?.name}»؟`"
+      :message="deleteError ? `هل أنت متأكد من حذف فئة «${deleteTarget?.name}»؟\n\n${deleteError}` : `هل أنت متأكد من حذف فئة «${deleteTarget?.name}»؟`"
       confirm-text="حذف"
       cancel-text="إلغاء"
       @update:open="confirmDelete = $event"

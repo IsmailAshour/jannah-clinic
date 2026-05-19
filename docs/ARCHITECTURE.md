@@ -236,6 +236,7 @@ Documented P1 debt items:
 - **ConfirmablePasswordController phone-only hazard:** fails for phone-only users (email null); add phone-aware confirmation before any P1 route uses `password.confirm` middleware.
 - **Doc/rule numbering note:** the P0 spec text refers to the 4-UI-states rule as "R10"; in the kit-generated `docs/GOLDEN-RULES.md` it is R16 (R10 there = no-double-counting). Code is correct; this is a spec-vs-generated numbering note only.
 - **RTL CI check scoping:** RTL CI check is scoped to authored code (`Layouts/Pages/Components/foundation/resources/css`); vendored `shadcn-vue Components/ui/` is excluded by design (upstream uses physical Tailwind classes; reka-ui/RTL handled at runtime).
+- **Currency symbol ₪ is hardcoded in catalog/portal Vue (single-currency clinic); make config/locale-driven if multi-currency is ever needed.**
 
 ---
 

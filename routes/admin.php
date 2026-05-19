@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DoctorController;
+use App\Http\Controllers\Admin\DoctorScheduleController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,9 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         // Doctors list – readable by all staff
         Route::get('doctors', [DoctorController::class, 'index'])->name('doctors.index');
 
+        // Doctor schedule view – readable by all staff
+        Route::get('doctors/{doctor}/schedule', [DoctorScheduleController::class, 'editSchedule'])->name('admin.doctors.schedule');
+
         // Catalog mutations – manager only
         Route::middleware('role:manager')->group(function () {
             Route::post('catalog/categories', [ServiceCategoryController::class, 'store'])->name('catalog.categories.store');
@@ -31,5 +35,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::post('doctors', [DoctorController::class, 'store'])->name('doctors.store');
             Route::put('doctors/{doctor}', [DoctorController::class, 'update'])->name('doctors.update');
             Route::delete('doctors/{doctor}', [DoctorController::class, 'destroy'])->name('doctors.destroy');
+
+            // Schedule mutations – manager only
+            Route::put('doctors/{doctor}/schedule', [DoctorScheduleController::class, 'saveSchedule'])->name('admin.doctors.schedule.save');
+            Route::post('doctors/{doctor}/exceptions', [DoctorScheduleController::class, 'addException'])->name('admin.doctors.exceptions.add');
+            Route::delete('doctors/{doctor}/exceptions/{exception}', [DoctorScheduleController::class, 'deleteException'])->name('admin.doctors.exceptions.delete');
         });
     });

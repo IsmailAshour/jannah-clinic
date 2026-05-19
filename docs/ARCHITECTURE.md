@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 3 — doctor profiles + service assignment)
+> Last updated: 2026-05-20 (P1 Task 4 — DoctorSchedule + ScheduleException)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -107,6 +107,17 @@ Vue pages: `Pages/Admin/Catalog/Categories.vue`, `Pages/Admin/Catalog/Services.v
 | DELETE | `/admin/doctors/{doctor}` | `admin.doctors.destroy` | `Admin\DoctorController@destroy` | manager only |
 
 Vue page: `Pages/Admin/Doctors/Index.vue`.
+
+**P1 Task 4 schedule routes:**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/admin/doctors/{doctor}/schedule` | `admin.admin.doctors.schedule` | `Admin\DoctorScheduleController@editSchedule` | all staff |
+| PUT | `/admin/doctors/{doctor}/schedule` | `admin.admin.doctors.schedule.save` | `Admin\DoctorScheduleController@saveSchedule` | manager only |
+| POST | `/admin/doctors/{doctor}/exceptions` | `admin.admin.doctors.exceptions.add` | `Admin\DoctorScheduleController@addException` | manager only |
+| DELETE | `/admin/doctors/{doctor}/exceptions/{exception}` | `admin.admin.doctors.exceptions.delete` | `Admin\DoctorScheduleController@deleteException` | manager only |
+
+Vue page: `Pages/Admin/Doctors/Schedule.vue`.
 
 ### Customer Portal — `routes/portal.php`
 

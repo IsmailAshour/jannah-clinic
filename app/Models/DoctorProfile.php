@@ -36,13 +36,11 @@ class DoctorProfile extends Model
 
     public function schedules(): HasMany
     {
-        // @phpstan-ignore class.notFound, argument.type (DoctorSchedule created in Task 4; forward reference intentional)
         return $this->hasMany(DoctorSchedule::class);
     }
 
     public function scheduleExceptions(): HasMany
     {
-        // @phpstan-ignore class.notFound, argument.type (ScheduleException created in Task 4; forward reference intentional)
         return $this->hasMany(ScheduleException::class);
     }
 }

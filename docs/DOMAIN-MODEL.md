@@ -4,8 +4,8 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 3 — doctor profiles + service assignment)
-> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service) and P1 Task 3 entities (DoctorProfile, doctor_service pivot) added below.
+> Last updated: 2026-05-20 (P1 Task 4 — DoctorSchedule + ScheduleException)
+> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), and P1 Task 4 entities (DoctorSchedule, ScheduleException) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
 migration, enum, or relationship change.
@@ -242,8 +242,8 @@ Table: `doctor_profiles`
 **Relationships:**
 - `user(): BelongsTo` → `User`
 - `services(): BelongsToMany` → `Service` via `doctor_service` pivot (using `DoctorServicePivot`)
-- `schedules(): HasMany` → `DoctorSchedule` (Task 4 forward-reference; class created in Task 4)
-- `scheduleExceptions(): HasMany` → `ScheduleException` (Task 4 forward-reference; class created in Task 4)
+- `schedules(): HasMany` → `DoctorSchedule`
+- `scheduleExceptions(): HasMany` → `ScheduleException`
 
 **Notes:**
 - Created by `DoctorController::store` via `AuthService::createStaff` (role=doctor) + `DoctorProfile::create` inside a `DB::transaction`.
@@ -293,19 +293,89 @@ doctor_profiles (1) ────── (*) schedule_exceptions   [Task 4]
 
 ---
 
+## P1 Entities (Task 4 — Doctor Schedules + Exceptions)
+
+### `DoctorSchedule`
+
+Table: `doctor_schedules`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `doctor_profile_id` | bigint unsigned | NOT NULL, FK → `doctor_profiles.id`, CASCADE DELETE |
+| `weekday` | smallint | NOT NULL (0=Sunday … 6=Saturday) |
+| `morning_enabled` | boolean | NOT NULL, default `false` |
+| `morning_start` | time | nullable |
+| `morning_end` | time | nullable |
+| `evening_enabled` | boolean | NOT NULL, default `false` |
+| `evening_start` | time | nullable |
+| `evening_end` | time | nullable |
+| `slot_interval_minutes` | integer | NOT NULL, default `30` |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Unique:** `(doctor_profile_id, weekday)`
+
+**Postgres-only CHECK constraints:**
+
+```sql
+CONSTRAINT doctor_schedules_weekday_check  CHECK (weekday BETWEEN 0 AND 6)
+CONSTRAINT doctor_schedules_interval_check CHECK (slot_interval_minutes > 0)
+```
+
+**Fillable:** `doctor_profile_id`, `weekday`, `morning_enabled`, `morning_start`, `morning_end`, `evening_enabled`, `evening_start`, `evening_end`, `slot_interval_minutes`
+**Casts:** `weekday → integer`, `morning_enabled → boolean`, `evening_enabled → boolean`, `slot_interval_minutes → integer`
+
+**Relationships:**
+- `doctor(): BelongsTo` → `DoctorProfile` (via `doctor_profile_id`)
+
+**Model path:** `app/Models/DoctorSchedule.php`
+
+---
+
+### `ScheduleException`
+
+Table: `schedule_exceptions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `doctor_profile_id` | bigint unsigned | NOT NULL, FK → `doctor_profiles.id`, CASCADE DELETE |
+| `date` | date | NOT NULL |
+| `type` | varchar(16) | NOT NULL (`closed` or `custom_hours`) |
+| `custom_start` | time | nullable |
+| `custom_end` | time | nullable |
+| `note` | varchar(255) | nullable |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Unique:** `(doctor_profile_id, date)`
+
+**Postgres-only CHECK constraint:**
+
+```sql
+CONSTRAINT schedule_exceptions_type_check CHECK (type IN ('closed','custom_hours'))
+```
+
+**Fillable:** `doctor_profile_id`, `date`, `type`, `custom_start`, `custom_end`, `note`
+**Casts:** `date → date`
+
+**Relationships:**
+- `doctor(): BelongsTo` → `DoctorProfile` (via `doctor_profile_id`)
+
+**Notes:**
+- `updateOrCreate` keyed on `(doctor_profile_id, date)` — one exception per doctor per date.
+- Admin mutations (add/delete) are manager-only; the schedule view page is all-staff.
+
+**Model path:** `app/Models/ScheduleException.php`
+
+---
+
 ## P2+ Entities (OUT OF SCOPE — YAGNI)
 
 The following entities are explicitly deferred to P2–P5. They MUST NOT be
 modelled, migrated, or referenced until their phase begins:
 
-> DoctorSchedule, ScheduleException, ServiceAddress, Appointment, Payment,
-> Receipt, MedicalRecord, MedicalEntry, Prescription, MembershipPlan,
-> UserMembership, LoyaltyTransaction, Notification
-
-Note: `DoctorSchedule` and `ScheduleException` are deferred to Task 4 (P1).
-`DoctorProfile.schedules()` and `DoctorProfile.scheduleExceptions()` carry
-inline `// @phpstan-ignore class.notFound, argument.type` annotations until
-Task 4 lands (same documented-temporary pattern used for T2→T3 forward-ref).
+> ServiceAddress, Appointment, Payment, Receipt, MedicalRecord, MedicalEntry,
+> Prescription, MembershipPlan, UserMembership, LoyaltyTransaction, Notification
 
 Roadmap: `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md` §2
 and the `clinic` reference feature inventory.

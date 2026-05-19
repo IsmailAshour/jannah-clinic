@@ -2,10 +2,10 @@
 
 namespace App\Domain\Booking\Services;
 
+use App\Domain\Booking\Slots\SlotGrid;
 use App\Enums\AppointmentStatus;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
 use App\Models\ScheduleException;
 use App\Models\Service;
 use Carbon\CarbonImmutable;
@@ -17,17 +17,13 @@ class AvailabilityService
     public function slotsFor(DoctorProfile $doctor, Service $service, CarbonImmutable $date): array
     {
         $date = $date->startOfDay();
-
-        /** @var DoctorSchedule|null $schedule */
-        $schedule = $doctor->schedules()->where('weekday', (int) $date->dayOfWeek)->first();
-
-        $windows = $this->windowsFor($doctor, $date, $schedule);
-        if ($windows === []) {
+        $enabled = $this->enabledFor($doctor, $date);
+        if ($enabled === []) {
             return [];
         }
 
-        $duration = $service->duration_minutes;
-        $interval = $schedule !== null ? (int) $schedule->slot_interval_minutes : 30;
+        $need = max(1, $service->slotCount());
+        $duration = (int) $service->duration_minutes;
         $now = CarbonImmutable::now()->addMinutes((int) config('clinic.booking_lead_minutes', 0));
 
         /** @var Collection<int,Appointment> $taken */
@@ -36,54 +32,61 @@ class AvailabilityService
             ->whereDate('start_at', $date->toDateString())
             ->get(['start_at', 'end_at']);
 
+        $enabledSet = array_flip($enabled);
         $slots = [];
-        foreach ($windows as [$winStart, $winEnd]) {
-            $cursor = $date->setTimeFromTimeString($winStart);
-            $limit = $date->setTimeFromTimeString($winEnd);
-            while ($cursor->copy()->addMinutes($duration)->lessThanOrEqualTo($limit)) {
-                $slotStart = $cursor;
-                $slotEnd = $cursor->addMinutes($duration);
-                $overlaps = $taken->contains(
-                    fn (Appointment $a) => $slotStart->lessThan($a->end_at) && $slotEnd->greaterThan($a->start_at)
-                );
-                if (! $overlaps && $slotStart->greaterThanOrEqualTo($now)) {
-                    $slots[] = ['start' => $slotStart, 'end' => $slotEnd];
+        foreach (SlotGrid::all() as $s) {
+            $block = SlotGrid::blockFrom($s, $need);
+            if ($block === null) {
+                continue;
+            }
+            $allEnabled = true;
+            foreach ($block as $b) {
+                if (! isset($enabledSet[$b])) {
+                    $allEnabled = false;
+                    break;
                 }
-                $cursor = $cursor->addMinutes($interval);
+            }
+            if (! $allEnabled) {
+                continue;
+            }
+            $start = $date->setTimeFromTimeString($s);
+            $end = $start->addMinutes($duration);
+            if ($start->lessThan($now)) {
+                continue;
+            }
+            $overlaps = $taken->contains(
+                fn ($a) => $start->lessThan($a->end_at) && $end->greaterThan($a->start_at)
+            );
+            if (! $overlaps) {
+                $slots[] = ['start' => $start, 'end' => $end];
             }
         }
 
         return $slots;
     }
 
-    /** @return array<int,array{0:string,1:string}> */
-    private function windowsFor(DoctorProfile $doctor, CarbonImmutable $date, ?DoctorSchedule $schedule): array
+    /** @return list<string> */
+    private function enabledFor(DoctorProfile $doctor, CarbonImmutable $date): array
     {
-        /** @var ScheduleException|null $exception */
-        $exception = $doctor->scheduleExceptions()
-            ->whereDate('date', $date->toDateString())->first();
-        if ($exception) {
-            if ($exception->type === 'closed') {
+        /** @var ScheduleException|null $ex */
+        $ex = $doctor->scheduleExceptions()->whereDate('date', $date->toDateString())->first();
+        if ($ex) {
+            if ($ex->type === 'closed') {
                 return [];
             }
-            if ($exception->type === 'custom_hours' && $exception->custom_start && $exception->custom_end) {
-                // ScheduleException لا تحتوي على عمود slot_interval_minutes خاص بها،
-                // لذا يُستخدم الفترة الزمنية من صف DoctorSchedule لليوم الأسبوعي (أو 30 دقيقة افتراضياً عند غيابه).
-                return [[$exception->custom_start->format('H:i'), $exception->custom_end->format('H:i')]];
+            if ($ex->type === 'custom') {
+                /** @var list<string> $custom */
+                $custom = $ex->slots()->pluck('slot_start')->all();
+
+                return $custom;
             }
         }
 
-        if (! $schedule) {
-            return [];
-        }
-        $windows = [];
-        if ($schedule->morning_enabled && $schedule->morning_start && $schedule->morning_end) {
-            $windows[] = [$schedule->morning_start->format('H:i'), $schedule->morning_end->format('H:i')];
-        }
-        if ($schedule->evening_enabled && $schedule->evening_start && $schedule->evening_end) {
-            $windows[] = [$schedule->evening_start->format('H:i'), $schedule->evening_end->format('H:i')];
-        }
+        /** @var list<string> $weekly */
+        $weekly = $doctor->scheduleSlots()
+            ->where('weekday', (int) $date->dayOfWeek)
+            ->pluck('slot_start')->all();
 
-        return $windows;
+        return $weekly;
     }
 }

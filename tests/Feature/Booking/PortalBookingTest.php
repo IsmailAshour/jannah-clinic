@@ -5,7 +5,6 @@ use App\Enums\AppointmentStatus;
 use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
 use App\Models\HomeServiceCoverageArea;
 use App\Models\Service;
 use App\Models\ServiceCategory;
@@ -19,15 +18,7 @@ function makePortalFixture(): array
     $doc = DoctorProfile::factory()->create(['is_bookable' => true]);
     $doc->services()->attach($svc->id);
     $date = CarbonImmutable::parse('next monday');
-    DoctorSchedule::create([
-        'doctor_profile_id' => $doc->id,
-        'weekday' => (int) $date->dayOfWeek,
-        'morning_enabled' => true,
-        'morning_start' => '09:00',
-        'morning_end' => '12:00',
-        'evening_enabled' => false,
-        'slot_interval_minutes' => 30,
-    ]);
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
 
     return [$doc, $svc, $date];
 }
@@ -91,15 +82,7 @@ it('customer can book a valid home appointment via portal', function () {
     $doc = DoctorProfile::factory()->create(['is_bookable' => true]);
     $doc->services()->attach($svc->id);
     $date = CarbonImmutable::parse('next monday');
-    DoctorSchedule::create([
-        'doctor_profile_id' => $doc->id,
-        'weekday' => (int) $date->dayOfWeek,
-        'morning_enabled' => true,
-        'morning_start' => '09:00',
-        'morning_end' => '12:00',
-        'evening_enabled' => false,
-        'slot_interval_minutes' => 30,
-    ]);
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
     $area = HomeServiceCoverageArea::create(['name' => 'رام الله', 'is_active' => true, 'display_order' => 1]);
     $customer = User::factory()->create(['role' => UserRole::Customer]);
 

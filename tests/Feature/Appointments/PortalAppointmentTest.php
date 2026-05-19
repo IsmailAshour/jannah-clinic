@@ -6,7 +6,6 @@ use App\Enums\DeliveryMode;
 use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\User;
@@ -20,15 +19,7 @@ function makePortalApptFixture(): array
     $doc->services()->attach($svc->id);
     $customer = User::factory()->create(['role' => UserRole::Customer]);
     $date = CarbonImmutable::parse('next monday');
-    DoctorSchedule::create([
-        'doctor_profile_id' => $doc->id,
-        'weekday' => (int) $date->dayOfWeek,
-        'morning_enabled' => true,
-        'morning_start' => '09:00',
-        'morning_end' => '12:00',
-        'evening_enabled' => false,
-        'slot_interval_minutes' => 30,
-    ]);
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
     $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
     $slot = $slots[0];
 
@@ -77,15 +68,7 @@ it('customer can reschedule their own appointment to a valid new slot', function
     if ($newSlot === null) {
         // If only one slot, use a different day
         $nextDate = $date->addDays(7);
-        DoctorSchedule::create([
-            'doctor_profile_id' => $doc->id,
-            'weekday' => (int) $nextDate->dayOfWeek,
-            'morning_enabled' => true,
-            'morning_start' => '09:00',
-            'morning_end' => '12:00',
-            'evening_enabled' => false,
-            'slot_interval_minutes' => 30,
-        ]);
+        enableDoctorSlots($doc, (int) $nextDate->dayOfWeek, slotRange('09:00', 6));
         $newSlots = app(AvailabilityService::class)->slotsFor($doc, $svc, $nextDate);
         $newSlot = $newSlots[0];
     }

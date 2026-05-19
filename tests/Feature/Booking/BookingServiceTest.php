@@ -8,7 +8,6 @@ use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
 use App\Enums\UserRole;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
 use App\Models\HomeServiceCoverageArea;
 use App\Models\Service;
 use App\Models\ServiceCategory;
@@ -22,7 +21,7 @@ function bookingFixture(bool $home = false): array
     $d = DoctorProfile::factory()->create();
     $d->services()->attach($s->id);
     $date = CarbonImmutable::parse('next monday');
-    DoctorSchedule::create(['doctor_profile_id' => $d->id, 'weekday' => (int) $date->dayOfWeek, 'morning_enabled' => true, 'morning_start' => '09:00', 'morning_end' => '10:00', 'evening_enabled' => false, 'slot_interval_minutes' => 30]);
+    enableDoctorSlots($d, (int) $date->dayOfWeek, slotRange('09:00', 2));
     $cust = User::factory()->create(['role' => UserRole::Customer]);
 
     return compact('s', 'd', 'date', 'cust');

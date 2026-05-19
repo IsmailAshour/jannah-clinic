@@ -11,7 +11,6 @@ use App\Enums\DeliveryMode;
 use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
 use App\Models\HomeServiceCoverageArea;
 use App\Models\Service;
 use App\Models\ServiceCategory;
@@ -26,15 +25,7 @@ function makeTransitionFixture(): array
     $doc->services()->attach($svc->id);
     $customer = User::factory()->create(['role' => UserRole::Customer]);
     $date = CarbonImmutable::parse('next monday');
-    DoctorSchedule::create([
-        'doctor_profile_id' => $doc->id,
-        'weekday' => (int) $date->dayOfWeek,
-        'morning_enabled' => true,
-        'morning_start' => '09:00',
-        'morning_end' => '12:00',
-        'evening_enabled' => false,
-        'slot_interval_minutes' => 30,
-    ]);
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
 
     $slot = app(AvailabilityService::class)->slotsFor($doc, $svc, $date)[0];
 
@@ -155,15 +146,7 @@ it('reschedule of a home-delivery appointment carries the ServiceAddress to the 
     $customer = User::factory()->create(['role' => UserRole::Customer]);
     $area = HomeServiceCoverageArea::create(['name' => 'رام الله', 'is_active' => true]);
     $date = CarbonImmutable::parse('next tuesday');
-    DoctorSchedule::create([
-        'doctor_profile_id' => $doc->id,
-        'weekday' => (int) $date->dayOfWeek,
-        'morning_enabled' => true,
-        'morning_start' => '09:00',
-        'morning_end' => '12:00',
-        'evening_enabled' => false,
-        'slot_interval_minutes' => 30,
-    ]);
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
 
     $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
 

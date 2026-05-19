@@ -2,7 +2,6 @@
 
 use App\Enums\UserRole;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\User;
@@ -14,15 +13,7 @@ function makeBookingFixture(): array
     $cat = ServiceCategory::create(['name' => 'Test', 'slug' => uniqid(), 'color_variant' => 'brand']);
     $svc = Service::create(['category_id' => $cat->id, 'name' => 'Consult', 'base_price' => 100, 'duration_minutes' => 30]);
     $date = CarbonImmutable::parse('next monday');
-    DoctorSchedule::create([
-        'doctor_profile_id' => $doc->id,
-        'weekday' => (int) $date->dayOfWeek,
-        'morning_enabled' => true,
-        'morning_start' => '09:00',
-        'morning_end' => '12:00',
-        'evening_enabled' => false,
-        'slot_interval_minutes' => 30,
-    ]);
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
 
     return [$doc, $svc, $date];
 }

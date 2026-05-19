@@ -5,7 +5,6 @@ use App\Enums\AppointmentStatus;
 use App\Enums\UserRole;
 use App\Models\CustomerProfile;
 use App\Models\DoctorProfile;
-use App\Models\DoctorSchedule;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\User;
@@ -18,15 +17,7 @@ function makeAdminFixture(): array
     $doc = DoctorProfile::factory()->create(['is_bookable' => true]);
     $doc->services()->attach($svc->id);
     $date = CarbonImmutable::parse('next monday');
-    DoctorSchedule::create([
-        'doctor_profile_id' => $doc->id,
-        'weekday' => (int) $date->dayOfWeek,
-        'morning_enabled' => true,
-        'morning_start' => '09:00',
-        'morning_end' => '12:00',
-        'evening_enabled' => false,
-        'slot_interval_minutes' => 30,
-    ]);
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
 
     return [$doc, $svc, $date];
 }

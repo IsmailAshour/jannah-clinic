@@ -1,5 +1,8 @@
 <?php
 
+use App\Domain\Booking\Slots\SlotGrid;
+use App\Models\DoctorProfile;
+use App\Models\DoctorScheduleSlot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -21,3 +24,20 @@ pest()->extend(TestCase::class)
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Unit');
+
+function enableDoctorSlots(DoctorProfile $doctor, int $weekday, array $starts): void
+{
+    foreach ($starts as $s) {
+        DoctorScheduleSlot::create([
+            'doctor_profile_id' => $doctor->id,
+            'weekday' => $weekday,
+            'slot_start' => $s,
+        ]);
+    }
+}
+
+/** Contiguous half-hour grid starts from $from for $count slots (e.g. slotRange('09:00',4) => ['09:00','09:30','10:00','10:30']) */
+function slotRange(string $from, int $count): array
+{
+    return SlotGrid::blockFrom($from, $count) ?? [];
+}

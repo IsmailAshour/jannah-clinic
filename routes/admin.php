@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\ClinicSettingController;
 use App\Http\Controllers\Admin\CoverageAreaController;
 use App\Http\Controllers\Admin\DoctorController;
@@ -32,6 +33,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
 
         // Availability – readable by all staff
         Route::get('availability', AvailabilityController::class)->name('availability');
+
+        // Booking wizard — admin on-behalf booking (all staff)
+        Route::get('booking', [BookingController::class, 'create'])->name('booking.create');
+        Route::post('booking', [BookingController::class, 'store'])->name('booking.store');
 
         // Catalog mutations – manager only
         Route::middleware('role:manager')->group(function () {

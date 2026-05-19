@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (P1 Task 8 PricingService + transactional BookingService + BookingData + booking exceptions)
+> Last updated: 2026-05-19 (P1 Task 9 shared BookingWizard + Portal/Admin booking controllers + 4 booking routes)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -147,6 +147,15 @@ Vue pages: `Pages/Admin/Coverage/Index.vue`, `Pages/Admin/Settings/Index.vue`.
 
 Query params: `doctor` (id), `service` (id), `date` (Y-m-d). Returns JSON array of `{start, end, label}`.
 
+**P1 Task 9 booking wizard routes (all staff):**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/admin/booking` | `admin.booking.create` | `Admin\BookingController@create` | all staff |
+| POST | `/admin/booking` | `admin.booking.store` | `Admin\BookingController@store` | all staff |
+
+Vue page: `Pages/Admin/Booking/Create.vue` — wraps `BookingWizard` with `customerPicker=true`; sends customer list + doctors/services/coverageAreas/homeSurchargePct. On store: resolves customer via `customer_id` (verified Customer-role) or quick-creates via `AuthService::registerCustomer` with a `Str::password(16)` generated password. `createdByRole` = `$request->user()->role`.
+
 ### Customer Portal — `routes/portal.php`
 
 ```
@@ -174,6 +183,18 @@ Vue page: `Pages/Portal/Services/Index.vue` — browse-only (no booking; wizard 
 | GET | `/portal/availability` | `portal.availability` | `Booking\AvailabilityController` | customer |
 
 Query params: `doctor` (id), `service` (id), `date` (Y-m-d). Returns JSON array of `{start, end, label}`.
+
+**P1 Task 9 booking wizard routes (customer):**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/portal/booking` | `portal.booking.create` | `Portal\BookingController@create` | customer |
+| POST | `/portal/booking` | `portal.booking.store` | `Portal\BookingController@store` | customer |
+
+Vue page: `Pages/Portal/Booking/Create.vue` — wraps `BookingWizard` with `customerPicker=false`; sends doctors/services/coverageAreas/homeSurchargePct. On store: `customerId = $request->user()->id`, `createdByRole = Customer`. Both booking controllers delegate to `BookingService::book(BookingData)` (R7); catch `SlotUnavailableException`/`InvalidBookingException` and `back()->withErrors(['booking' => $msg])` (Inertia-safe error bag; never abort(409/422)). On success, redirect to an existing route with a flash (T10 will repoint to appointments).
+
+**Shared `BookingWizard` component (`Components/booking/BookingWizard.vue`):**
+3-step wizard (step 0 = customer picker for admin only → step 1 = delivery mode → step 2 = doctor + service → step 3 = date + slot). The slot picker calls the availability endpoint via `fetch` and stores the EXACT ISO8601+offset `start` string returned by the endpoint (never reconstructed). Client-side price preview uses `price_override ?? base_price` + home surcharge estimate; server recomputes authoritatively. Page components own `useForm` and post via Inertia; wizard emits `submit` with the payload object.
 
 ### Surface isolation
 

@@ -72,6 +72,10 @@ class AppointmentController extends Controller
             'reason' => ['nullable', 'string', 'max:500', 'required_if:status,cancelled'],
         ]);
 
+        if (AppointmentStatus::from($v['status']) === AppointmentStatus::Rescheduled) {
+            return back()->withErrors(['appointment' => 'استخدم مسار إعادة الجدولة بدلاً من تغيير الحالة يدويًا.']);
+        }
+
         try {
             app(AppointmentTransitionService::class)->transition(
                 $appointment,

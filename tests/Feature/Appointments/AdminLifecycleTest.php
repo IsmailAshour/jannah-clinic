@@ -84,6 +84,28 @@ it('illegal transition (completed → confirmed) returns appointment error and l
     expect(Appointment::find($appt->id)->status)->toBe(AppointmentStatus::Completed);
 });
 
+it('staff cannot skip requested → completed directly', function () {
+    [$appt] = makeAdminLifecycleFixture();
+    $staff = User::factory()->create(['role' => UserRole::Receptionist]);
+
+    $this->actingAs($staff)
+        ->post("/admin/appointments/{$appt->id}/transition", ['status' => 'completed'])
+        ->assertSessionHasErrors('appointment');
+
+    expect(Appointment::find($appt->id)->status)->toBe(AppointmentStatus::Requested);
+});
+
+it('staff cannot POST status=rescheduled directly to transition endpoint', function () {
+    [$appt] = makeAdminLifecycleFixture();
+    $staff = User::factory()->create(['role' => UserRole::Receptionist]);
+
+    $this->actingAs($staff)
+        ->post("/admin/appointments/{$appt->id}/transition", ['status' => 'rescheduled'])
+        ->assertSessionHasErrors('appointment');
+
+    expect(Appointment::find($appt->id)->status)->toBe(AppointmentStatus::Requested);
+});
+
 it('customer cannot access admin appointments index', function () {
     $customer = User::factory()->create(['role' => UserRole::Customer]);
 

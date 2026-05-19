@@ -16,6 +16,10 @@ class AppointmentTransitionService
 
     public function transition(Appointment $a, AppointmentStatus $to, ?string $reason = null): Appointment
     {
+        // MVP: no row lock — two concurrent staff transitions are last-write-wins between
+        // two *valid* successors (cannot produce an invalid/terminal-bypassing state, since
+        // canTransitionTo() guards against the in-memory status). Acceptable for low-concurrency
+        // trusted staff; revisit with DB::transaction+lockForUpdate if multi-staff contention appears (P2).
         if (! $a->status->canTransitionTo($to)) {
             throw new InvalidTransitionException("انتقال غير مسموح: {$a->status->value} → {$to->value}");
         }

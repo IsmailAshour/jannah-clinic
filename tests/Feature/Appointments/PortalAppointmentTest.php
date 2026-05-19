@@ -105,6 +105,18 @@ it('customer can reschedule their own appointment to a valid new slot', function
     expect($newAppt->status)->toBe(AppointmentStatus::Requested);
 });
 
+it('customer cancelling a terminal appointment gets a friendly error and status is unchanged', function () {
+    [$appt, , , $customer] = makePortalApptFixture();
+    $appt->status = AppointmentStatus::Completed;
+    $appt->save();
+
+    $this->actingAs($customer)
+        ->post("/portal/appointments/{$appt->id}/cancel", ['reason' => 'محاولة إلغاء'])
+        ->assertSessionHasErrors('appointment');
+
+    expect(Appointment::find($appt->id)->status)->toBe(AppointmentStatus::Completed);
+});
+
 it('staff user cannot access portal appointments index', function () {
     $staff = User::factory()->create(['role' => UserRole::Receptionist]);
 

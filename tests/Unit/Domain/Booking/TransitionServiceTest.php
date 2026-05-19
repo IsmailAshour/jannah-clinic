@@ -1,8 +1,10 @@
 <?php
 
+use App\Domain\Booking\Data\BookingData;
 use App\Domain\Booking\Exceptions\InvalidTransitionException;
 use App\Domain\Booking\Services\AppointmentTransitionService;
 use App\Domain\Booking\Services\AvailabilityService;
+use App\Domain\Booking\Services\BookingService;
 use App\Domain\Booking\Services\PricingService;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
@@ -10,6 +12,7 @@ use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
 use App\Models\DoctorSchedule;
+use App\Models\HomeServiceCoverageArea;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\User;
@@ -141,4 +144,55 @@ it('reschedule creates a new requested appointment and sets old status to resche
     $pricing = app(PricingService::class);
     $expectedQuote = $pricing->quote($doc, $svc, $appt->delivery_mode);
     expect((string) $newAppt->price_at_booking)->toBe($expectedQuote['total']);
+});
+
+it('reschedule of a home-delivery appointment carries the ServiceAddress to the new appointment', function () {
+    // Build a home-enabled fixture from scratch (makeTransitionFixture uses center mode)
+    $cat = ServiceCategory::create(['name' => 'منزلي ترانزيشن', 'slug' => uniqid(), 'color_variant' => 'brand']);
+    $svc = Service::create(['category_id' => $cat->id, 'name' => 'زيارة منزلية', 'base_price' => 200, 'duration_minutes' => 30, 'home_service_enabled' => true]);
+    $doc = DoctorProfile::factory()->create(['is_bookable' => true]);
+    $doc->services()->attach($svc->id);
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    $area = HomeServiceCoverageArea::create(['name' => 'رام الله', 'is_active' => true]);
+    $date = CarbonImmutable::parse('next tuesday');
+    DoctorSchedule::create([
+        'doctor_profile_id' => $doc->id,
+        'weekday' => (int) $date->dayOfWeek,
+        'morning_enabled' => true,
+        'morning_start' => '09:00',
+        'morning_end' => '12:00',
+        'evening_enabled' => false,
+        'slot_interval_minutes' => 30,
+    ]);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+
+    // Book the first slot as a home appointment (creates ServiceAddress)
+    $oldAppt = app(BookingService::class)->book(new BookingData(
+        customerId: $customer->id,
+        doctorProfileId: $doc->id,
+        serviceId: $svc->id,
+        startAt: $slots[0]['start'],
+        deliveryMode: DeliveryMode::Home,
+        createdByRole: UserRole::Customer,
+        coverageAreaId: $area->id,
+        addressText: 'شارع الإستقلال 5',
+        locationNote: 'الطابق الثاني',
+    ));
+
+    // Use the second slot for reschedule
+    $newStart = isset($slots[1]) ? $slots[1]['start'] : $slots[0]['start']->addMinutes(30);
+
+    $newAppt = app(AppointmentTransitionService::class)->reschedule($oldAppt, $newStart);
+
+    // Old is rescheduled, new is requested, link is correct
+    expect(Appointment::find($oldAppt->id)->status)->toBe(AppointmentStatus::Rescheduled);
+    expect($newAppt->status)->toBe(AppointmentStatus::Requested);
+    expect($newAppt->rescheduled_from_id)->toBe($oldAppt->id);
+
+    // ServiceAddress is carried to the new appointment
+    $newAppt->load('serviceAddress');
+    expect($newAppt->serviceAddress)->not->toBeNull();
+    expect($newAppt->serviceAddress->coverage_area_id)->toBe($area->id);
+    expect($newAppt->serviceAddress->address_text)->toBe('شارع الإستقلال 5');
 });

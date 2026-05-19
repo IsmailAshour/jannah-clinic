@@ -4,8 +4,8 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (P0 foundation — Task 10)
-> P0 scope only. P1–P5 entities are explicitly OUT OF SCOPE — see §P1+ below.
+> Last updated: 2026-05-20 (P1 Task 2 — service catalog)
+> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
 migration, enum, or relationship change.
@@ -148,17 +148,98 @@ constraint and `HasOne` / `BelongsTo` pair enforce this at both DB and ORM layer
 
 ---
 
-## P1+ Entities (OUT OF SCOPE — YAGNI)
+## P1 Entities (Task 2 — Service Catalog)
+
+### `ServiceCategory`
+
+Table: `service_categories`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `name` | varchar(255) | NOT NULL |
+| `slug` | varchar(255) | NOT NULL, unique |
+| `color_variant` | varchar(16) | NOT NULL, default `brand` |
+| `display_order` | integer | NOT NULL, default `0` |
+| `is_active` | boolean | NOT NULL, default `true` |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Postgres-only CHECK constraint:**
+
+```sql
+CONSTRAINT service_categories_color_check
+    CHECK (color_variant IN ('brand','gold'))
+```
+
+**Fillable:** `name`, `slug`, `color_variant`, `display_order`, `is_active`
+**Casts:** `is_active → boolean`, `display_order → integer`
+
+**Relationships:**
+- `services(): HasMany` → `Service` (FK `category_id`)
+
+**Model path:** `app/Models/ServiceCategory.php`
+
+---
+
+### `Service`
+
+Table: `services`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `category_id` | bigint unsigned | NOT NULL, FK → `service_categories.id` RESTRICT DELETE |
+| `name` | varchar(255) | NOT NULL |
+| `description` | text | nullable |
+| `base_price` | decimal(10,2) | NOT NULL |
+| `duration_minutes` | integer | NOT NULL |
+| `home_service_enabled` | boolean | NOT NULL, default `false` |
+| `icon_key` | varchar(255) | nullable |
+| `is_active` | boolean | NOT NULL, default `true` |
+| `display_order` | integer | NOT NULL, default `0` |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Postgres-only CHECK constraints:**
+
+```sql
+CONSTRAINT services_base_price_check  CHECK (base_price >= 0)
+CONSTRAINT services_duration_check    CHECK (duration_minutes > 0)
+```
+
+**Fillable:** `category_id`, `name`, `description`, `base_price`, `duration_minutes`,
+`home_service_enabled`, `icon_key`, `is_active`, `display_order`
+**Casts:** `base_price → decimal:2`, `duration_minutes → integer`,
+`home_service_enabled → boolean`, `is_active → boolean`, `display_order → integer`
+
+**Relationships:**
+- `category(): BelongsTo` → `ServiceCategory`
+- `doctors(): BelongsToMany` → `DoctorProfile` via `doctor_service` pivot (Task 3)
+
+**Model path:** `app/Models/Service.php`
+
+---
+
+## Entity Relationship (P0 + P1 Task 2)
+
+```
+users (1) ─────── (0..1) customer_profiles
+service_categories (1) ── (*) services
+services (*) ──────────── (*) doctor_profiles  [pivot: doctor_service — Task 3]
+```
+
+---
+
+## P2+ Entities (OUT OF SCOPE — YAGNI)
 
 The following entities are explicitly deferred to P2–P5. They MUST NOT be
-modelled, migrated, or referenced in P0 code. They are listed here only as a
-forward reference for ARCHITECTURE.md §P0 Boundary:
+modelled, migrated, or referenced until their phase begins:
 
-> ServiceCategory, Service, DoctorProfile, DoctorSchedule, DoctorScheduleException,
+> DoctorProfile, DoctorSchedule, DoctorScheduleException,
 > ServiceAddress, Appointment, Payment, Receipt, MedicalRecord, MedicalEntry,
 > Prescription, MembershipPlan, UserMembership, LoyaltyTransaction, Notification
 
-**P1 Entities (now in-scope):** `Setting` (see §Setting above)
+Note: `DoctorProfile` is deferred to Task 3 (P1). `Service.doctors()` carries a
+forward-reference with `@phpstan-ignore-next-line` annotation until Task 3 lands.
 
 Roadmap: `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md` §2
 and the `clinic` reference feature inventory.

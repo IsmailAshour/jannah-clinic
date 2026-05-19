@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (P0 foundation — Task 10)
+> Last updated: 2026-05-20 (P1 Task 2 — service catalog)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -82,6 +82,21 @@ layout:     AdminShell (resources/js/Layouts/AdminShell.vue)
 
 Entry point: `GET /admin` → `admin.dashboard` → `Pages/Admin/Dashboard.vue`.
 
+**P1 Task 2 catalog routes (staff group):**
+
+| Method | Path | Name | Controller |
+|--------|------|------|------------|
+| GET | `/admin/catalog/categories` | `admin.catalog.categories` | `Admin\ServiceCategoryController@index` |
+| POST | `/admin/catalog/categories` | `admin.catalog.categories.store` | `Admin\ServiceCategoryController@store` |
+| PUT | `/admin/catalog/categories/{category}` | `admin.catalog.categories.update` | `Admin\ServiceCategoryController@update` |
+| DELETE | `/admin/catalog/categories/{category}` | `admin.catalog.categories.destroy` | `Admin\ServiceCategoryController@destroy` |
+| GET | `/admin/catalog/services` | `admin.catalog.services` | `Admin\ServiceController@index` |
+| POST | `/admin/catalog/services` | `admin.catalog.services.store` | `Admin\ServiceController@store` |
+| PUT | `/admin/catalog/services/{service}` | `admin.catalog.services.update` | `Admin\ServiceController@update` |
+| DELETE | `/admin/catalog/services/{service}` | `admin.catalog.services.destroy` | `Admin\ServiceController@destroy` |
+
+Vue pages: `Pages/Admin/Catalog/Categories.vue`, `Pages/Admin/Catalog/Services.vue`.
+
 ### Customer Portal — `routes/portal.php`
 
 ```
@@ -93,6 +108,14 @@ layout:     ClientShell (resources/js/Layouts/ClientShell.vue)
 
 Key P0 routes: `GET /portal` → `portal.home`; `POST /portal/profile/avatar`
 → `portal.profile.avatar` (handled by `ProfileController::updateAvatar`).
+
+**P1 Task 2 catalog routes (customer group):**
+
+| Method | Path | Name | Controller |
+|--------|------|------|------------|
+| GET | `/portal/services` | `portal.services.index` | `Portal\ServiceBrowseController@index` |
+
+Vue page: `Pages/Portal/Services/Index.vue` — browse-only (no booking; wizard is Task 4+).
 
 ### Surface isolation
 

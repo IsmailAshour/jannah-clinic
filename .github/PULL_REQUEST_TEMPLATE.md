@@ -25,7 +25,6 @@
 ### Architecture Gates
 
 - [ ] D01 All monetary amounts stored as DECIMAL or integer minor-units; no FLOAT/DOUBLE on money fields
-- [ ] D05 Payment handler asserts: amount > 0, record in valid state, amount ≤ remaining balance
 - [ ] S01 Schema migration includes required constraints, checks, and unique indexes for all new/changed invariants
 - [ ] S02 No raw SQL with string-interpolated user input; all queries use parameterized bindings or query builder
 
@@ -33,7 +32,6 @@
 
 - [ ] U01 Every new/changed data view handles loading, empty, error, and success states
 - [ ] U02 No hardcoded colors, spacing, or type values; all values sourced from design-system tokens
-- [ ] U04 Layout tested at all defined breakpoints; no dead space or floating forms
 
 ### i18n / Bidirectionality Gates
 

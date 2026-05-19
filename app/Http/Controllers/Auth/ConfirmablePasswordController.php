@@ -20,6 +20,7 @@ class ConfirmablePasswordController extends Controller
         return Inertia::render('Auth/ConfirmPassword');
     }
 
+    // P1 hazard: validates via user email; phone-only customers (email null) will always fail password confirmation. Before any route applies the `password.confirm` middleware in P1, add phone-aware confirmation (resolve by identifier). See ARCHITECTURE.md P0-debt & ADR-002.
     /**
      * Confirm the user's password.
      */

@@ -206,6 +206,11 @@ Documented P1 debt items:
   encryption are mandatory before real patient data reaches production. This ADR
   MUST be superseded and the kit re-bootstrapped before any production deployment
   with real patient data.
+- **Cairo font format:** Cairo shipped as TTF (~599KB); convert to WOFF2 in P1 (spec §3.3 prescribed woff2).
+- **Missing easing token:** `--easing-spring` cubic-bezier token not yet defined in @theme (spec §3.3); add when overlay animations land in P1.
+- **AdminShell sidebar collapse:** sidebar collapse (256px↔64px, spec §3.3) not implemented — P1 with real nav.
+- **ConfirmablePasswordController phone-only hazard:** fails for phone-only users (email null); add phone-aware confirmation before any P1 route uses `password.confirm` middleware.
+- **Doc/rule numbering note:** the P0 spec text refers to the 4-UI-states rule as "R10"; in the kit-generated `docs/GOLDEN-RULES.md` it is R16 (R10 there = no-double-counting). Code is correct; this is a spec-vs-generated numbering note only.
 
 ---
 

@@ -8,7 +8,7 @@ defineEmits(['update:open'])
     <DialogContent class="z-modal">
       <DialogHeader><DialogTitle>{{ title }}</DialogTitle></DialogHeader>
       <slot />
-      <div class="mt-4 flex justify-end gap-2"><slot name="footer" /></div>
+      <div class="mt-4 flex justify-end gap-2"><!-- justify-end = flow-relative (RTL-aware), not physical --><slot name="footer" /></div>
     </DialogContent>
   </Dialog>
 </template>

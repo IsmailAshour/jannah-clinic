@@ -9,7 +9,7 @@ const emit=defineEmits(['update:open','confirm'])
     <DialogContent class="z-modal" role="alertdialog">
       <DialogHeader><DialogTitle>{{ title }}</DialogTitle></DialogHeader>
       <p class="text-sm text-text-secondary">{{ message }}</p>
-      <div class="mt-4 flex justify-end gap-2">
+      <div class="mt-4 flex justify-end gap-2"><!-- justify-end is RTL-aware (flexbox flow-relative) -->
         <Button variant="outline" @click="emit('update:open',false)">{{ cancelText }}</Button>
         <Button class="bg-danger text-white" @click="emit('confirm'); emit('update:open',false)">{{ confirmText }}</Button>
       </div>

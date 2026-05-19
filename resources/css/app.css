@@ -1,3 +1,91 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─────────────────────────────────────────────
+   Cairo – self-hosted variable font
+   ───────────────────────────────────────────── */
+@font-face {
+    font-family: 'Cairo';
+    src: url('../fonts/Cairo.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ─────────────────────────────────────────────
+   Design tokens – JannahClinic (building.app DNA, clinic-semantic)
+   ───────────────────────────────────────────── */
+:root {
+    color-scheme: light;
+
+    /* Brand */
+    --color-brand:           #0B4F2F;
+    --color-brand-hover:     #094327;
+    --color-brand-active:    #073521;
+    --color-accent:          #C9A227;
+
+    /* Surfaces */
+    --color-surface-page:    #f6f7f5;
+    --color-surface-card:    #ffffff;
+    --color-surface-sunken:  #eceee9;
+
+    /* Text */
+    --color-text-primary:    #111827;
+    --color-text-secondary:  #475569;
+    --color-text-tertiary:   #64748b;
+
+    /* Borders */
+    --color-border-default:  rgb(0 0 0 / 0.06);
+    --color-border-strong:   rgb(0 0 0 / 0.10);
+
+    /* Semantic status */
+    --color-success:         #059669;
+    --color-warning:         #d97706;
+    --color-danger:          #dc2626;
+    --color-info:            #0284c7;
+    --color-amount:          #0B4F2F;
+
+    /* Radius */
+    --radius-sm:  6px;
+    --radius-md:  8px;
+    --radius-lg:  12px;
+    --radius-xl:  16px;
+
+    /* Shadow */
+    --shadow-xs:  0 1px  2px rgb(0 0 0 / 0.04);
+    --shadow-sm:  0 1px  3px rgb(0 0 0 / 0.08);
+    --shadow-md:  0 4px 12px rgb(0 0 0 / 0.10);
+    --shadow-lg:  0 12px 32px rgb(0 0 0 / 0.14);
+
+    /* Motion */
+    --duration-fast:   100ms;
+    --duration-normal: 200ms;
+    --duration-slow:   300ms;
+}
+
+/* ─────────────────────────────────────────────
+   Base – html / body
+   ───────────────────────────────────────────── */
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: 'Cairo', ui-sans-serif, system-ui, sans-serif;
+    background-color: var(--color-surface-page);
+    color: var(--color-text-primary);
+}
+
+/* ─────────────────────────────────────────────
+   Z-index layer utilities
+   ───────────────────────────────────────────── */
+@layer utilities {
+    .z-dropdown { z-index: 10; }
+    .z-sticky    { z-index: 20; }
+    .z-shell     { z-index: 30; }
+    .z-overlay   { z-index: 40; }
+    .z-modal     { z-index: 50; }
+    .z-toast     { z-index: 60; }
+}

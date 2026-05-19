@@ -17,13 +17,17 @@ class AvailabilityService
     public function slotsFor(DoctorProfile $doctor, Service $service, CarbonImmutable $date): array
     {
         $date = $date->startOfDay();
-        $windows = $this->windowsFor($doctor, $date);
+
+        /** @var DoctorSchedule|null $schedule */
+        $schedule = $doctor->schedules()->where('weekday', (int) $date->dayOfWeek)->first();
+
+        $windows = $this->windowsFor($doctor, $date, $schedule);
         if ($windows === []) {
             return [];
         }
 
         $duration = $service->duration_minutes;
-        $interval = $this->intervalFor($doctor, (int) $date->dayOfWeek);
+        $interval = $schedule !== null ? (int) $schedule->slot_interval_minutes : 30;
         $now = CarbonImmutable::now()->addMinutes((int) config('clinic.booking_lead_minutes', 0));
 
         /** @var Collection<int,Appointment> $taken */
@@ -53,7 +57,7 @@ class AvailabilityService
     }
 
     /** @return array<int,array{0:string,1:string}> */
-    private function windowsFor(DoctorProfile $doctor, CarbonImmutable $date): array
+    private function windowsFor(DoctorProfile $doctor, CarbonImmutable $date, ?DoctorSchedule $schedule): array
     {
         /** @var ScheduleException|null $exception */
         $exception = $doctor->scheduleExceptions()
@@ -63,12 +67,12 @@ class AvailabilityService
                 return [];
             }
             if ($exception->type === 'custom_hours' && $exception->custom_start && $exception->custom_end) {
+                // ScheduleException لا تحتوي على عمود slot_interval_minutes خاص بها،
+                // لذا يُستخدم الفترة الزمنية من صف DoctorSchedule لليوم الأسبوعي (أو 30 دقيقة افتراضياً عند غيابه).
                 return [[$exception->custom_start->format('H:i'), $exception->custom_end->format('H:i')]];
             }
         }
 
-        /** @var DoctorSchedule|null $schedule */
-        $schedule = $doctor->schedules()->where('weekday', (int) $date->dayOfWeek)->first();
         if (! $schedule) {
             return [];
         }
@@ -81,10 +85,5 @@ class AvailabilityService
         }
 
         return $windows;
-    }
-
-    private function intervalFor(DoctorProfile $doctor, int $weekday): int
-    {
-        return (int) ($doctor->schedules()->where('weekday', $weekday)->value('slot_interval_minutes') ?? 30);
     }
 }

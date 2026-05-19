@@ -95,3 +95,56 @@ it('custom_hours exception overrides the weekly schedule windows', function () {
     expect($slots[0]['start']->format('H:i'))->toBe('14:00');
     expect($slots[1]['start']->format('H:i'))->toBe('14:30');
 });
+
+// TG1 — slot exactly fills window: verifies the <= in the while-condition
+it('TG1: emits exactly one slot when it exactly fills the window', function () {
+    $doc = DoctorProfile::factory()->create();
+    $svc = mkService(30);
+    $date = CarbonImmutable::parse('next monday')->setTime(0, 0);
+    DoctorSchedule::create([
+        'doctor_profile_id' => $doc->id, 'weekday' => (int) $date->dayOfWeek,
+        'morning_enabled' => true, 'morning_start' => '09:00', 'morning_end' => '09:30',
+        'evening_enabled' => false, 'slot_interval_minutes' => 30,
+    ]);
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    expect(count($slots))->toBe(1);
+    expect($slots[0]['start']->format('H:i'))->toBe('09:00');
+    expect($slots[0]['end']->format('H:i'))->toBe('09:30');
+});
+
+// TG2 — interval < duration: documents intended overlapping-start behavior (to be reviewed in T8)
+it('TG2: interval shorter than duration produces overlapping slot starts', function () {
+    $doc = DoctorProfile::factory()->create();
+    $svc = mkService(30);
+    $date = CarbonImmutable::parse('next monday')->setTime(0, 0);
+    DoctorSchedule::create([
+        'doctor_profile_id' => $doc->id, 'weekday' => (int) $date->dayOfWeek,
+        'morning_enabled' => true, 'morning_start' => '09:00', 'morning_end' => '10:00',
+        'evening_enabled' => false, 'slot_interval_minutes' => 15,
+    ]);
+    // 09:00+30=09:30 ≤ 10:00 ✓; 09:15+30=09:45 ≤ 10:00 ✓; 09:30+30=10:00 ≤ 10:00 ✓; 09:45+30=10:15 > 10:00 ✗
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    expect(count($slots))->toBe(3);
+    expect($slots[0]['start']->format('H:i'))->toBe('09:00');
+    expect($slots[1]['start']->format('H:i'))->toBe('09:15');
+    expect($slots[2]['start']->format('H:i'))->toBe('09:30');
+});
+
+// TG3 — morning + evening union: verifies windows-union loop and contiguous indexing
+it('TG3: morning and evening windows both contribute slots in order', function () {
+    $doc = DoctorProfile::factory()->create();
+    $svc = mkService(30);
+    $date = CarbonImmutable::parse('next monday')->setTime(0, 0);
+    DoctorSchedule::create([
+        'doctor_profile_id' => $doc->id, 'weekday' => (int) $date->dayOfWeek,
+        'morning_enabled' => true, 'morning_start' => '09:00', 'morning_end' => '10:00',
+        'evening_enabled' => true, 'evening_start' => '17:00', 'evening_end' => '18:00',
+        'slot_interval_minutes' => 30,
+    ]);
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    expect(count($slots))->toBe(4);
+    expect($slots[0]['start']->format('H:i'))->toBe('09:00');
+    expect($slots[1]['start']->format('H:i'))->toBe('09:30');
+    expect($slots[2]['start']->format('H:i'))->toBe('17:00');
+    expect($slots[3]['start']->format('H:i'))->toBe('17:30');
+});

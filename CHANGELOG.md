@@ -4,6 +4,7 @@ All notable changes to jannahclinic are documented here. Per Definition of Done 
 every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–P5).
 
 ## [P1] Services & Booking — (in progress)
+- **T7 polish — tz default + redundant-query removal + contract tests:** app timezone now defaults to `Asia/Hebron` (env `APP_TIMEZONE`); redundant weekday-schedule DB query eliminated (`intervalFor` removed, `DoctorSchedule` row fetched once in `slotsFor`); 3 new slot-engine contract tests (TG1: exact-fill boundary, TG2: interval<duration overlapping starts, TG3: morning+evening union).
 - **T7 — AvailabilityService slot engine + availability endpoint:** `AvailabilityService::slotsFor` (pure domain, unit-tested); respects closed/custom_hours exceptions, excludes past slots and non-terminal conflicts; `GET /admin/availability` + `GET /portal/availability` (JSON `{start,end,label}[]`); `DoctorProfile::appointments()` HasMany added; 2 new canonical route names (`admin.availability`, `portal.availability`); 9 new tests (6 unit + 3 feature).
 - Settings store + SettingService (config-driven, R12); config/clinic.php.
 - Service catalog (categories + services): admin CRUD + portal browse.

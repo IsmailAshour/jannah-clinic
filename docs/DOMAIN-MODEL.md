@@ -5,7 +5,7 @@
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
 > Last updated: 2026-05-19 (P1 Task 10 — Appointment::rescheduledFrom() self-relation documented; lifecycle note + InvalidTransitionException added)
-> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 Task 4 entities (DoctorSchedule, ScheduleException), P1 Task 5 entities (HomeServiceCoverageArea), and P1 Task 6 entities (Appointment, ServiceAddress) added below.
+> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 schedule slot-grid (DoctorScheduleSlot, ScheduleException, ScheduleExceptionSlot — redesign), P1 Task 5 entities (HomeServiceCoverageArea), and P1 Task 6 entities (Appointment, ServiceAddress) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
 migration, enum, or relationship change.
@@ -242,8 +242,8 @@ Table: `doctor_profiles`
 **Relationships:**
 - `user(): BelongsTo` → `User`
 - `services(): BelongsToMany` → `Service` via `doctor_service` pivot (using `DoctorServicePivot`)
-- `schedules(): HasMany` → `DoctorSchedule`
-- `scheduleExceptions(): HasMany` → `ScheduleException`
+- `scheduleSlots(): HasMany` → `DoctorScheduleSlot` (enabled 30-min slots per weekday)
+- `scheduleExceptions(): HasMany` → `ScheduleException` (each `slots(): HasMany ScheduleExceptionSlot`)
 - `appointments(): HasMany` → `Appointment` (via `doctor_profile_id`) — added T7 for `AvailabilityService`
 
 **Notes:**
@@ -281,79 +281,87 @@ CONSTRAINT doctor_service_price_check
 
 ---
 
-## P1 Entities (Task 4 — Doctor Schedules + Exceptions)
+## P1 Entities (Task 4 + Schedule Redesign — fixed 30-min slot grid)
 
-### `DoctorSchedule`
+> **Redesigned (P1 amendment, see `docs/superpowers/specs/2026-05-19-jannahclinic-p1-schedule-redesign-design.md`).**
+> The legacy weekly-window model (`doctor_schedules` morning/evening start-end +
+> `slot_interval_minutes`, and `schedule_exceptions.custom_start/custom_end`) was
+> **retired**. A doctor's availability is now a set of enabled fixed **30-minute**
+> slots; exceptions are `closed` or a per-date `custom` slot set.
 
-Table: `doctor_schedules`
+### Slot grid (config / `SlotGrid`)
+
+Config (`config/clinic.php`, R12): `slot_minutes=30`, `day_start='08:00'`,
+`day_end='22:00'`, `band_split='15:00'` (morning/evening grouping is presentational
+— time is contiguous). `App\Domain\Booking\Slots\SlotGrid` derives the canonical
+ordered grid `08:00 … 21:30` (28 starts), with `all/morning/evening/isValid/blockFrom`.
+A `Service` is 30 or 60 minutes (`duration_minutes` validated `in:30,60`, pgsql
+`services_duration_check CHECK (duration_minutes IN (30,60))`); `Service::slotCount()`
+= 1 or 2 consecutive slots.
+
+### `DoctorScheduleSlot`
+
+Table: `doctor_schedule_slots` — one row = one enabled half-hour for a weekday.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| `id` | bigint unsigned | PK, auto-increment |
+| `id` | bigint unsigned | PK |
 | `doctor_profile_id` | bigint unsigned | NOT NULL, FK → `doctor_profiles.id`, CASCADE DELETE |
-| `weekday` | smallint | NOT NULL (0=Sunday … 6=Saturday) |
-| `morning_enabled` | boolean | NOT NULL, default `false` |
-| `morning_start` | time | nullable |
-| `morning_end` | time | nullable |
-| `evening_enabled` | boolean | NOT NULL, default `false` |
-| `evening_start` | time | nullable |
-| `evening_end` | time | nullable |
-| `slot_interval_minutes` | integer | NOT NULL, default `30` |
+| `weekday` | tinyint unsigned | NOT NULL (0=Sunday … 6=Saturday, Carbon `dayOfWeek`) |
+| `slot_start` | varchar(5) | NOT NULL, canonical `'HH:MM'` ∈ `SlotGrid::all()` |
 | `created_at` / `updated_at` | timestamp | nullable |
 
-**Unique:** `(doctor_profile_id, weekday)`
-
-**Postgres-only CHECK constraints:**
-
-```sql
-CONSTRAINT doctor_schedules_weekday_check  CHECK (weekday BETWEEN 0 AND 6)
-CONSTRAINT doctor_schedules_interval_check CHECK (slot_interval_minutes > 0)
-```
-
-**Fillable:** `doctor_profile_id`, `weekday`, `morning_enabled`, `morning_start`, `morning_end`, `evening_enabled`, `evening_start`, `evening_end`, `slot_interval_minutes`
-**Casts:** `weekday → integer`, `morning_enabled → boolean`, `evening_enabled → boolean`, `slot_interval_minutes → integer`
-
-**Relationships:**
-- `doctor(): BelongsTo` → `DoctorProfile` (via `doctor_profile_id`)
-
-**Model path:** `app/Models/DoctorSchedule.php`
+**Unique:** `(doctor_profile_id, weekday, slot_start)`. **Index:** `(doctor_profile_id, weekday)`.
+**Postgres CHECK:** `dss_weekday_check CHECK (weekday BETWEEN 0 AND 6)`.
+**Fillable:** `doctor_profile_id`, `weekday`, `slot_start`. **Casts:** `weekday → integer`.
+**Relationships:** `doctor(): BelongsTo` → `DoctorProfile`.
+**Model path:** `app/Models/DoctorScheduleSlot.php`.
 
 ---
 
 ### `ScheduleException`
 
-Table: `schedule_exceptions`
+Table: `schedule_exceptions` (restructured — `custom_start`/`custom_end` dropped).
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| `id` | bigint unsigned | PK, auto-increment |
+| `id` | bigint unsigned | PK |
 | `doctor_profile_id` | bigint unsigned | NOT NULL, FK → `doctor_profiles.id`, CASCADE DELETE |
 | `date` | date | NOT NULL |
-| `type` | varchar(16) | NOT NULL (`closed` or `custom_hours`) |
-| `custom_start` | time | nullable |
-| `custom_end` | time | nullable |
+| `type` | varchar(16) | NOT NULL (`closed` or `custom`) |
 | `note` | varchar(255) | nullable |
 | `created_at` / `updated_at` | timestamp | nullable |
 
-**Unique:** `(doctor_profile_id, date)`
+**Unique:** `(doctor_profile_id, date)`.
+**Postgres CHECK:** `schedule_exceptions_type_check CHECK (type IN ('closed','custom'))`.
+**Fillable:** `doctor_profile_id`, `date`, `type`, `note`. **Casts:** `date → date`.
+**Relationships:** `doctor(): BelongsTo` → `DoctorProfile`; `slots(): HasMany` → `ScheduleExceptionSlot`.
+**Semantics:** `closed` → doctor unavailable that whole date (overrides weekly).
+`custom` → availability that date is exactly the linked `ScheduleExceptionSlot`
+set (a `custom` exception with zero slots = effectively closed). `updateOrCreate`
+keyed on `(doctor_profile_id, date)`. Admin mutations manager-only; view all-staff.
+**Model path:** `app/Models/ScheduleException.php`.
 
-**Postgres-only CHECK constraint:**
+### `ScheduleExceptionSlot`
 
-```sql
-CONSTRAINT schedule_exceptions_type_check CHECK (type IN ('closed','custom_hours'))
-```
+Table: `schedule_exception_slots` — per-date custom slot (only for `type=custom`).
 
-**Fillable:** `doctor_profile_id`, `date`, `type`, `custom_start`, `custom_end`, `note`
-**Casts:** `date → date`
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK |
+| `schedule_exception_id` | bigint unsigned | NOT NULL, FK → `schedule_exceptions.id`, CASCADE DELETE |
+| `slot_start` | varchar(5) | NOT NULL, canonical `'HH:MM'` ∈ `SlotGrid::all()` |
+| `created_at` / `updated_at` | timestamp | nullable |
 
-**Relationships:**
-- `doctor(): BelongsTo` → `DoctorProfile` (via `doctor_profile_id`)
+**Unique:** `(schedule_exception_id, slot_start)`.
+**Fillable:** `schedule_exception_id`, `slot_start`.
+**Relationships:** `exception(): BelongsTo` → `ScheduleException`.
+**Model path:** `app/Models/ScheduleExceptionSlot.php`.
 
-**Notes:**
-- `updateOrCreate` keyed on `(doctor_profile_id, date)` — one exception per doctor per date.
-- Admin mutations (add/delete) are manager-only; the schedule view page is all-staff.
-
-**Model path:** `app/Models/ScheduleException.php`
+`AvailabilityService` derives bookable slots from this grid: enabled set =
+`closed`→∅ / `custom`→its slots / else the weekday `DoctorScheduleSlot` set;
+a service needing N (1–2) consecutive grid slots is offered where all N are
+enabled, free of non-terminal appointments, and not past.
 
 ---
 
@@ -528,8 +536,9 @@ users (1) ─────── (0..1) customer_profiles
 users (1) ─────── (0..1) doctor_profiles
 service_categories (1) ── (*) services
 services (*) ──────────── (*) doctor_profiles  [pivot: doctor_service (+price_override)]
-doctor_profiles (1) ────── (*) doctor_schedules      [Task 4]
-doctor_profiles (1) ────── (*) schedule_exceptions   [Task 4]
+doctor_profiles (1) ────── (*) doctor_schedule_slots [slot-grid redesign]
+doctor_profiles (1) ────── (*) schedule_exceptions   [redesign: closed|custom]
+schedule_exceptions (1) ── (*) schedule_exception_slots [custom-date slots]
 home_service_coverage_areas (1) ── (*) service_addresses  [Task 6 — restrictOnDelete]
 users (1) ─────────────── (*) appointments            [as customer_id]
 doctor_profiles (1) ────── (*) appointments

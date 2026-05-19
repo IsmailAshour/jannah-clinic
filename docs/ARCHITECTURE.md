@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (P1 acceptance — P1 Services & Booking summary added; debt list updated; full DoD gate green)
+> Last updated: 2026-05-19 (P1 acceptance incl. schedule slot-grid redesign — fixed 30-min grid, legacy weekly-window model retired; full DoD gate green)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -419,7 +419,7 @@ P2–P5 roadmap is in
 - **VerifyEmailController / ConfirmablePasswordController redirect:** redirects to `portal.home` after completion — needs role-aware redirect logic before staff email-verify gates are added.
 - **Currency symbol ₪ hardcoded** in catalog/portal Vue (single-currency clinic); make config/locale-driven if multi-currency is ever needed.
 - **App timezone `Asia/Hebron`:** defaults to `env('APP_TIMEZONE', 'Asia/Hebron')` — confirm/adjust before any production deployment in a different timezone (`config/app.php`).
-- **Schedule time-field contract:** `DoctorSchedule` and `ScheduleException` time columns use `datetime:H:i` Eloquent cast → Carbon instances at runtime; consumers MUST use `->format('H:i')`, never `substr((string)...)`.
+- **Schedule slot-grid model (redesign):** doctor availability is a fixed 30-min grid (`config/clinic.php` slot keys + `App\Domain\Booking\Slots\SlotGrid`, canonical `'HH:MM'` strings — no more time-cast/Carbon contract). Storage = `doctor_schedule_slots` (per-weekday enabled slots) + `schedule_exceptions` (`closed`|`custom`) + `schedule_exception_slots` (per-date custom slots). `Service.duration_minutes` constrained to {30,60}; `AvailabilityService` offers a service's N (1–2) consecutive enabled+free grid slots. Legacy `doctor_schedules`/`DoctorSchedule`/`custom_start`/`custom_end`/`slot_interval_minutes` fully retired; the prior `datetime:H:i` cast debt is resolved (moot). Spec: `docs/superpowers/specs/2026-05-19-jannahclinic-p1-schedule-redesign-design.md`.
 - **Vue `isTerminal` JS array duplicates PHP `AppointmentStatus::isTerminal()` (T10 acceptable MVP):** both must be updated together if the lifecycle grows — revisit with a generated TS enum or endpoint if a status is added.
 - **Phone-only quick-created customers cannot self-authenticate to portal (T9 MVP):** staff-quick-created customers have no known password; needs password-reset or phone-OTP flow before portal self-login is required.
 - **RTL CI check scoping:** RTL CI grep is scoped to authored dirs; vendored `shadcn-vue Components/ui/` excluded by design.

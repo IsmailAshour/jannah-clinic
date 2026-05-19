@@ -11,6 +11,7 @@ every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–
   time fields use `datetime:H:i` cast (Carbon at runtime, `'HH:MM'` in JSON);
   enabled-window/custom_hours validation (`required_if` + `after`); success flash.
 - Coverage areas CRUD (`home_service_coverage_areas` table) + config-driven home-surcharge admin setting (`home_surcharge_pct` via SettingService); manager-only mutations; destroy guarded with QueryException catch for T6 FK; 6 new route names (`admin.coverage.*`, `admin.settings.*`).
+- Appointment + ServiceAddress entities (data layer only): `AppointmentStatus` (7-state lifecycle, terminal states, allowed transitions) + `DeliveryMode` enums; `appointments` migration with 4 Postgres CHECK constraints (status/mode/price/time) + self-referential `rescheduled_from_id`; `service_addresses` migration (1:1 with appointments, FK → coverage areas restrictOnDelete); `Appointment` and `ServiceAddress` models with enum casts. Booking write/transition logic arrives T8/T10.
 
 ## [P0] Foundation — 2026-05-19
 - Adopted methodology-kit v1.0.1 (governance, Golden Rules, Definition of Done, ADR-001/002).

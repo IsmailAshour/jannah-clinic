@@ -4,8 +4,8 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 5 — HomeServiceCoverageArea + home-surcharge setting)
-> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 Task 4 entities (DoctorSchedule, ScheduleException), and P1 Task 5 entities (HomeServiceCoverageArea) added below.
+> Last updated: 2026-05-20 (P1 Task 6 — Appointment + ServiceAddress entities + AppointmentStatus/DeliveryMode enums)
+> P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 Task 4 entities (DoctorSchedule, ScheduleException), P1 Task 5 entities (HomeServiceCoverageArea), and P1 Task 6 entities (Appointment, ServiceAddress) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
 migration, enum, or relationship change.
@@ -391,7 +391,134 @@ Managed through `Admin/Settings/Index` (PUT `/admin/settings/surcharge`).
 
 ---
 
-## Entity Relationship (P0 + P1 Tasks 2–5)
+## P1 Entities (Task 6 — Appointment + ServiceAddress)
+
+### `AppointmentStatus` (PHP Enum)
+
+`App\Enums\AppointmentStatus` — backed enum (`string`)
+
+| Case | Value | `isTerminal()` |
+|------|-------|----------------|
+| `Requested` | `'requested'` | `false` |
+| `Confirmed` | `'confirmed'` | `false` |
+| `Rejected` | `'rejected'` | `true` |
+| `Completed` | `'completed'` | `true` |
+| `Cancelled` | `'cancelled'` | `true` |
+| `NoShow` | `'no_show'` | `true` |
+| `Rescheduled` | `'rescheduled'` | `true` |
+
+**7-state lifecycle:** `Requested` and `Confirmed` are the only non-terminal (active) states. All others are terminal — no further transitions are permitted once reached.
+
+**Allowed transitions:**
+
+| From | Allowed next states |
+|------|---------------------|
+| `Requested` | `Confirmed`, `Rejected`, `Cancelled`, `Rescheduled` |
+| `Confirmed` | `Completed`, `NoShow`, `Cancelled`, `Rescheduled` |
+| Any terminal | _(none — empty array)_ |
+
+**Methods:** `isTerminal(): bool`, `allowedNext(): self[]`, `canTransitionTo(self $to): bool`
+
+**Note:** Booking write logic and transition enforcement (service classes) arrive in T8/T10. This enum provides the pure state-machine definition only.
+
+**Enum path:** `app/Enums/AppointmentStatus.php`
+
+---
+
+### `DeliveryMode` (PHP Enum)
+
+`App\Enums\DeliveryMode` — backed enum (`string`)
+
+| Case | Value |
+|------|-------|
+| `Center` | `'center'` |
+| `Home` | `'home'` |
+
+Used in: `Appointment::$casts` (delivery_mode column), DB CHECK constraint `appointments_mode_check`.
+
+**Enum path:** `app/Enums/DeliveryMode.php`
+
+---
+
+### `Appointment`
+
+Table: `appointments`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `customer_id` | bigint unsigned | NOT NULL, FK → `users.id`, CASCADE DELETE |
+| `doctor_profile_id` | bigint unsigned | NOT NULL, FK → `doctor_profiles.id`, CASCADE DELETE |
+| `service_id` | bigint unsigned | NOT NULL, FK → `services.id`, RESTRICT DELETE |
+| `start_at` | datetime | NOT NULL |
+| `end_at` | datetime | NOT NULL |
+| `status` | varchar(16) | NOT NULL, default `requested` |
+| `price_at_booking` | decimal(10,2) | NOT NULL |
+| `delivery_mode` | varchar(8) | NOT NULL |
+| `home_surcharge_amount` | decimal(10,2) | NOT NULL, default `0` |
+| `created_by_role` | varchar(20) | NOT NULL |
+| `cancellation_reason` | varchar(255) | nullable |
+| `rescheduled_from_id` | bigint unsigned | nullable, FK → `appointments.id`, NULL ON DELETE |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Indexes:** `(doctor_profile_id, start_at)`, `(customer_id, status)`
+
+**Postgres-only CHECK constraints:**
+
+```sql
+CONSTRAINT appointments_status_check  CHECK (status IN ('requested','confirmed','rejected','completed','cancelled','no_show','rescheduled'))
+CONSTRAINT appointments_mode_check    CHECK (delivery_mode IN ('center','home'))
+CONSTRAINT appointments_price_check   CHECK (price_at_booking >= 0)
+CONSTRAINT appointments_time_check    CHECK (end_at > start_at)
+```
+
+**Fillable (attribute #[Fillable]):** `customer_id`, `doctor_profile_id`, `service_id`, `start_at`, `end_at`, `status`, `price_at_booking`, `delivery_mode`, `home_surcharge_amount`, `created_by_role`, `cancellation_reason`, `rescheduled_from_id`
+
+**Casts:** `start_at → datetime`, `end_at → datetime`, `status → AppointmentStatus`, `delivery_mode → DeliveryMode`, `created_by_role → UserRole`, `price_at_booking → decimal:2`, `home_surcharge_amount → decimal:2`
+
+**Relationships:**
+- `customer(): BelongsTo` → `User` (via `customer_id`)
+- `doctor(): BelongsTo` → `DoctorProfile` (via `doctor_profile_id`)
+- `service(): BelongsTo` → `Service`
+- `serviceAddress(): HasOne` → `ServiceAddress`
+
+**Notes:**
+- `rescheduled_from_id` self-references `appointments.id` to track rescheduling lineage (nullable, null-on-delete).
+- Booking write logic and status transition enforcement arrive in T8/T10. The `AppointmentStatus` enum defines the pure state machine; no service-layer guard exists yet.
+- Postgres CHECK constraints are skipped on SQLite (tests); CI Postgres is the authoritative gate (ADR-002).
+
+**Model path:** `app/Models/Appointment.php`
+
+---
+
+### `ServiceAddress`
+
+Table: `service_addresses`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK, auto-increment |
+| `appointment_id` | bigint unsigned | NOT NULL, FK → `appointments.id`, CASCADE DELETE, UNIQUE |
+| `coverage_area_id` | bigint unsigned | NOT NULL, FK → `home_service_coverage_areas.id`, RESTRICT DELETE |
+| `address_text` | varchar(255) | NOT NULL |
+| `location_note` | varchar(255) | nullable |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**One-to-one with Appointment:** `UNIQUE(appointment_id)` enforces at DB level. Every home-delivery appointment has exactly one `ServiceAddress`.
+
+**FK `coverage_area_id` → `home_service_coverage_areas` with `restrictOnDelete`:** a coverage area cannot be deleted while any service address references it. The `HomeServiceCoverageArea` controller destroy method already has a `QueryException` catch for this constraint (added in T5).
+
+**Fillable (attribute #[Fillable]):** `appointment_id`, `coverage_area_id`, `address_text`, `location_note`
+
+**Relationships:**
+- `appointment(): BelongsTo` → `Appointment`
+- `coverageArea(): BelongsTo` → `HomeServiceCoverageArea` (via `coverage_area_id`)
+
+**Model path:** `app/Models/ServiceAddress.php`
+
+---
+
+## Entity Relationship (P0 + P1 Tasks 2–6)
 
 ```
 users (1) ─────── (0..1) customer_profiles
@@ -400,7 +527,12 @@ service_categories (1) ── (*) services
 services (*) ──────────── (*) doctor_profiles  [pivot: doctor_service (+price_override)]
 doctor_profiles (1) ────── (*) doctor_schedules      [Task 4]
 doctor_profiles (1) ────── (*) schedule_exceptions   [Task 4]
-home_service_coverage_areas (1) ── (*) service_addresses  [FK arrives in T6]
+home_service_coverage_areas (1) ── (*) service_addresses  [Task 6 — restrictOnDelete]
+users (1) ─────────────── (*) appointments            [as customer_id]
+doctor_profiles (1) ────── (*) appointments
+services (1) ──────────── (*) appointments
+appointments (0..1) ─────── (0..1) service_addresses  [1:1, home-delivery only]
+appointments (0..1) ─────── (*) appointments          [rescheduled_from_id self-ref]
 ```
 
 ---
@@ -410,7 +542,7 @@ home_service_coverage_areas (1) ── (*) service_addresses  [FK arrives in T6]
 The following entities are explicitly deferred to P2–P5. They MUST NOT be
 modelled, migrated, or referenced until their phase begins:
 
-> ServiceAddress, Appointment, Payment, Receipt, MedicalRecord, MedicalEntry,
+> Payment, Receipt, MedicalRecord, MedicalEntry,
 > Prescription, MembershipPlan, UserMembership, LoyaltyTransaction, Notification
 
 Roadmap: `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md` §2

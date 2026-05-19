@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P1 Task 4 — DoctorSchedule + ScheduleException)
+> Last updated: 2026-05-20 (P1 Task 6 — Appointment + ServiceAddress entities + status/mode enums)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -263,6 +263,7 @@ Documented P1 debt items:
 - **RTL CI check scoping:** RTL CI check is scoped to authored code (`Layouts/Pages/Components/foundation/resources/css`); vendored `shadcn-vue Components/ui/` is excluded by design (upstream uses physical Tailwind classes; reka-ui/RTL handled at runtime).
 - **Currency symbol ₪ is hardcoded in catalog/portal Vue (single-currency clinic); make config/locale-driven if multi-currency is ever needed.**
 - **Schedule time-field contract (T4 → T7+ interface):** `DoctorSchedule.morning_start/morning_end/evening_start/evening_end` and `ScheduleException.custom_start/custom_end` use the `datetime:H:i` Eloquent cast. Consequence: at runtime they are **Carbon** instances (so `(string)$model->morning_start` yields a full `Y-m-d H:i:s`, NOT `'09:00'` — never `substr((string)...)` them); Inertia/JSON serialization yields `'09:00'` (correct for `<input type="time">` prefill). T7 `AvailabilityService` and any later consumer MUST read these via `->format('H:i')` or Carbon comparison. The P1 plan's T7 `windowsFor()` snippet has been corrected accordingly.
+- **Appointment Postgres CHECK constraints (T6 data layer; write logic T8/T10):** The `appointments` table carries four Postgres-only CHECK constraints — `appointments_status_check` (7-value enum), `appointments_mode_check` (center/home), `appointments_price_check` (price >= 0), `appointments_time_check` (end_at > start_at). These are skipped on SQLite test DB (ADR-002); CI Postgres is the authoritative gate. Booking write/transition logic (service classes enforcing `AppointmentStatus::canTransitionTo`) arrives in T8/T10.
 
 ---
 

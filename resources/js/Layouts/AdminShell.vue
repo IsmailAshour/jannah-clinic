@@ -227,21 +227,26 @@ const NavLink = defineComponent({
       -->
       <SidebarRail />
     </Sidebar>
-    <SidebarInset>
-      <header class="z-sticky h-16 bg-surface-card border-b border-border-default flex items-center px-6">
+    <!--
+      SidebarInset IS a <main> (see Components/ui/sidebar/SidebarInset.vue);
+      do NOT nest another <main> inside it. We pass `bg-surface-page` to
+      override the shadcn default `bg-background` so the body matches the
+      app's surface palette. `flex-col` + `min-h-svh` come from the component.
+    -->
+    <SidebarInset class="bg-surface-page">
+      <header class="h-16 shrink-0 bg-surface-card border-b border-border-default flex items-center px-6">
         <!--
           Single trigger: shadcn-vue's SidebarTrigger uses useSidebar() to
           toggle the mobile sheet (< md) or desktop icon-rail (≥ md)
           automatically — no hand-rolled mobile/desktop split. `me-auto`
-          keeps it at the inline-start of the header (visually right under
-          RTL = adjacent to the sidebar's right edge).
+          on the trigger expands the inline-end margin, pushing the logout
+          to the inline-end (visually left under RTL); the trigger stays at
+          the inline-start (visually right, adjacent to the sidebar).
         -->
         <SidebarTrigger class="-ms-2 me-auto" aria-label="القائمة" />
-        <div class="ms-auto">
-          <Link href="/logout" method="post" as="button" class="text-sm text-text-secondary hover:text-text-primary">تسجيل الخروج</Link>
-        </div>
+        <Link href="/logout" method="post" as="button" class="text-sm text-text-secondary hover:text-text-primary">تسجيل الخروج</Link>
       </header>
-      <main class="flex-1"><slot /></main>
+      <div class="flex-1"><slot /></div>
     </SidebarInset>
   </SidebarProvider>
 </template>

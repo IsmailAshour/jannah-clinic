@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Stand up the `jannahclinic` greenfield repo: governed by the methodology kit, running on Laravel 12 + Inertia + Vue 3 + shadcn-vue + Postgres, with a building.app-derived design system, email-or-phone auth + 4 roles, and two empty surfaces (admin control panel + customer portal) — the inheritable foundation for phases P1–P5.
+**Goal:** Stand up the `jannahclinic` greenfield repo: governed by the methodology kit, running on Laravel 13 + Inertia + Vue 3 + shadcn-vue + Postgres, with a building.app-derived design system, email-or-phone auth + 4 roles, and two empty surfaces (admin control panel + customer portal) — the inheritable foundation for phases P1–P5.
 
 **Architecture:** Laravel domain-service architecture (no logic in controllers/views), Inertia bridging Laravel ↔ Vue 3 SPA, shadcn-vue as the base UI primitive layer, a thin `foundation/` Vue component layer re-expressing building.app's design patterns (tokens, RTL-first, 4-states, tables, forms, overlays). Two route files + role middleware isolate the admin and portal surfaces.
 
-**Tech Stack:** PHP 8.4, Laravel 12, Laravel Breeze (Inertia+Vue 3 starter), Postgres, Inertia.js, Vue 3, Vite, Tailwind CSS, shadcn-vue (reka-ui), Pest (PHP tests), Pint, Larastan.
+**Tech Stack:** PHP 8.4, Laravel 13, Laravel Breeze (Inertia+Vue 3 starter), Postgres, Inertia.js, Vue 3, Vite, Tailwind CSS, shadcn-vue (reka-ui), Pest (PHP tests), Pint, Larastan.
 
 **Project root:** `C:\~projects\jannahclinic` (already created, `git init` done, holds `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md`). Windows; use PowerShell. All paths below are absolute or relative to this root.
 
@@ -212,7 +212,7 @@ Expected: Breeze's bundled tests PASS (auth scaffolding tests green) — confirm
 
 ```powershell
 git add -A
-git -c user.email=admin@istoria.app -c user.name=claude commit -m "feat: scaffold Laravel 12 + Breeze (Inertia+Vue3) on Postgres
+git -c user.email=admin@istoria.app -c user.name=claude commit -m "feat: scaffold Laravel 13 + Breeze (Inertia+Vue3) on Postgres
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```

@@ -16,7 +16,7 @@
 **القرارات المعتمدة من العصف الذهني:**
 - غرينفيلد، مجلد `C:\~projects\jannahclinic`.
 - المجال: عيادة واحدة متعددة التخصصات، single-tenant، أدوار: `manager` / `doctor` / `receptionist` / `customer`.
-- التقنية: Laravel 12 · PHP 8.4 · Postgres · Inertia.js · **Vue 3** · Tailwind · **shadcn-vue** (reka-ui/Radix-Vue).
+- التقنية: Laravel 13 · PHP 8.4 · Postgres · Inertia.js · **Vue 3** · Tailwind · **shadcn-vue** (reka-ui/Radix-Vue).
 - اللغة: عربي فقط RTL (لا i18n/تعادل لغوي).
 - الأمان: أساسي (مصادقة + أدوار) — قرار MVP واعٍ موثّق كـ ADR مع بند إعادة نظر.
 - الدفع: إرفاق وصل تحويل بنكي + تأكيد الطاقم (بلا بوابة دفع).
@@ -90,7 +90,7 @@ runtime_paths: ["app/**","resources/js/**","routes/**","tests/**"]
 - **المخرج:** `docs/` فيه GOLDEN-RULES (طبقة عامة + قواعد مجال/تقنية مولّدة عبر مكتبة القواعد)، DEFINITION-OF-DONE، DOCS-AUTHORITY + CANONICAL-DECISION-REGISTRY، ADR-001 (تبنّي الحزمة)، onboarding (START-HERE + DOCUMENTATION-INDEX)، قالب PR + مثال CI. لا توكنات `{{...}}` متبقّية.
 
 ### 3.2 هيكل التطبيق (حدود واضحة لكل وحدة)
-- Laravel 12 / PHP 8.4 / Postgres / Inertia / Vue 3 / Tailwind / shadcn-vue.
+- Laravel 13 / PHP 8.4 / Postgres / Inertia / Vue 3 / Tailwind / shadcn-vue.
 - منطق الأعمال في `app/Domain/{Module}/Services/` (قاعدة R7: لا منطق في Controllers/Views). في P0 لا توجد وحدات مجال بعد — تُؤسَّس البنية فقط.
 - مسارات مفصولة: `routes/auth.php` (مصادقة)، `routes/admin.php` (لوحة التحكم)، `routes/portal.php` (العميل). كل ملف مسؤولية واحدة.
 - `resources/js/` منظَّم: `Layouts/` (AdminShell, ClientShell)، `Components/ui/` (طبقة shadcn-vue الأساسية)، `Components/foundation/` (مكوّنات building.app المُعاد تعبيرها)، `Pages/Admin/*`, `Pages/Portal/*`, `Pages/Auth/*`.
@@ -152,3 +152,5 @@ runtime_paths: ["app/**","resources/js/**","routes/**","tests/**"]
 
 ## 8. ملاحظة بيئية
 `jannahclinic` مستودع Git خاص (تمّ `git init`). وثيقتا الـ spec/plan تعيشان في `docs/superpowers/` (مساحة أدوات العملية)، منفصلة عن `docs/` التي تملؤها حوكمة الحزمة عند الإقلاع. الـ commit للوثيقة جزء من هذه المرحلة.
+
+ملاحظة: اعتُمد Laravel 13 (الأحدث المستقر في البيئة) بدل «Laravel 12» الأصلي بقرار المستخدم؛ لا فرق وظيفي للأساس.

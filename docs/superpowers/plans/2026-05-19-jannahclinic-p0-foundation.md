@@ -1100,6 +1100,8 @@ Route::middleware('web')->group(base_path('routes/admin.php'));
 Route::middleware('web')->group(base_path('routes/portal.php'));
 ```
 
+> ⚠️ Customer portal routes MUST use only `['auth','role:customer']` — NEVER the `verified` middleware (phone-only customers have no email and would be permanently trapped on /email/verify). See User.php hazard note.
+
 - [ ] **Step 7: Create the two surface route files**
 
 `routes/admin.php`:

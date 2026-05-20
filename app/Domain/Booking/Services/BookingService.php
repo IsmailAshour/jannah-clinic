@@ -5,6 +5,8 @@ namespace App\Domain\Booking\Services;
 use App\Domain\Booking\Data\BookingData;
 use App\Domain\Booking\Exceptions\InvalidBookingException;
 use App\Domain\Booking\Exceptions\SlotUnavailableException;
+use App\Domain\Loyalty\Exceptions\InsufficientLoyaltyBalanceException;
+use App\Domain\Loyalty\Services\LoyaltyService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
@@ -14,6 +16,7 @@ use App\Models\DoctorProfile;
 use App\Models\HomeServiceCoverageArea;
 use App\Models\Payment;
 use App\Models\Service;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class BookingService
@@ -22,6 +25,7 @@ class BookingService
         private readonly AvailabilityService $availability,
         private readonly PricingService $pricing,
         private readonly NotificationService $notifications,
+        private readonly LoyaltyService $loyalty,
     ) {}
 
     public function book(BookingData $d): Appointment
@@ -55,7 +59,7 @@ class BookingService
 
             $quote = $this->pricing->quote($doctor, $service, $d->deliveryMode);
 
-            $appt = Appointment::create([
+            $apptAttrs = [
                 'customer_id' => $d->customerId,
                 'doctor_profile_id' => $doctor->id,
                 'service_id' => $service->id,
@@ -66,7 +70,15 @@ class BookingService
                 'delivery_mode' => $d->deliveryMode,
                 'home_surcharge_amount' => $quote['surcharge'],
                 'created_by_role' => $d->createdByRole,
-            ]);
+                'payment_method' => $d->paymentMethod,
+            ];
+            if ($d->paymentMethod === 'loyalty_points') {
+                if (! $service->loyalty_enabled || ! $service->loyalty_redemption_points) {
+                    throw new InsufficientLoyaltyBalanceException('الخدمة غير متاحة للاستبدال بالنقاط.');
+                }
+                $apptAttrs['loyalty_points_spent'] = (int) $service->loyalty_redemption_points;
+            }
+            $appt = Appointment::create($apptAttrs);
 
             if ($d->deliveryMode === DeliveryMode::Home) {
                 $appt->serviceAddress()->create([
@@ -76,12 +88,17 @@ class BookingService
                 ]);
             }
 
-            // P2: every Appointment gets a pending Payment created atomically.
-            Payment::create([
-                'appointment_id' => $appt->id,
-                'amount' => $quote['total'],
-                'status' => PaymentStatus::Pending,
-            ]);
+            if ($d->paymentMethod === 'cash') {
+                // P2: every cash Appointment gets a pending Payment created atomically.
+                Payment::create([
+                    'appointment_id' => $appt->id,
+                    'amount' => $quote['total'],
+                    'status' => PaymentStatus::Pending,
+                ]);
+            } else {
+                $customer = User::query()->findOrFail($d->customerId);
+                $this->loyalty->redeemForAppointment($appt, $customer);
+            }
 
             return $appt->fresh(['serviceAddress', 'payment']);
         });

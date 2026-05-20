@@ -18,5 +18,6 @@ final class BookingData
         public ?int $coverageAreaId = null,
         public ?string $addressText = null,
         public ?string $locationNote = null,
+        public string $paymentMethod = 'cash',
     ) {}
 }

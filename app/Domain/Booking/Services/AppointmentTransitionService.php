@@ -4,8 +4,10 @@ namespace App\Domain\Booking\Services;
 
 use App\Domain\Booking\Data\BookingData;
 use App\Domain\Booking\Exceptions\InvalidTransitionException;
+use App\Domain\Loyalty\Services\LoyaltyService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\AppointmentStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\ServiceAddress;
@@ -18,6 +20,7 @@ class AppointmentTransitionService
     public function __construct(
         private readonly BookingService $booking,
         private readonly NotificationService $notifications,
+        private readonly LoyaltyService $loyalty,
     ) {}
 
     public function transition(Appointment $a, AppointmentStatus $to, ?string $reason = null, ?User $initiator = null): Appointment
@@ -47,6 +50,9 @@ class AppointmentTransitionService
             $to === AppointmentStatus::Completed => $this->notifications->appointmentCompleted($a),
             default => null,
         };
+        if ($to === AppointmentStatus::Cancelled && $a->payment_method === PaymentMethod::LoyaltyPoints) {
+            $this->loyalty->reverseRedemption($a);
+        }
 
         return $a;
     }

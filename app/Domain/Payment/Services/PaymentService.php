@@ -2,6 +2,7 @@
 
 namespace App\Domain\Payment\Services;
 
+use App\Domain\Notification\Services\NotificationService;
 use App\Domain\Payment\Exceptions\InvalidPaymentTransitionException;
 use App\Enums\PaymentStatus;
 use App\Models\Payment;
@@ -16,6 +17,8 @@ class PaymentService
     private const MAX_BYTES = 5 * 1024 * 1024;
 
     private const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'application/pdf'];
+
+    public function __construct(private readonly NotificationService $notifications) {}
 
     public function uploadReceipt(Payment $payment, UploadedFile $file, User $uploader): PaymentReceipt
     {
@@ -47,6 +50,7 @@ class PaymentService
                 'status' => PaymentStatus::Submitted,
                 'rejection_reason' => null,
             ]);
+            $this->notifications->paymentReceiptUploaded($payment->refresh());
 
             return $receipt;
         });
@@ -57,14 +61,18 @@ class PaymentService
         if ($payment->status !== PaymentStatus::Submitted) {
             throw new InvalidPaymentTransitionException("لا يمكن التحقّق إلا من إيصال قيد المراجعة (الحالة الحالية: {$payment->status->value}).");
         }
-        $payment->update([
-            'status' => PaymentStatus::Paid,
-            'verified_at' => now(),
-            'verified_by' => $manager->id,
-            'rejection_reason' => null,
-        ]);
 
-        return $payment;
+        return DB::transaction(function () use ($payment, $manager) {
+            $payment->update([
+                'status' => PaymentStatus::Paid,
+                'verified_at' => now(),
+                'verified_by' => $manager->id,
+                'rejection_reason' => null,
+            ]);
+            $this->notifications->paymentApproved($payment->refresh());
+
+            return $payment;
+        });
     }
 
     public function reject(Payment $payment, User $manager, string $reason): Payment
@@ -88,6 +96,7 @@ class PaymentService
                 'status' => PaymentStatus::Rejected,
                 'rejection_reason' => $reason,
             ]);
+            $this->notifications->paymentRejected($payment->refresh());
 
             return $payment;
         });
@@ -108,13 +117,17 @@ class PaymentService
         if ($payment->status !== PaymentStatus::RefundPending) {
             throw new InvalidPaymentTransitionException("لا يمكن تسجيل استرداد إلا لدفعة بانتظار الاسترداد (الحالة الحالية: {$payment->status->value}).");
         }
-        $payment->update([
-            'status' => PaymentStatus::Refunded,
-            'refunded_at' => now(),
-            'refunded_by' => $manager->id,
-            'refund_reference' => $reference,
-        ]);
 
-        return $payment;
+        return DB::transaction(function () use ($payment, $manager, $reference) {
+            $payment->update([
+                'status' => PaymentStatus::Refunded,
+                'refunded_at' => now(),
+                'refunded_by' => $manager->id,
+                'refund_reference' => $reference,
+            ]);
+            $this->notifications->paymentRefunded($payment->refresh());
+
+            return $payment;
+        });
     }
 }

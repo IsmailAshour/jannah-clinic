@@ -4,6 +4,7 @@ use App\Http\Controllers\Booking\AvailabilityController;
 use App\Http\Controllers\Booking\AvailableDaysController;
 use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\BookingController;
+use App\Http\Controllers\Portal\PaymentController;
 use App\Http\Controllers\Portal\ServiceBrowseController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -28,4 +29,8 @@ Route::middleware(['auth', 'role:customer'])
         Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
         Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
         Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
+
+        // Payment (per-appointment) — view + upload receipt
+        Route::get('appointments/{appointment}/payment', [PaymentController::class, 'show'])->name('appointments.payment');
+        Route::post('appointments/{appointment}/payment/upload', [PaymentController::class, 'upload'])->name('appointments.payment.upload');
     });

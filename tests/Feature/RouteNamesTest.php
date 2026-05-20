@@ -25,6 +25,7 @@ it('exposes canonical single-prefixed P1 route names', function () {
         'admin.appointments.medical-entry.store', 'admin.appointments.medical-entry.create',
         'admin.medical-entries.edit', 'admin.medical-entries.update',
         'admin.customers.profile.medical.update',
+        'portal.medical-record.index', 'portal.medical-record.show',
     ];
     foreach ($names as $n) {
         expect(Route::has($n))->toBeTrue("missing route name: {$n}");

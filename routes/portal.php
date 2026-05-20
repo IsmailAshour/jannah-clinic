@@ -4,6 +4,7 @@ use App\Http\Controllers\Booking\AvailabilityController;
 use App\Http\Controllers\Booking\AvailableDaysController;
 use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\BookingController;
+use App\Http\Controllers\Portal\MedicalRecordController;
 use App\Http\Controllers\Portal\PaymentController;
 use App\Http\Controllers\Portal\ServiceBrowseController;
 use App\Http\Controllers\ProfileController;
@@ -33,4 +34,8 @@ Route::middleware(['auth', 'role:customer'])
         // Payment (per-appointment) — view + upload receipt
         Route::get('appointments/{appointment}/payment', [PaymentController::class, 'show'])->name('appointments.payment');
         Route::post('appointments/{appointment}/payment/upload', [PaymentController::class, 'upload'])->name('appointments.payment.upload');
+
+        // P3 — Medical Record (customer view of own record)
+        Route::get('medical-record', [MedicalRecordController::class, 'index'])->name('medical-record.index');
+        Route::get('medical-record/entries/{entry}', [MedicalRecordController::class, 'show'])->name('medical-record.show');
     });

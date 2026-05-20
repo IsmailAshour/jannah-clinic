@@ -8,6 +8,7 @@ import {
   AdminDataTable,
   AdminDataTableColumnHeader,
   AdminDataTableRowActions,
+  AdminDataTableViewOptions,
   StatCard,
   StatusBadge,
   Modal,
@@ -189,42 +190,43 @@ const columns = [
         />
       </div>
 
-      <!-- 3 — Toolbar + 4 — Table (wrapped in a single card-style surface for cohesion) -->
-      <div class="bg-surface-card rounded-lg shadow-sm">
-        <form class="flex flex-wrap gap-3 items-center p-4 border-b border-border-default" @submit.prevent="applyFilters()">
-          <div class="relative flex-1 min-w-64 max-w-md">
-            <Search class="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-text-tertiary" aria-hidden="true" />
-            <Input
-              id="q"
-              v-model="q"
-              name="q"
-              placeholder="ابحث بالاسم، البريد، الهاتف…"
-              class="ps-9"
-            />
-          </div>
-          <select
-            v-model="status"
-            name="status"
-            aria-label="فلتر الحالة"
-            class="rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">كل الحالات</option>
-            <option value="active">نشط</option>
-            <option value="inactive">غير نشط</option>
-          </select>
-          <Button type="submit" size="sm">تطبيق</Button>
-          <Button type="button" variant="ghost" size="sm" @click="resetFilters">تفريغ</Button>
-        </form>
-
-        <div class="px-4 pb-4">
-          <AdminDataTable
-            :columns="columns"
-            :data="customers.data"
-            :server-meta="customers"
-            :on-page-change="goToPage"
-            empty-text="لا يوجد عملاء يطابقون الفلاتر."
-          />
-        </div>
+      <!-- 3 — Toolbar + 4 — Table (single surface, single toolbar row) -->
+      <div class="bg-surface-card rounded-lg shadow-sm px-4">
+        <AdminDataTable
+          :columns="columns"
+          :data="customers.data"
+          :server-meta="customers"
+          :on-page-change="goToPage"
+          empty-text="لا يوجد عملاء يطابقون الفلاتر."
+        >
+          <template #toolbar="{ table }">
+            <form class="flex flex-wrap items-center gap-2 w-full" @submit.prevent="applyFilters()">
+              <div class="relative flex-1 min-w-64 max-w-md">
+                <Search class="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-text-tertiary pointer-events-none" aria-hidden="true" />
+                <Input
+                  id="q"
+                  v-model="q"
+                  name="q"
+                  placeholder="ابحث بالاسم، البريد، الهاتف…"
+                  class="ps-9 h-9"
+                />
+              </div>
+              <select
+                v-model="status"
+                name="status"
+                aria-label="فلتر الحالة"
+                class="h-9 rounded-md border border-border-default bg-surface-card px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+              >
+                <option value="">كل الحالات</option>
+                <option value="active">نشط</option>
+                <option value="inactive">غير نشط</option>
+              </select>
+              <Button type="submit" size="sm" class="h-9">تطبيق</Button>
+              <Button type="button" variant="ghost" size="sm" class="h-9" @click="resetFilters">تفريغ</Button>
+              <AdminDataTableViewOptions :table="table" class="ms-auto" />
+            </form>
+          </template>
+        </AdminDataTable>
       </div>
     </div>
 

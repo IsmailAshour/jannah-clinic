@@ -51,15 +51,17 @@ defineExpose({ table })
 
 <template>
   <div>
-    <div class="flex items-center py-4 gap-2">
-      <Input
-        v-if="filterColumn"
-        class="max-w-sm"
-        :placeholder="filterPlaceholder"
-        :model-value="table.getColumn(filterColumn)?.getFilterValue() ?? ''"
-        @update:model-value="(v) => table.getColumn(filterColumn)?.setFilterValue(v)"
-      />
-      <AdminDataTableViewOptions :table="table" class="ms-auto" />
+    <div class="flex flex-wrap items-center py-4 gap-2">
+      <slot name="toolbar" :table="table">
+        <Input
+          v-if="filterColumn"
+          class="max-w-sm h-9"
+          :placeholder="filterPlaceholder"
+          :model-value="table.getColumn(filterColumn)?.getFilterValue() ?? ''"
+          @update:model-value="(v) => table.getColumn(filterColumn)?.setFilterValue(v)"
+        />
+        <AdminDataTableViewOptions :table="table" class="ms-auto" />
+      </slot>
     </div>
     <div class="border rounded-md">
       <Table>

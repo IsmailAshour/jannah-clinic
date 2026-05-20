@@ -12,7 +12,7 @@ defineProps({ table: { type: Object, required: true } })
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
-      <Button variant="outline" size="sm" class="h-8">
+      <Button variant="outline" size="sm" class="h-9">
         <Settings2 class="size-4 me-2" /> أعمدة
       </Button>
     </DropdownMenuTrigger>

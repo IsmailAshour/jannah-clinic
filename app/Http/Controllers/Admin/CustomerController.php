@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Auth\Services\AuthService;
 use App\Enums\AppointmentStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -11,7 +12,9 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -114,6 +117,50 @@ class CustomerController extends Controller
         });
 
         return back()->with('success', 'تم حفظ بيانات العميل.');
+    }
+
+    public function store(Request $request, AuthService $auth): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:32', 'unique:users,phone'],
+            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'gender' => ['nullable', 'string', 'max:16'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if (empty($data['email'] ?? null) && empty($data['phone'] ?? null)) {
+            throw ValidationException::withMessages([
+                'email' => 'يجب توفير البريد الإلكتروني أو رقم الجوال.',
+                'phone' => 'يجب توفير البريد الإلكتروني أو رقم الجوال.',
+            ]);
+        }
+
+        $tempPassword = Str::password(16);
+
+        $user = DB::transaction(function () use ($auth, $data, $tempPassword) {
+            $created = $auth->registerCustomer(array_merge($data, ['password' => $tempPassword]));
+            $hasProfileFields = ! empty($data['date_of_birth'] ?? null)
+                || ! empty($data['gender'] ?? null)
+                || ! empty($data['notes'] ?? null);
+            if ($hasProfileFields) {
+                CustomerProfile::query()
+                    ->where('user_id', $created->id)
+                    ->update([
+                        'date_of_birth' => $data['date_of_birth'] ?? null,
+                        'gender' => $data['gender'] ?? null,
+                        'notes' => $data['notes'] ?? null,
+                    ]);
+            }
+
+            return $created;
+        });
+
+        return redirect()
+            ->route('admin.customers.show', $user->id)
+            ->with('success', 'تم إنشاء العميل.')
+            ->with('temp_password', $tempPassword);
     }
 
     public function toggleActive(User $customer): RedirectResponse

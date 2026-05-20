@@ -34,6 +34,14 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // One-shot session flash exposed to Inertia pages. Polish-D needs
+            // `temp_password` (shown once on Admin/Customers/Show after create);
+            // `success`/`error` provided for future UI surfacing (toasts).
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'temp_password' => fn () => $request->session()->get('temp_password'),
+            ],
         ];
     }
 }

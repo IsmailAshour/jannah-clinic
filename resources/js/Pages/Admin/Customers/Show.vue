@@ -30,6 +30,23 @@ const isManager = (() => {
   return role === 'manager'
 })()
 
+// One-shot temporary password from session flash — set by store() after creating
+// a new customer (Str::password(16) hashed server-side, returned ONCE here).
+// The session key is shared via HandleInertiaRequests::share(). Manager must
+// share it with the customer; it is NOT persisted anywhere else.
+const tempPassword = page.props?.flash?.temp_password ?? null
+const passwordCopied = ref(false)
+async function copyPassword() {
+  if (!tempPassword) return
+  try {
+    await navigator.clipboard.writeText(tempPassword)
+    passwordCopied.value = true
+    setTimeout(() => (passwordCopied.value = false), 2000)
+  } catch {
+    // Clipboard API blocked (e.g. insecure context) — user can still select+copy manually.
+  }
+}
+
 // Arabic AppointmentStatus map mirrors Admin/Appointments/Index.vue
 const statusMap = {
   requested:   { label: 'بانتظار التأكيد', variant: 'warning' },
@@ -116,6 +133,23 @@ const apptColumns = [
 <template>
   <AdminShell>
     <div class="p-6 space-y-6">
+      <!--
+        One-shot temp-password banner — appears only on the redirect that follows
+        a successful customer-create. Refreshing the page clears the flash, and
+        navigating away discards it. There is no other way to retrieve it later
+        (by design); the customer should change it after first login.
+      -->
+      <div v-if="tempPassword" class="rounded-md border border-warning bg-warning/10 p-4 space-y-2">
+        <div class="text-sm font-semibold text-text-primary">تم إنشاء العميل — كلمة مرور مؤقتة</div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <code class="font-mono text-base px-3 py-1 rounded bg-surface-card border border-border-default select-all" dir="ltr">{{ tempPassword }}</code>
+          <Button type="button" variant="outline" @click="copyPassword">
+            {{ passwordCopied ? 'تم النسخ ✓' : 'نسخ' }}
+          </Button>
+        </div>
+        <p class="text-xs text-text-secondary">شارِك كلمة المرور مع العميل الآن — لن تُعرض مرة أخرى. يستطيع العميل تغييرها بعد تسجيل الدخول.</p>
+      </div>
+
       <PageHeader :title="customer.name">
         <template #action>
           <div class="flex gap-2">

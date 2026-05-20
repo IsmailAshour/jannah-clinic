@@ -9,6 +9,7 @@ use App\Models\DoctorProfile;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 it('lets a manager view the customers list with only customer-role users', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
@@ -154,4 +155,65 @@ it('includes appointment history and stats on the show page', function () {
     expect($props['stats']['noShow'])->toBe(1);
     expect($props['stats']['lastVisit'])->not->toBeNull();
     expect(count($props['appointments']['data']))->toBe(2);
+});
+
+it('lets a manager create a customer with auto-generated password (shown once via flash)', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+
+    $resp = $this->actingAs($m)->post('/admin/customers', [
+        'name' => 'عميل جديد',
+        'email' => 'new@example.com',
+        'phone' => '0599555555',
+        'date_of_birth' => '1990-05-20',
+        'gender' => 'male',
+        'notes' => 'ملاحظة',
+    ]);
+
+    $user = User::where('email', 'new@example.com')->first();
+    expect($user)->not->toBeNull();
+    expect($user->role)->toBe(UserRole::Customer);
+    expect($user->is_active)->toBeTrue();
+    expect($user->customerProfile)->not->toBeNull();
+    expect($user->customerProfile->date_of_birth?->toDateString())->toBe('1990-05-20');
+    expect($user->customerProfile->gender)->toBe('male');
+    expect($user->customerProfile->notes)->toBe('ملاحظة');
+
+    $resp->assertRedirect(route('admin.customers.show', $user->id));
+    $resp->assertSessionHas('temp_password');
+    $temp = session('temp_password');
+    expect($temp)->toBeString();
+    expect(Hash::check($temp, $user->password))->toBeTrue();
+});
+
+it('rejects create when both email and phone are missing', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+
+    $this->actingAs($m)->post('/admin/customers', [
+        'name' => 'بدون اتصال',
+    ])->assertSessionHasErrors(['email', 'phone']);
+
+    expect(User::where('name', 'بدون اتصال')->exists())->toBeFalse();
+});
+
+it('rejects create with duplicate email', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    User::factory()->create(['role' => UserRole::Customer, 'email' => 'dup@example.com']);
+
+    $this->actingAs($m)->post('/admin/customers', [
+        'name' => 'مكرر',
+        'email' => 'dup@example.com',
+    ])->assertSessionHasErrors('email');
+
+    expect(User::where('name', 'مكرر')->exists())->toBeFalse();
+});
+
+it('forbids a receptionist from creating a customer', function () {
+    $r = User::factory()->create(['role' => UserRole::Receptionist]);
+
+    $this->actingAs($r)->post('/admin/customers', [
+        'name' => 'محاولة',
+        'email' => 'try@example.com',
+    ])->assertForbidden();
+
+    expect(User::where('email', 'try@example.com')->exists())->toBeFalse();
 });

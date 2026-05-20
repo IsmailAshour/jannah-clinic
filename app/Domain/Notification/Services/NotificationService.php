@@ -5,11 +5,13 @@ namespace App\Domain\Notification\Services;
 use App\Enums\NotificationCategory;
 use App\Enums\UserRole;
 use App\Models\Appointment;
+use App\Models\LoyaltyLedger;
 use App\Models\MedicalEntry;
 use App\Models\Payment;
 use App\Models\Prescription;
 use App\Models\User;
 use App\Notifications\AppointmentChanged;
+use App\Notifications\LoyaltyChanged;
 use App\Notifications\MedicalRecordChanged;
 use App\Notifications\PaymentChanged;
 use Illuminate\Notifications\DatabaseNotification;
@@ -240,6 +242,57 @@ class NotificationService
             'subject_type' => MedicalEntry::class,
             'subject_id' => $entry->id,
         ]), 'prescriptionAdded');
+    }
+
+    public function loyaltyPointsEarned(LoyaltyLedger $entry): void
+    {
+        $this->dispatch($entry->customer, new LoyaltyChanged([
+            'category' => NotificationCategory::Loyalty->value,
+            'title' => "+{$entry->points_delta} نقطة من زيارتك",
+            'body' => "رصيدك الآن {$entry->balance_after} نقطة.",
+            'action_url' => '/portal/loyalty',
+            'subject_type' => LoyaltyLedger::class,
+            'subject_id' => $entry->id,
+        ]), 'loyaltyPointsEarned');
+    }
+
+    public function loyaltyPointsRedeemed(LoyaltyLedger $entry): void
+    {
+        $abs = abs($entry->points_delta);
+        $this->dispatch($entry->customer, new LoyaltyChanged([
+            'category' => NotificationCategory::Loyalty->value,
+            'title' => "{$abs} نقطة استُبدلت بحجز",
+            'body' => "رصيدك الآن {$entry->balance_after} نقطة.",
+            'action_url' => '/portal/loyalty',
+            'subject_type' => LoyaltyLedger::class,
+            'subject_id' => $entry->id,
+        ]), 'loyaltyPointsRedeemed');
+    }
+
+    public function loyaltyPointsAdjusted(LoyaltyLedger $entry): void
+    {
+        $sign = $entry->points_delta > 0 ? '+' : '';
+        $this->dispatch($entry->customer, new LoyaltyChanged([
+            'category' => NotificationCategory::Loyalty->value,
+            'title' => "عدّل الطاقم رصيدك ({$sign}{$entry->points_delta})",
+            'body' => $entry->notes ?: 'بدون سبب مذكور.',
+            'action_url' => '/portal/loyalty',
+            'subject_type' => LoyaltyLedger::class,
+            'subject_id' => $entry->id,
+        ]), 'loyaltyPointsAdjusted');
+    }
+
+    public function loyaltyPointsReversed(LoyaltyLedger $entry): void
+    {
+        $sign = $entry->points_delta > 0 ? '+' : '';
+        $this->dispatch($entry->customer, new LoyaltyChanged([
+            'category' => NotificationCategory::Loyalty->value,
+            'title' => "{$sign}{$entry->points_delta} نقطة بعد إلغاء/استرداد",
+            'body' => "رصيدك الآن {$entry->balance_after} نقطة.",
+            'action_url' => '/portal/loyalty',
+            'subject_type' => LoyaltyLedger::class,
+            'subject_id' => $entry->id,
+        ]), 'loyaltyPointsReversed');
     }
 
     public function markAsRead(DatabaseNotification $n, User $user): void

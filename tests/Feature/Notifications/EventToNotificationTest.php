@@ -78,7 +78,9 @@ it('verify notifies the customer with payment category', function () {
 
     app(PaymentService::class)->verify($payment->fresh(), $this->manager);
 
-    $n = $this->customer->notifications()->latest()->first();
+    $n = $this->customer->notifications()
+        ->where('data->category', 'payment')
+        ->latest()->first();
     expect($n)->not->toBeNull()->and($n->data['category'])->toBe('payment');
 });
 

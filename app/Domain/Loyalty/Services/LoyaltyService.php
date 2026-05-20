@@ -3,6 +3,7 @@
 namespace App\Domain\Loyalty\Services;
 
 use App\Domain\Loyalty\Exceptions\InsufficientLoyaltyBalanceException;
+use App\Domain\Notification\Services\NotificationService;
 use App\Enums\LoyaltyReason;
 use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 
 class LoyaltyService
 {
+    public function __construct(private readonly NotificationService $notifications) {}
+
     public function awardForPayment(Payment $payment): void
     {
         $exists = LoyaltyLedger::query()
@@ -34,11 +37,13 @@ class LoyaltyService
         }
         $customer = $payment->appointment->customer;
         try {
-            $this->writeEntry($customer, $points, LoyaltyReason::EarnedFromPayment, $payment);
+            $entry = $this->writeEntry($customer, $points, LoyaltyReason::EarnedFromPayment, $payment);
         } catch (UniqueConstraintViolationException) {
             // Concurrent insert raced and won — the partial unique index made
             // sure exactly one entry exists. No-op.
+            return;
         }
+        $this->notifications->loyaltyPointsEarned($entry);
     }
 
     public function clawbackForRefund(Payment $payment): void
@@ -61,11 +66,13 @@ class LoyaltyService
         }
         $customer = $payment->appointment->customer;
         try {
-            $this->writeEntry($customer, -$earned, LoyaltyReason::ClawbackFromRefund, $payment);
+            $entry = $this->writeEntry($customer, -$earned, LoyaltyReason::ClawbackFromRefund, $payment);
         } catch (UniqueConstraintViolationException) {
             // Concurrent insert raced and won — partial unique index guarantees
             // exactly one clawback entry exists. No-op.
+            return;
         }
+        $this->notifications->loyaltyPointsReversed($entry);
     }
 
     public function redeemForAppointment(Appointment $appointment, User $customer): int
@@ -79,7 +86,8 @@ class LoyaltyService
         if ($balance < $cost) {
             throw new InsufficientLoyaltyBalanceException("رصيد النقاط غير كافٍ (المطلوب {$cost}، المتاح {$balance}).");
         }
-        $this->writeEntry($customer, -$cost, LoyaltyReason::RedeemedForAppointment, $appointment);
+        $entry = $this->writeEntry($customer, -$cost, LoyaltyReason::RedeemedForAppointment, $appointment);
+        $this->notifications->loyaltyPointsRedeemed($entry);
 
         return $cost;
     }
@@ -99,11 +107,13 @@ class LoyaltyService
         }
         $customer = $cancelled->customer;
         try {
-            $this->writeEntry($customer, (int) $cancelled->loyalty_points_spent, LoyaltyReason::RefundReversal, $cancelled);
+            $entry = $this->writeEntry($customer, (int) $cancelled->loyalty_points_spent, LoyaltyReason::RefundReversal, $cancelled);
         } catch (UniqueConstraintViolationException) {
             // Concurrent insert raced and won — partial unique index guarantees
             // exactly one reversal entry exists. No-op.
+            return;
         }
+        $this->notifications->loyaltyPointsReversed($entry);
     }
 
     public function adjust(User $customer, int $delta, string $note, User $manager): void
@@ -114,7 +124,8 @@ class LoyaltyService
         if ($delta === 0) {
             return;
         }
-        $this->writeEntry($customer, $delta, LoyaltyReason::AdjustmentByManager, null, $note, $manager);
+        $entry = $this->writeEntry($customer, $delta, LoyaltyReason::AdjustmentByManager, null, $note, $manager);
+        $this->notifications->loyaltyPointsAdjusted($entry);
     }
 
     public function balance(User $customer): int
@@ -134,8 +145,8 @@ class LoyaltyService
         ?Model $reference = null,
         ?string $notes = null,
         ?User $actor = null,
-    ): void {
-        DB::transaction(function () use ($customer, $delta, $reason, $reference, $notes, $actor) {
+    ): LoyaltyLedger {
+        return DB::transaction(function () use ($customer, $delta, $reason, $reference, $notes, $actor) {
             // Lock the profile row to serialize concurrent balance arithmetic.
             // Without this, two concurrent writers can both read the same balance,
             // both compute newBalance, and both insert ledger rows that disagree
@@ -153,7 +164,7 @@ class LoyaltyService
                     ->first();
             }
             $newBalance = (int) $profile->loyalty_balance + $delta;
-            LoyaltyLedger::create([
+            $entry = LoyaltyLedger::create([
                 'customer_id' => $customer->id,
                 'points_delta' => $delta,
                 'balance_after' => $newBalance,
@@ -164,6 +175,8 @@ class LoyaltyService
                 'actor_id' => $actor?->id,
             ]);
             $profile->update(['loyalty_balance' => $newBalance]);
+
+            return $entry;
         });
     }
 }

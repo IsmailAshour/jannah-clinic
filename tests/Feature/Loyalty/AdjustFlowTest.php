@@ -58,3 +58,20 @@ it('doctor sees loyalty section but cannot adjust', function () {
     $props = $resp->viewData('page')['props'];
     expect($props['canAdjustLoyalty'])->toBeFalse();
 });
+
+it('manager adjustment notifies the customer with a loyalty notification', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    CustomerProfile::create(['user_id' => $customer->id]);
+
+    $this->actingAs($manager)
+        ->post("/admin/customers/{$customer->id}/loyalty/adjust", [
+            'delta' => 50,
+            'note' => 'شكر',
+        ])->assertRedirect();
+
+    $notif = $customer->notifications()->latest()->first();
+    expect($notif)->not->toBeNull()
+        ->and($notif->data['category'])->toBe('loyalty')
+        ->and($notif->data['action_url'])->toBe('/portal/loyalty');
+});

@@ -8,6 +8,7 @@ enum NotificationCategory: string
     case Payment = 'payment';
     case Medical = 'medical';
     case System = 'system';
+    case Loyalty = 'loyalty';
 
     /** @return array<int, string> */
     public static function values(): array

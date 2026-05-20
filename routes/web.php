@@ -1,16 +1,17 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Public\DoctorBrowseController;
+use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\ServiceBrowseController;
+use App\Http\Controllers\Public\SupportController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    $u = request()->user();
-    if (! $u) {
-        return redirect()->route('login');
-    }
-
-    return redirect()->route($u->isStaff() ? 'admin.dashboard' : 'portal.home');
-});
+// Public landing — no auth.
+Route::get('/', [HomeController::class, 'index'])->name('public.home');
+Route::get('/services', [ServiceBrowseController::class, 'index'])->name('public.services');
+Route::get('/doctors', [DoctorBrowseController::class, 'index'])->name('public.doctors');
+Route::get('/support', [SupportController::class, 'index'])->name('public.support');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

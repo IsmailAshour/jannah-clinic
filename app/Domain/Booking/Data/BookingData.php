@@ -3,6 +3,7 @@
 namespace App\Domain\Booking\Data;
 
 use App\Enums\DeliveryMode;
+use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use Carbon\CarbonImmutable;
 
@@ -18,6 +19,6 @@ final class BookingData
         public ?int $coverageAreaId = null,
         public ?string $addressText = null,
         public ?string $locationNote = null,
-        public string $paymentMethod = 'cash',
+        public PaymentMethod $paymentMethod = PaymentMethod::Cash,
     ) {}
 }

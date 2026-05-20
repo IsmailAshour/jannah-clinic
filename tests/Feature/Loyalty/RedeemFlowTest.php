@@ -5,6 +5,7 @@ use App\Domain\Booking\Services\BookingService;
 use App\Domain\Loyalty\Exceptions\InsufficientLoyaltyBalanceException;
 use App\Enums\DeliveryMode;
 use App\Enums\LoyaltyReason;
+use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\CustomerProfile;
@@ -48,7 +49,7 @@ it('booking with payment_method=loyalty_points creates appointment WITHOUT a Pay
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,
-        paymentMethod: 'loyalty_points',
+        paymentMethod: PaymentMethod::LoyaltyPoints,
     ));
 
     expect($appt->payment_method->value)->toBe('loyalty_points')
@@ -70,7 +71,7 @@ it('booking with insufficient balance throws and creates nothing', function () {
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,
-        paymentMethod: 'loyalty_points',
+        paymentMethod: PaymentMethod::LoyaltyPoints,
     )))->toThrow(InsufficientLoyaltyBalanceException::class);
 
     expect(Appointment::count())->toBe(0)
@@ -87,7 +88,7 @@ it('booking with payment_method=cash still creates Payment row and earns nothing
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,
-        paymentMethod: 'cash',
+        paymentMethod: PaymentMethod::Cash,
     ));
 
     expect($appt->payment_method->value)->toBe('cash')

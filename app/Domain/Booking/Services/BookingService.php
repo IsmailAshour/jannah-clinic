@@ -10,6 +10,7 @@ use App\Domain\Loyalty\Services\LoyaltyService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
@@ -72,7 +73,10 @@ class BookingService
                 'created_by_role' => $d->createdByRole,
                 'payment_method' => $d->paymentMethod,
             ];
-            if ($d->paymentMethod === 'loyalty_points') {
+            if ($d->paymentMethod === PaymentMethod::LoyaltyPoints) {
+                // Pre-flight check duplicates LoyaltyService::redeemForAppointment but
+                // is required HERE to safely populate loyalty_points_spent on the
+                // appointment row before insert (DB CHECK enforces consistency).
                 if (! $service->loyalty_enabled || ! $service->loyalty_redemption_points) {
                     throw new InsufficientLoyaltyBalanceException('الخدمة غير متاحة للاستبدال بالنقاط.');
                 }
@@ -88,7 +92,7 @@ class BookingService
                 ]);
             }
 
-            if ($d->paymentMethod === 'cash') {
+            if ($d->paymentMethod === PaymentMethod::Cash) {
                 // P2: every cash Appointment gets a pending Payment created atomically.
                 Payment::create([
                     'appointment_id' => $appt->id,

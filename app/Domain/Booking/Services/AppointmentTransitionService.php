@@ -50,7 +50,8 @@ class AppointmentTransitionService
             $to === AppointmentStatus::Completed => $this->notifications->appointmentCompleted($a),
             default => null,
         };
-        if ($to === AppointmentStatus::Cancelled && $a->payment_method === PaymentMethod::LoyaltyPoints) {
+        if (in_array($to, [AppointmentStatus::Cancelled, AppointmentStatus::Rejected], true)
+            && $a->payment_method === PaymentMethod::LoyaltyPoints) {
             $this->loyalty->reverseRedemption($a);
         }
 
@@ -65,6 +66,18 @@ class AppointmentTransitionService
             }
             /** @var ServiceAddress|null $addr */
             $addr = $old->serviceAddress;
+            // Carry the payment method across the reschedule. Null can only occur
+            // for legacy rows created before this column existed (DB default is 'cash');
+            // fall back to Cash to keep the typed BookingData contract intact.
+            $paymentMethod = $old->payment_method ?? PaymentMethod::Cash;
+            // If the old appointment was paid with loyalty points, reverse that
+            // redemption FIRST so the customer's balance can fund the new redemption.
+            // Without this, the new book() call would either (a) try to deduct
+            // points again from an already-depleted balance and throw, or (b)
+            // succeed but double-charge the customer.
+            if ($paymentMethod === PaymentMethod::LoyaltyPoints) {
+                $this->loyalty->reverseRedemption($old);
+            }
             $new = $this->booking->book(new BookingData(
                 customerId: $old->customer_id,
                 doctorProfileId: $old->doctor_profile_id,
@@ -75,6 +88,7 @@ class AppointmentTransitionService
                 coverageAreaId: $addr?->coverage_area_id,
                 addressText: $addr?->address_text,
                 locationNote: $addr?->location_note,
+                paymentMethod: $paymentMethod,
             ));
             $new->rescheduled_from_id = $old->id;
             $new->save();

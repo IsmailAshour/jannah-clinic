@@ -2,6 +2,7 @@
 
 namespace App\Domain\MedicalRecord\Services;
 
+use App\Domain\Notification\Services\NotificationService;
 use App\Enums\MedicalAuditAction;
 use App\Models\Appointment;
 use App\Models\MedicalEntry;
@@ -10,7 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class MedicalEntryService
 {
-    public function __construct(private AuditLogger $audit) {}
+    public function __construct(
+        private AuditLogger $audit,
+        private NotificationService $notifications,
+    ) {}
 
     public function create(Appointment $appointment, User $author, array $data): MedicalEntry
     {
@@ -27,6 +31,7 @@ class MedicalEntryService
                 $appointment->customer,
                 ['visible_summary', 'staff_notes'],
             );
+            $this->notifications->medicalEntryCreated($entry->fresh()->load('appointment.customer'));
 
             return $entry;
         });

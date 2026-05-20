@@ -1,6 +1,8 @@
 <?php
 
 use App\Domain\Booking\Services\AppointmentTransitionService;
+use App\Domain\MedicalRecord\Services\MedicalEntryService;
+use App\Domain\MedicalRecord\Services\PrescriptionService;
 use App\Domain\Payment\Services\PaymentService;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
@@ -137,6 +139,35 @@ it('appointment Completed notifies the customer', function () {
         ->transition($appt, AppointmentStatus::Completed);
 
     expect($this->customer->notifications()->latest()->first()?->data['title'])->toContain('اكتمل');
+});
+
+it('MedicalEntryService::create notifies the customer with medical category', function () {
+    $appt = mkApptWithPayment($this->customer, $this->doctor);
+    $appt->status = AppointmentStatus::Completed;
+    $appt->save();
+
+    app(MedicalEntryService::class)
+        ->create($appt, $this->doctorUser, ['visible_summary' => 'flu', 'staff_notes' => 'shh']);
+
+    $n = $this->customer->notifications()->latest()->first();
+    expect($n?->data['category'])->toBe('medical')
+        ->and(json_encode($n->data, JSON_UNESCAPED_UNICODE))->not->toContain('shh');
+});
+
+it('PrescriptionService::syncForEntry notifies the customer on new prescription', function () {
+    $appt = mkApptWithPayment($this->customer, $this->doctor);
+    $appt->status = AppointmentStatus::Completed;
+    $appt->save();
+    $entry = app(MedicalEntryService::class)
+        ->create($appt, $this->doctorUser, ['visible_summary' => 's', 'staff_notes' => null]);
+    $this->customer->notifications()->delete();
+
+    app(PrescriptionService::class)
+        ->syncForEntry($entry, [
+            ['medication_name' => 'X', 'dosage' => '1', 'frequency' => 'q8h', 'duration' => '5d', 'notes' => null],
+        ]);
+
+    expect($this->customer->notifications()->latest()->first()?->data['title'])->toContain('وصفة');
 });
 
 it('markRefundPending does NOT notify (internal staging)', function () {

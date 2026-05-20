@@ -2,6 +2,7 @@
 
 namespace App\Domain\MedicalRecord\Services;
 
+use App\Domain\Notification\Services\NotificationService;
 use App\Enums\MedicalAuditAction;
 use App\Models\MedicalEntry;
 use App\Models\Prescription;
@@ -9,7 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class PrescriptionService
 {
-    public function __construct(private AuditLogger $audit) {}
+    public function __construct(
+        private AuditLogger $audit,
+        private NotificationService $notifications,
+    ) {}
 
     public function syncForEntry(MedicalEntry $entry, array $desired): void
     {
@@ -45,6 +49,7 @@ class PrescriptionService
                         $entry->appointment->customer,
                         ['medication_name', 'dosage', 'frequency', 'duration', 'notes'],
                     );
+                    $this->notifications->prescriptionAdded($created->fresh()->load('entry.appointment.customer'));
                     $keepIds[] = $created->id;
                 }
             }

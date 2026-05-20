@@ -3,6 +3,23 @@
 All notable changes to jannahclinic are documented here. Per Definition of Done Q.9,
 every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–P5).
 
+## [P5b] Public Landing + Portal Polish — 2026-05-20
+
+**P5b complete:** customers can browse the clinic (services, doctors, FAQ, beauty tips) without signing in. Authentication is requested only when the customer takes an action that requires an account (booking, viewing own appointments, payments, medical records, loyalty). Two new authed pages — `/portal/profile` and `/portal/settings` — round out the personal data surface.
+
+- **Public routes (4 new):** `public.home` / `public.services` / `public.doctors` / `public.support` (no auth). `/` no longer redirects to login.
+- **Authed routes (4 new):** `portal.profile.edit` / `portal.profile.update` / `portal.settings.index` / `portal.settings.password`.
+- **Adaptive `ClientShell`:** single layout serves guest (login/register CTAs + 4-tab nav الرئيسية/الخدمات/الأطبّاء/الدعم) and authed (bell + logout + 6-tab nav الرئيسية/مواعيدي/سجلي/نقاطي/حسابي/خدمات). Switches on `usePage().props.auth.user`.
+- **`<AuthGuardLink>` foundation component:** drop-in for any guest-clickable action that needs auth. Sends to `/login?intent=…&{context}` for guests; renders a regular `<Link :href="authedHref">` for authed users.
+- **`App\Domain\Auth\Services\IntentResolver`:** maps `intent` query param to the right authed URL after login. Booking intent forwards `service`/`doctor`/`category` params. Staff logins still land on `/admin` regardless.
+- **Home featured content:** top 4 services by recent bookings (fallback: display_order), top-rated bookable doctor, random tip from `config('clinic.tips')`. Authed visitors see a personalized greeting and their next appointment if any.
+- **Public Support:** FAQ accordion + contact strip (phone, WhatsApp link, address) sourced from `config('clinic.faqs')` + `config('clinic.contact')`.
+- **Portal Profile:** customer edits name, email, phone, DoB, gender.
+- **Portal Settings:** password change with `current_password` verification + `Password::min(8)` rule. Success dispatches a `SecurityChanged` notification ("تمّ تغيير كلمة المرور") via the P5a `dispatch()` helper. Notification-preferences and language sections render as "قريبًا" stubs.
+- **Tests:** +18 Pest (PublicAccessTest 6 · HomeFeaturedTest 5 · IntentResolverTest 6 · LoginIntentTest 3 · ProfileEditTest 4 · SettingsPasswordTest 5 + RouteNames assertions) + 7 Vitest (AuthGuardLink 4 specs · ClientShell-Adaptive 3 specs).
+- **No migrations, no domain entities** — UI + routes phase only.
+- **Tag:** `p5b-portal`.
+
 ## [P4a] Loyalty Points — 2026-05-20
 
 **P4a complete:** customers earn `floor(amount)` points per shekel paid (1 ₪ = 1 point) on appointments whose service has `loyalty_enabled=true`. Points redeem at booking time against a per-service `loyalty_redemption_points` cost, replacing the `Payment` row entirely (the ledger entry IS the proof). Refunds claw back points symmetrically; cancellation/rejection of a loyalty-redeemed booking returns the points; reschedule preserves the balance (reverse old + redeem new). Manager-adjustment widget on the customer page (with reason + audit). Notifications dispatched after each ledger write through P5a's contained dispatcher. **No SMS/email, no expiry, no tiers** — all deferred.

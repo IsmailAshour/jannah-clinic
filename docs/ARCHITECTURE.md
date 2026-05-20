@@ -542,6 +542,26 @@ In-app retention mechanic: every cash payment earns `floor(amount)` points (1 �
 
 **Deferred to future ADRs:** points expiry, VIP tiers, promotional 2x campaigns, point transfers between customers, mixed redemption (partial points + cash), SMS/email loyalty notifications, memberships (P4b — independent sub-project). See spec §10 for the full deferred-items table.
 
+## Public Landing (P5b)
+
+The customer-facing surface is split into two:
+
+- **Public:** `/`, `/services`, `/doctors`, `/support` — no auth. Renders the Inertia pages under `resources/js/Pages/Public/*`. Each page uses `ClientShell.vue` which is now adaptive.
+- **Private:** `/portal/*` — existing `auth + role:customer` middleware. Adds two new pages: `/portal/profile` (edit name, email, phone, DoB, gender) and `/portal/settings` (change password with current-password verification + a security notification on success).
+
+**Adaptive `ClientShell`:** a single layout reads `usePage().props.auth.user`. Guest header renders login/register CTAs and a 4-tab bottom nav (الرئيسية / الخدمات / الأطبّاء / الدعم). Authed header renders `<NotificationBell>` + user name + logout, and a 6-tab nav (الرئيسية / مواعيدي / سجلي / نقاطي / حسابي / خدمات).
+
+**Intent-to-action gate:** `<AuthGuardLink>` (foundation component) on public CTAs sends guests to `/login?intent=booking&service={n}…`. After login, `App\Domain\Auth\Services\IntentResolver` reads the `intent` param and forwards to the resolved authed URL (e.g. `/portal/booking?service={n}`). Default: `/portal` (`portal.home`). Staff logins still go to `/admin` regardless of intent.
+
+**Featured-content logic on the home page:**
+- Top 4 services by `appointments_count` in the last 30 days, ties broken by `display_order`.
+- Top doctor by `rating_average` (active + bookable), ties broken by `display_order`.
+- Tip rotated randomly from `config('clinic.tips')` (config-driven; no DB).
+
+**FAQ:** `config('clinic.faqs')` array of `{q, a}` objects. Manager edits in deployment. A DB-backed editable CMS is deferred (see spec §10).
+
+**Password change notification:** `NotificationService::securityPasswordChanged` dispatches a `SecurityChanged` database notification using the existing P5a `dispatch()` helper (try/catch + log).
+
 ---
 
 ## Related Documents
@@ -554,3 +574,4 @@ In-app retention mechanic: every cash payment earns `floor(amount)` points (1 �
 - Domain Model: `docs/DOMAIN-MODEL.md`
 - P5a Notifications spec: `docs/superpowers/specs/2026-05-20-jannahclinic-p5a-notifications-design.md`
 - P4a Loyalty Points spec: `docs/superpowers/specs/2026-05-20-jannahclinic-p4a-loyalty-design.md`
+- P5b Portal Polish spec: `docs/superpowers/specs/2026-05-20-jannahclinic-p5b-portal-design.md`

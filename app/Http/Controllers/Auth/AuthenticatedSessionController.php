@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Auth\Services\IntentResolver;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
@@ -13,40 +14,35 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
-    public function create(): Response
+    public function __construct(private readonly IntentResolver $resolver) {}
+
+    public function create(Request $request): Response
     {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            'intent' => $request->input('intent'),
+            'context' => $request->only(['service', 'doctor', 'category']),
         ]);
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-
         $request->session()->regenerate();
-
         $request->session()->forget('url.intended');
 
-        return redirect()->route($request->user()->isStaff() ? 'admin.dashboard' : 'portal.home');
+        if ($request->user()->isStaff()) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return redirect($this->resolver->resolve($request, $request->input('intent')));
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
-
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
         return redirect('/');

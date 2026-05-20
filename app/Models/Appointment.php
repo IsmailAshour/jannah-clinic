@@ -47,4 +47,9 @@ class Appointment extends Model
     {
         return $this->belongsTo(self::class, 'rescheduled_from_id');
     }
+
+    public function payment(): HasOne
+    {
+        return $this->hasOne(Payment::class);
+    }
 }

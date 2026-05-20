@@ -7,9 +7,11 @@ use App\Domain\Booking\Exceptions\InvalidBookingException;
 use App\Domain\Booking\Exceptions\SlotUnavailableException;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
+use App\Enums\PaymentStatus;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
 use App\Models\HomeServiceCoverageArea;
+use App\Models\Payment;
 use App\Models\Service;
 use Illuminate\Support\Facades\DB;
 
@@ -72,7 +74,14 @@ class BookingService
                 ]);
             }
 
-            return $appt->fresh('serviceAddress');
+            // P2: every Appointment gets a pending Payment created atomically.
+            Payment::create([
+                'appointment_id' => $appt->id,
+                'amount' => $quote['total'],
+                'status' => PaymentStatus::Pending,
+            ]);
+
+            return $appt->fresh(['serviceAddress', 'payment']);
         });
     }
 }

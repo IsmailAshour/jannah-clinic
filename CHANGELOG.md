@@ -3,6 +3,52 @@
 All notable changes to jannahclinic are documented here. Per Definition of Done Q.9,
 every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–P5).
 
+## [P5a] Notification System — 2026-05-20
+
+**P5a complete:** event-driven in-app notifications fan out from the existing
+domain services (`PaymentService`, `BookingService`, `AppointmentTransitionService`,
+`MedicalEntryService`, `PrescriptionService`) inside their `DB::transaction` blocks
+— so a rolled-back domain change discards its notifications too. Bell badge in both
+shells (Inertia-shared `notifications.unread_count`) + dedicated notification center
+at `/admin/notifications` and `/portal/notifications` with category chips, unread-only
+filter, 20/page pagination, and click-to-read+redirect. **No SMS/email/push in scope**
+— in-app only; off-platform delivery is deferred behind a future ADR (PHI in transit).
+
+- **Domain model:** Laravel's standard `notifications` table (UUID, morph, JSON `data`)
+  + two composite indexes (`unread_idx`, `feed_idx`). `App\Enums\NotificationCategory`
+  drives both server-side filtering (`where('data->category', $cat)` — portable) and
+  the UI chip set. Payload schema documented in spec §2.3; PHI explicitly excluded.
+- **`NotificationService`** with one method per spec §3 event (bookingRequested,
+  appointmentConfirmed/Rejected/CancelledByStaff/Completed/RescheduledForCustomer,
+  paymentReceiptUploaded/Approved/Rejected/Refunded, medicalEntryCreated, prescriptionAdded,
+  markAsRead, markAllAsRead). Mirrors the `AuditLogger` pattern — explicit, transactional,
+  called inline. `markRefundPending` deliberately does NOT notify (internal staging state).
+- **Routes (6 new — locked by `RouteNamesTest`):** `admin.notifications.{index,read,mark-all-read}`
+  + `portal.notifications.{index,read,mark-all-read}`. Mark-read POST verifies
+  `notifiable_id === auth()->id()` then redirects to `data.action_url`.
+- **Inertia share + Bell:** `HandleInertiaRequests::share` adds `notifications.unread_count`
+  (closure; guests null). New foundation component `<NotificationBell>` reads the share,
+  shows a numeric badge capped at `99+`, navigates to the notification center.
+  Mounted in `AdminShell.vue` (header) and `ClientShell.vue` (header). Vitest spec
+  covers 4 visibility scenarios.
+- **Notification center pages:** admin + portal each render a card-list with unread dot,
+  title, body (1-line truncate), relative time chip, category chips, unread toggle, and
+  the standard Inertia paginator. Controllers expose the feed as `props.feed` so the
+  `notifications` Inertia share key isn't clobbered.
+- **Wiring:** `PaymentService` now wraps `verify` and `markRefunded` in
+  `DB::transaction` (were not transactional before) and emits at every status flip
+  (except `markRefundPending`). `AppointmentTransitionService::transition` now wraps
+  the body in a transaction (was direct save) and emits per terminal state.
+  `BookingService::book` notifies all active managers+receptionists on Requested.
+  `MedicalEntryService::create` and `PrescriptionService::syncForEntry` (create
+  branch only) notify the customer with the medical category.
+- **Tests:** +28 Pest (NotificationServiceTest 6, NotificationCenterTest 11,
+  BellShareTest 3, EventToNotificationTest 10) + 4 Vitest. Cross-user 403 matrix
+  covered. Inside-transaction rollback covered. PHI-omission assertion covered.
+- **Docs:** ADR-003 unaffected (no PHI in payload). New section in
+  `docs/ARCHITECTURE.md` summarizes the system + deferred items.
+- **Tag:** `p5a-notifications`.
+
 ## [R-DataTable Migration] — 2026-05-20
 
 **Followed P3.** Migrated all 7 legacy admin list pages from the slim hand-rolled `<DataTable>` to the new `AdminDataTable` family — fulfilling the binding rule that every admin list surface uses shadcn-vue Data Table with row actions, pagination, sorting, filtering, column visibility, and row selection. Legacy `<DataTable>` and its Vitest spec deleted; `foundation/index.js` no longer exports it.

@@ -486,6 +486,46 @@ Implementation plan: `docs/superpowers/plans/2026-05-20-jannahclinic-p2-payments
 
 ---
 
+## Notification System (P5a)
+
+In-app only — no SMS, no email, no time-based reminders, no realtime push.
+**Spec:** `docs/superpowers/specs/2026-05-20-jannahclinic-p5a-notifications-design.md`.
+
+- Storage: Laravel standard `notifications` table (UUID PK, polymorphic `notifiable`,
+  JSON `data` payload). Two composite indexes on top of `morphs()`:
+  `notifications_unread_idx (notifiable_type, notifiable_id, read_at)` and
+  `notifications_feed_idx (notifiable_type, notifiable_id, created_at)`.
+- Category enum: `App\Enums\NotificationCategory` (Appointment / Payment / Medical / System).
+  Filter operates on `data->category` via Laravel's portable JSON path.
+- Generator: `App\Domain\Notification\Services\NotificationService` — explicit,
+  called inline by originating services inside the same `DB::transaction`
+  (mirrors the AuditLogger pattern; rollback on the outer transaction discards
+  the notification too — covered by a Pest test).
+- Wiring points: `PaymentService` (uploadReceipt/verify/reject/markRefunded),
+  `BookingService::book` (bookingRequested → all active managers+receptionists),
+  `AppointmentTransitionService::transition` (Confirmed/Rejected/Cancelled/Completed → customer)
+  and `::reschedule` (→ customer), `MedicalEntryService::create`, `PrescriptionService::syncForEntry`
+  (notification only on the create branch, never on update/delete).
+- UI: `<NotificationBell>` foundation component in both shells reads
+  `usePage().props.notifications.unread_count`. Dedicated index pages at
+  `/admin/notifications` and `/portal/notifications` with category chips,
+  unread-only toggle, mark-all-read, 20/page Inertia pagination, click-to-read+redirect.
+- Authorization: route-level `notifiable_id === auth()->id() && notifiable_type === User::class`
+  check; cross-user reads return 403. Customer cannot reach `/admin/notifications`
+  (existing `role:manager,doctor,receptionist` middleware on outer admin group).
+- **No PHI in payload.** Titles/bodies never carry diagnosis, prescription content,
+  or staff_notes — only the customer's name and visit date. This keeps the notifications
+  table outside ADR-003's encryption surface. Tests assert the PHI-omission invariant.
+- **`notifications` Inertia share key reserved** — controllers render their feed
+  under the prop name `feed` to avoid clobbering the global share.
+
+**Deferred to future ADRs (none active yet):**
+SMS / Email channels, time-based reminders (24h-before-appointment),
+admin broadcast announcements, per-category opt-out preferences, realtime push.
+The deferred-items table in the spec §9 lists the reactivation trigger for each.
+
+---
+
 ## Related Documents
 
 - ADR-001: `docs/adr/001-adopt-methodology-kit.md`
@@ -494,3 +534,4 @@ Implementation plan: `docs/superpowers/plans/2026-05-20-jannahclinic-p2-payments
 - Definition of Done: `docs/DEFINITION-OF-DONE.md`
 - Spec roadmap (§2 P1–P5): `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md`
 - Domain Model: `docs/DOMAIN-MODEL.md`
+- P5a Notifications spec: `docs/superpowers/specs/2026-05-20-jannahclinic-p5a-notifications-design.md`

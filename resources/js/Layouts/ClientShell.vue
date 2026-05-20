@@ -17,6 +17,10 @@ import { NotificationBell, AuthGuardLink } from '@/Components/foundation'
 const page = usePage()
 const authedUser = computed(() => page.props?.auth?.user ?? null)
 const isAuthed = computed(() => authedUser.value !== null)
+const isStaff = computed(() => {
+  const role = authedUser.value?.role
+  return role === 'manager' || role === 'doctor' || role === 'receptionist'
+})
 const clinicName = computed(() => page.props?.clinic?.name ?? 'عيادة جنّة')
 const clinicLogoPath = computed(() => page.props?.clinic?.logo_path ?? null)
 const clinicLogoUrl = computed(() => clinicLogoPath.value ? `/storage/${clinicLogoPath.value}` : null)
@@ -90,8 +94,18 @@ function isActive(href) {
             <span>{{ t.label }}</span>
           </Link>
 
+          <!-- Center FAB: booking. Staff → admin on-behalf flow; customer → portal booking; guest → /login?intent=booking. -->
           <div class="flex justify-center">
+            <Link
+              v-if="isStaff"
+              href="/admin/booking"
+              aria-label="حجز موعد لعميل"
+              class="-translate-y-5 w-14 h-14 rounded-full bg-brand text-white shadow-lg flex items-center justify-center hover:opacity-90 active:opacity-100 transition"
+            >
+              <CalendarPlus class="w-6 h-6" aria-hidden="true" />
+            </Link>
             <AuthGuardLink
+              v-else
               intent="booking"
               authed-href="/portal/booking"
               aria-label="احجز موعد"

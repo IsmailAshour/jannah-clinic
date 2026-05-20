@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CoverageAreaController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\DoctorScheduleController;
+use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Booking\AvailabilityController;
@@ -50,6 +51,11 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
 
+        // Payments (P2) — read + receipt file (all staff)
+        Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+        Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
+        Route::get('payments/{payment}/receipts/{receipt}/file', [PaymentController::class, 'receiptFile'])->name('payments.receipt-file');
+
         // Catalog mutations – manager only
         Route::middleware('role:manager')->group(function () {
             Route::post('catalog/categories', [ServiceCategoryController::class, 'store'])->name('catalog.categories.store');
@@ -82,5 +88,11 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
             Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
             Route::post('customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
+
+            // Payments (P2) — manager only mutations
+            Route::post('payments/{payment}/verify', [PaymentController::class, 'verify'])->name('payments.verify');
+            Route::post('payments/{payment}/reject', [PaymentController::class, 'reject'])->name('payments.reject');
+            Route::post('payments/{payment}/mark-refund-pending', [PaymentController::class, 'markRefundPending'])->name('payments.mark-refund-pending');
+            Route::post('payments/{payment}/mark-refunded', [PaymentController::class, 'markRefunded'])->name('payments.mark-refunded');
         });
     });

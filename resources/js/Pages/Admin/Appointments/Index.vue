@@ -7,6 +7,7 @@ import {
   AdminDataTable,
   AdminDataTableColumnHeader,
   AdminDataTableRowActions,
+  AdminDataTableViewOptions,
   Modal,
   ConfirmModal,
   StatusBadge,
@@ -51,6 +52,13 @@ function applyFilters(extraQuery = {}) {
     },
     { preserveScroll: true, replace: true }
   )
+}
+
+function resetFilters() {
+  filterStatus.value = ''
+  filterDoctor.value = ''
+  filterDate.value = ''
+  applyFilters()
 }
 
 function goToPage(p) {
@@ -109,7 +117,32 @@ function submitCancel() {
   })
 }
 
+// Row selection — header checkbox + per-row checkbox
+const SelectAllHeader = (table) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الكل',
+  checked: table.getIsAllPageRowsSelected(),
+  indeterminate: table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected(),
+  onChange: (e) => table.toggleAllPageRowsSelected(e.target.checked),
+})
+const SelectRow = (row) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الصف',
+  checked: row.getIsSelected(),
+  onChange: (e) => row.toggleSelected(e.target.checked),
+})
+
 const columns = [
+  {
+    id: 'select',
+    enableHiding: false,
+    enableSorting: false,
+    header: ({ table }) => SelectAllHeader(table),
+    cell: ({ row }) => SelectRow(row),
+    meta: { label: 'تحديد', headerClass: 'w-10', cellClass: 'w-10 text-center' },
+  },
   {
     accessorKey: 'customer',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'العميل' }),
@@ -181,54 +214,61 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6">
-      <PageHeader title="المواعيد" />
+    <div class="p-6 space-y-6">
+      <PageHeader title="المواعيد" description="متابعة طلبات الحجز وحالاتها." />
 
       <div
         v-if="errors.appointment"
-        class="mb-4 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger"
+        class="rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger"
         role="alert"
       >
         {{ errors.appointment }}
       </div>
 
-      <div class="mb-6 flex flex-wrap gap-3 items-end">
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-medium text-text-secondary">الحالة</label>
-          <select
-            v-model="filterStatus"
-            class="rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">كل الحالات</option>
-            <option v-for="s in statusOptions" :key="s.value" :value="s.value">
-              {{ statusLabel(s.value) }}
-            </option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-medium text-text-secondary">الطبيب</label>
-          <select
-            v-model="filterDoctor"
-            class="rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">كل الأطباء</option>
-            <option v-for="d in doctors" :key="d.id" :value="d.id">{{ d.name }}</option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-medium text-text-secondary">التاريخ</label>
-          <Input v-model="filterDate" type="date" dir="ltr" class="w-40" />
-        </div>
-        <Button @click="applyFilters()">تصفية</Button>
+      <div class="bg-surface-card rounded-lg shadow-sm px-4">
+        <AdminDataTable
+          :columns="columns"
+          :data="appointments.data"
+          :server-meta="appointments"
+          :on-page-change="goToPage"
+          empty-text="لا توجد مواعيد."
+        >
+          <template #toolbar="{ table }">
+            <form class="flex flex-wrap items-center justify-between gap-2 w-full" @submit.prevent="applyFilters()">
+              <div class="flex flex-wrap items-center gap-2">
+                <select
+                  v-model="filterStatus"
+                  aria-label="فلتر الحالة"
+                  class="h-9 rounded-md border border-border-default bg-surface-card px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  <option value="">كل الحالات</option>
+                  <option v-for="s in statusOptions" :key="s.value" :value="s.value">
+                    {{ statusLabel(s.value) }}
+                  </option>
+                </select>
+                <select
+                  v-model="filterDoctor"
+                  aria-label="فلتر الطبيب"
+                  class="h-9 rounded-md border border-border-default bg-surface-card px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  <option value="">كل الأطباء</option>
+                  <option v-for="d in doctors" :key="d.id" :value="d.id">{{ d.name }}</option>
+                </select>
+                <Input
+                  v-model="filterDate"
+                  type="date"
+                  dir="ltr"
+                  aria-label="فلتر التاريخ"
+                  class="h-9 w-40"
+                />
+                <Button type="submit" size="sm" class="h-9">تطبيق</Button>
+                <Button type="button" variant="ghost" size="sm" class="h-9" @click="resetFilters">تفريغ</Button>
+              </div>
+              <AdminDataTableViewOptions :table="table" />
+            </form>
+          </template>
+        </AdminDataTable>
       </div>
-
-      <AdminDataTable
-        :columns="columns"
-        :data="appointments.data"
-        :server-meta="appointments"
-        :on-page-change="goToPage"
-        empty-text="لا توجد مواعيد."
-      />
     </div>
 
     <ConfirmModal

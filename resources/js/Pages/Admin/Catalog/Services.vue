@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed, h } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm, usePage } from '@inertiajs/vue3'
+import { Search } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
   AdminDataTable,
   AdminDataTableColumnHeader,
   AdminDataTableRowActions,
+  AdminDataTableViewOptions,
   FormGroup,
   Modal,
   ConfirmModal,
@@ -20,10 +22,52 @@ const props = defineProps({
   categories: { type: Array, default: () => [] },
 })
 
+const page = usePage()
+const isManager = (() => page.props?.auth?.user?.role === 'manager')()
+
 const rows = computed(() => props.services.map(s => ({
   ...s,
   category_name: s.category?.name ?? '—',
 })))
+
+const q = ref('')
+const categoryId = ref('')
+
+const filteredRows = computed(() => {
+  const term = q.value.trim().toLowerCase()
+  return rows.value.filter(r => {
+    if (categoryId.value && String(r.category_id) !== String(categoryId.value)) return false
+    if (!term) return true
+    const haystack = `${r.name ?? ''} ${r.category_name ?? ''}`.toLowerCase()
+    return haystack.includes(term)
+  })
+})
+
+function applyFilters() {
+  // Client-side filtering only — handled by computed.
+}
+
+function resetFilters() {
+  q.value = ''
+  categoryId.value = ''
+}
+
+// Row selection — header checkbox + per-row checkbox
+const SelectAllHeader = (table) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الكل',
+  checked: table.getIsAllPageRowsSelected(),
+  indeterminate: table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected(),
+  onChange: (e) => table.toggleAllPageRowsSelected(e.target.checked),
+})
+const SelectRow = (row) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الصف',
+  checked: row.getIsSelected(),
+  onChange: (e) => row.toggleSelected(e.target.checked),
+})
 
 const showModal = ref(false)
 const editingId = ref(null)
@@ -91,6 +135,14 @@ function doDelete() {
 
 const columns = [
   {
+    id: 'select',
+    enableHiding: false,
+    enableSorting: false,
+    header: ({ table }) => SelectAllHeader(table),
+    cell: ({ row }) => SelectRow(row),
+    meta: { label: 'تحديد', headerClass: 'w-10', cellClass: 'w-10 text-center' },
+  },
+  {
     accessorKey: 'category_name',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الفئة' }),
     meta: { label: 'الفئة' },
@@ -140,20 +192,49 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6">
-      <PageHeader title="الخدمات">
-        <template #action>
+    <div class="p-6 space-y-6">
+      <PageHeader title="الخدمات" description="إدارة كتالوج الخدمات المُقدَّمة وأسعارها ومدّتها.">
+        <template v-if="isManager" #action>
           <Button @click="openCreate">إضافة خدمة</Button>
         </template>
       </PageHeader>
 
-      <AdminDataTable
-        :columns="columns"
-        :data="rows"
-        filter-column="name"
-        filter-placeholder="ابحث في الخدمات…"
-        empty-text="لا توجد خدمات بعد."
-      />
+      <div class="bg-surface-card rounded-lg shadow-sm px-4">
+        <AdminDataTable
+          :columns="columns"
+          :data="filteredRows"
+          empty-text="لا توجد خدمات بعد."
+        >
+          <template #toolbar="{ table }">
+            <form class="flex flex-wrap items-center justify-between gap-2 w-full" @submit.prevent="applyFilters()">
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="relative w-72">
+                  <Search class="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-text-tertiary pointer-events-none" aria-hidden="true" />
+                  <Input
+                    id="q"
+                    v-model="q"
+                    name="q"
+                    placeholder="ابحث في الخدمات…"
+                    class="ps-9 h-9"
+                  />
+                </div>
+                <select
+                  v-model="categoryId"
+                  name="category_id"
+                  aria-label="فلتر الفئة"
+                  class="h-9 rounded-md border border-border-default bg-surface-card px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  <option value="">كل الفئات</option>
+                  <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                </select>
+                <Button type="submit" size="sm" class="h-9">تطبيق</Button>
+                <Button type="button" variant="ghost" size="sm" class="h-9" @click="resetFilters">تفريغ</Button>
+              </div>
+              <AdminDataTableViewOptions :table="table" />
+            </form>
+          </template>
+        </AdminDataTable>
+      </div>
     </div>
 
     <Modal :open="showModal" :title="editingId ? 'تعديل الخدمة' : 'إضافة خدمة'" @update:open="showModal = $event">

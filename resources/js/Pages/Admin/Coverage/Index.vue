@@ -1,12 +1,13 @@
 <script setup>
 import { ref, h } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm, usePage } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
   AdminDataTable,
   AdminDataTableColumnHeader,
   AdminDataTableRowActions,
+  AdminDataTableViewOptions,
   FormGroup,
   Modal,
   ConfirmModal,
@@ -16,6 +17,9 @@ import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
 const props = defineProps({ areas: { type: Array, default: () => [] } })
+
+const page = usePage()
+const isManager = (() => page.props?.auth?.user?.role === 'manager')()
 
 const showModal = ref(false)
 const editingId = ref(null)
@@ -75,7 +79,32 @@ function doDelete() {
   })
 }
 
+// Row selection — header checkbox + per-row checkbox
+const SelectAllHeader = (table) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الكل',
+  checked: table.getIsAllPageRowsSelected(),
+  indeterminate: table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected(),
+  onChange: (e) => table.toggleAllPageRowsSelected(e.target.checked),
+})
+const SelectRow = (row) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الصف',
+  checked: row.getIsSelected(),
+  onChange: (e) => row.toggleSelected(e.target.checked),
+})
+
 const columns = [
+  {
+    id: 'select',
+    enableHiding: false,
+    enableSorting: false,
+    header: ({ table }) => SelectAllHeader(table),
+    cell: ({ row }) => SelectRow(row),
+    meta: { label: 'تحديد', headerClass: 'w-10', cellClass: 'w-10 text-center' },
+  },
   {
     accessorKey: 'name',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الاسم' }),
@@ -108,20 +137,24 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6">
-      <PageHeader title="مناطق الخدمة المنزلية">
-        <template #action>
+    <div class="p-6 space-y-6">
+      <PageHeader title="مناطق الخدمة المنزلية" description="إدارة المناطق المتاحة للخدمات المنزلية.">
+        <template v-if="isManager" #action>
           <Button @click="openCreate">إضافة منطقة</Button>
         </template>
       </PageHeader>
 
-      <AdminDataTable
-        :columns="columns"
-        :data="areas"
-        filter-column="name"
-        filter-placeholder="ابحث في المناطق…"
-        empty-text="لا توجد مناطق بعد."
-      />
+      <div class="bg-surface-card rounded-lg shadow-sm px-4">
+        <AdminDataTable
+          :columns="columns"
+          :data="areas"
+          empty-text="لا توجد مناطق بعد."
+        >
+          <template #toolbar="{ table }">
+            <AdminDataTableViewOptions :table="table" class="ms-auto" />
+          </template>
+        </AdminDataTable>
+      </div>
     </div>
 
     <Modal :open="showModal" :title="editingId ? 'تعديل المنطقة' : 'إضافة منطقة'" @update:open="showModal = $event">

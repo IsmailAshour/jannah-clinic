@@ -1,12 +1,14 @@
 <script setup>
 import { ref, h } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { Search } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
   AdminDataTable,
   AdminDataTableColumnHeader,
   AdminDataTableRowActions,
+  AdminDataTableViewOptions,
   StatusBadge,
 } from '@/Components/foundation'
 import { DropdownMenuItem } from '@/Components/ui/dropdown-menu'
@@ -48,7 +50,32 @@ const statusMap = {
   refunded:       { label: 'مُسترَد',           variant: 'info'    },
 }
 
+// Row selection — header checkbox + per-row checkbox
+const SelectAllHeader = (table) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الكل',
+  checked: table.getIsAllPageRowsSelected(),
+  indeterminate: table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected(),
+  onChange: (e) => table.toggleAllPageRowsSelected(e.target.checked),
+})
+const SelectRow = (row) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الصف',
+  checked: row.getIsSelected(),
+  onChange: (e) => row.toggleSelected(e.target.checked),
+})
+
 const columns = [
+  {
+    id: 'select',
+    enableHiding: false,
+    enableSorting: false,
+    header: ({ table }) => SelectAllHeader(table),
+    cell: ({ row }) => SelectRow(row),
+    meta: { label: 'تحديد', headerClass: 'w-10', cellClass: 'w-10 text-center' },
+  },
   {
     accessorKey: 'customer',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'العميل' }),
@@ -97,42 +124,52 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6">
-      <PageHeader title="المدفوعات" />
+    <div class="p-6 space-y-6">
+      <PageHeader title="المدفوعات" description="مراجعة إثباتات الدفع والتحقق من حالة المعاملات." />
 
-      <form class="mb-6 flex flex-wrap gap-3 items-end" @submit.prevent="applyFilters()">
-        <div class="flex flex-col gap-1">
-          <label for="q" class="text-xs font-medium text-text-secondary">بحث (اسم/بريد/هاتف العميل)</label>
-          <Input id="q" v-model="q" name="q" placeholder="ابحث..." class="w-64" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label for="status" class="text-xs font-medium text-text-secondary">الحالة</label>
-          <select
-            id="status"
-            v-model="status"
-            name="status"
-            class="rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="all">الكل</option>
-            <option value="submitted">بانتظار التحقّق</option>
-            <option value="pending">بانتظار الدفع</option>
-            <option value="paid">مدفوع</option>
-            <option value="rejected">مرفوض</option>
-            <option value="refund_pending">بانتظار الاسترداد</option>
-            <option value="refunded">مُسترَد</option>
-          </select>
-        </div>
-        <Button type="submit">بحث</Button>
-        <Button type="button" variant="outline" @click="resetFilters">تفريغ</Button>
-      </form>
-
-      <AdminDataTable
-        :columns="columns"
-        :data="payments.data"
-        :server-meta="payments"
-        :on-page-change="goToPage"
-        empty-text="لا مدفوعات تطابق الفلتر."
-      />
+      <div class="bg-surface-card rounded-lg shadow-sm px-4">
+        <AdminDataTable
+          :columns="columns"
+          :data="payments.data"
+          :server-meta="payments"
+          :on-page-change="goToPage"
+          empty-text="لا مدفوعات تطابق الفلتر."
+        >
+          <template #toolbar="{ table }">
+            <form class="flex flex-wrap items-center justify-between gap-2 w-full" @submit.prevent="applyFilters()">
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="relative w-72">
+                  <Search class="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-text-tertiary pointer-events-none" aria-hidden="true" />
+                  <Input
+                    id="q"
+                    v-model="q"
+                    name="q"
+                    placeholder="ابحث باسم/بريد/هاتف العميل…"
+                    class="ps-9 h-9"
+                  />
+                </div>
+                <select
+                  v-model="status"
+                  name="status"
+                  aria-label="فلتر الحالة"
+                  class="h-9 rounded-md border border-border-default bg-surface-card px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  <option value="all">الكل</option>
+                  <option value="submitted">بانتظار التحقّق</option>
+                  <option value="pending">بانتظار الدفع</option>
+                  <option value="paid">مدفوع</option>
+                  <option value="rejected">مرفوض</option>
+                  <option value="refund_pending">بانتظار الاسترداد</option>
+                  <option value="refunded">مُسترَد</option>
+                </select>
+                <Button type="submit" size="sm" class="h-9">تطبيق</Button>
+                <Button type="button" variant="ghost" size="sm" class="h-9" @click="resetFilters">تفريغ</Button>
+              </div>
+              <AdminDataTableViewOptions :table="table" />
+            </form>
+          </template>
+        </AdminDataTable>
+      </div>
     </div>
   </AdminShell>
 </template>

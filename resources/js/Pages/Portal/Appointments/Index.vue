@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { Link, useForm } from '@inertiajs/vue3'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import {
   PageHeader,
@@ -32,6 +32,20 @@ function statusVariant(val) { return statusMap[val]?.variant ?? 'info' }
 
 function isTerminal(status) {
   return ['completed', 'cancelled', 'rejected', 'no_show', 'rescheduled'].includes(status)
+}
+
+// Payment label/variant per payment.status. Returns null when no Payment row
+// (e.g. appointment paid via loyalty_points — no separate Payment exists).
+const paymentMap = {
+  pending: { label: 'الدفع', variant: 'default', subtext: 'ادفع وارفع الإيصال' },
+  rejected: { label: 'أعد الرفع', variant: 'default', subtext: 'الإيصال مرفوض' },
+  submitted: { label: 'عرض الإيصال', variant: 'outline', subtext: 'بانتظار المراجعة' },
+  paid: { label: 'إيصال الدفع', variant: 'ghost', subtext: 'مدفوع' },
+  refund_pending: { label: 'حالة الاسترداد', variant: 'ghost', subtext: 'بانتظار الاسترداد' },
+  refunded: { label: 'حالة الاسترداد', variant: 'ghost', subtext: 'مُسترَدّ' },
+}
+function paymentAction(appt) {
+  return appt.payment ? paymentMap[appt.payment.status] ?? null : null
 }
 
 function formatDate(dt) {
@@ -150,6 +164,15 @@ function submitReschedule() {
                 <p class="text-xs text-text-tertiary">{{ deliveryLabel(appt.delivery_mode) }} · {{ appt.price_at_booking }} ₪</p>
               </div>
               <StatusBadge :type="statusVariant(appt.status)" :label="statusLabel(appt.status)" />
+            </div>
+
+            <!-- Payment row — shown whenever a Payment exists. Always visible (including for terminal appointments)
+                 so the customer can still see the receipt history / refund status. -->
+            <div v-if="paymentAction(appt)" class="flex items-center justify-between gap-2 pt-1 border-t border-border-default mt-2">
+              <p class="text-xs text-text-tertiary">{{ paymentAction(appt).subtext }}</p>
+              <Link :href="`/portal/appointments/${appt.id}/payment`">
+                <Button :variant="paymentAction(appt).variant" size="sm">{{ paymentAction(appt).label }}</Button>
+              </Link>
             </div>
 
             <!-- Actions for non-terminal appointments -->

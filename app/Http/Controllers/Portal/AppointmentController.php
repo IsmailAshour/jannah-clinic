@@ -22,7 +22,7 @@ class AppointmentController extends Controller
     {
         $appointments = Appointment::query()
             ->where('customer_id', $request->user()->id)
-            ->with(['service:id,name', 'doctor.user:id,name', 'serviceAddress'])
+            ->with(['service:id,name', 'doctor.user:id,name', 'serviceAddress', 'payment:id,appointment_id,status,amount'])
             ->orderByDesc('start_at')
             ->paginate(20);
 

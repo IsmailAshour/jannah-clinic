@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import { Button } from '@/Components/ui/button'
-import { iconForCategory, colorClassForCategory } from '@/Lib/categoryIcons'
+import { iconForCategory, colorClassForCategory } from '@/lib/categoryIcons'
 
 const page = usePage()
 const clinicName = computed(() => page.props?.clinic?.name ?? 'عيادة جنّة')

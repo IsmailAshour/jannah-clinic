@@ -4,7 +4,7 @@ import { router } from '@inertiajs/vue3'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import { PageHeader, AuthGuardLink } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
-import { iconForCategory, colorClassForCategory } from '@/Lib/categoryIcons'
+import { iconForCategory, colorClassForCategory } from '@/lib/categoryIcons'
 
 const props = defineProps({
   services: { type: Array, default: () => [] },

@@ -67,7 +67,11 @@ defineExpose({ table })
       <Table>
         <TableHeader>
           <TableRow v-for="hg in table.getHeaderGroups()" :key="hg.id">
-            <TableHead v-for="h in hg.headers" :key="h.id">
+            <TableHead
+              v-for="h in hg.headers"
+              :key="h.id"
+              :class="['text-center', h.column.columnDef.meta?.headerClass]"
+            >
               <FlexRender v-if="!h.isPlaceholder" :render="h.column.columnDef.header" :props="h.getContext()" />
             </TableHead>
           </TableRow>
@@ -79,7 +83,11 @@ defineExpose({ table })
               :key="row.id"
               :data-state="row.getIsSelected() ? 'selected' : undefined"
             >
-              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+              <TableCell
+                v-for="cell in row.getVisibleCells()"
+                :key="cell.id"
+                :class="cell.column.columnDef.meta?.cellClass"
+              >
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
               </TableCell>
             </TableRow>

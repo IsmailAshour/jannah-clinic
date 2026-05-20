@@ -141,3 +141,20 @@ it('rolls back ledger and balance when the surrounding transaction rolls back', 
     expect(LoyaltyLedger::count())->toBe(0)
         ->and($f['customer']->customerProfile->fresh()->loyalty_balance)->toBe(0);
 });
+
+it('chain invariant — balance_after_N = balance_after_N-1 + points_delta_N across consecutive writes', function () {
+    $f = mkLoyaltyFixtures();
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+
+    $this->service->adjust($f['customer'], 50, 'one', $manager);
+    $this->service->adjust($f['customer'], 30, 'two', $manager);
+    $this->service->adjust($f['customer'], -10, 'three', $manager);
+
+    $entries = LoyaltyLedger::where('customer_id', $f['customer']->id)
+        ->orderBy('id')->get();
+
+    expect($entries[0]->balance_after)->toBe(50)
+        ->and($entries[1]->balance_after)->toBe(80)
+        ->and($entries[2]->balance_after)->toBe(70)
+        ->and($f['customer']->customerProfile->fresh()->loyalty_balance)->toBe(70);
+});

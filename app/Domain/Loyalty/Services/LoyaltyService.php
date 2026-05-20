@@ -4,6 +4,7 @@ namespace App\Domain\Loyalty\Services;
 
 use App\Domain\Loyalty\Exceptions\InsufficientLoyaltyBalanceException;
 use App\Enums\LoyaltyReason;
+use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\CustomerProfile;
@@ -12,6 +13,7 @@ use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 class LoyaltyService
@@ -26,12 +28,17 @@ class LoyaltyService
         if ($exists) {
             return;
         }
-        $points = (int) floor((float) $payment->amount);
+        $points = (int) bcadd($payment->amount, '0', 0);
         if ($points <= 0) {
             return;
         }
         $customer = $payment->appointment->customer;
-        $this->writeEntry($customer, $points, LoyaltyReason::EarnedFromPayment, $payment);
+        try {
+            $this->writeEntry($customer, $points, LoyaltyReason::EarnedFromPayment, $payment);
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent insert raced and won — the partial unique index made
+            // sure exactly one entry exists. No-op.
+        }
     }
 
     public function clawbackForRefund(Payment $payment): void
@@ -53,7 +60,12 @@ class LoyaltyService
             return;
         }
         $customer = $payment->appointment->customer;
-        $this->writeEntry($customer, -$earned, LoyaltyReason::ClawbackFromRefund, $payment);
+        try {
+            $this->writeEntry($customer, -$earned, LoyaltyReason::ClawbackFromRefund, $payment);
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent insert raced and won — partial unique index guarantees
+            // exactly one clawback entry exists. No-op.
+        }
     }
 
     public function redeemForAppointment(Appointment $appointment, User $customer): int
@@ -74,7 +86,7 @@ class LoyaltyService
 
     public function reverseRedemption(Appointment $cancelled): void
     {
-        if ($cancelled->payment_method !== 'loyalty_points' || $cancelled->loyalty_points_spent === null) {
+        if ($cancelled->payment_method !== PaymentMethod::LoyaltyPoints || $cancelled->loyalty_points_spent === null) {
             return;
         }
         $alreadyReversed = LoyaltyLedger::query()
@@ -86,7 +98,12 @@ class LoyaltyService
             return;
         }
         $customer = $cancelled->customer;
-        $this->writeEntry($customer, (int) $cancelled->loyalty_points_spent, LoyaltyReason::RefundReversal, $cancelled);
+        try {
+            $this->writeEntry($customer, (int) $cancelled->loyalty_points_spent, LoyaltyReason::RefundReversal, $cancelled);
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent insert raced and won — partial unique index guarantees
+            // exactly one reversal entry exists. No-op.
+        }
     }
 
     public function adjust(User $customer, int $delta, string $note, User $manager): void
@@ -119,8 +136,22 @@ class LoyaltyService
         ?User $actor = null,
     ): void {
         DB::transaction(function () use ($customer, $delta, $reason, $reference, $notes, $actor) {
-            $profile = $customer->customerProfile
-                ?? CustomerProfile::create(['user_id' => $customer->id, 'loyalty_balance' => 0]);
+            // Lock the profile row to serialize concurrent balance arithmetic.
+            // Without this, two concurrent writers can both read the same balance,
+            // both compute newBalance, and both insert ledger rows that disagree
+            // with the cached profile.
+            $profile = CustomerProfile::query()
+                ->where('user_id', $customer->id)
+                ->lockForUpdate()
+                ->first();
+            if ($profile === null) {
+                CustomerProfile::create(['user_id' => $customer->id, 'loyalty_balance' => 0]);
+                // Re-fetch under lock now that it exists.
+                $profile = CustomerProfile::query()
+                    ->where('user_id', $customer->id)
+                    ->lockForUpdate()
+                    ->first();
+            }
             $newBalance = (int) $profile->loyalty_balance + $delta;
             LoyaltyLedger::create([
                 'customer_id' => $customer->id,

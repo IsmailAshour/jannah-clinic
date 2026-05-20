@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
+use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property CarbonImmutable $start_at
  * @property CarbonImmutable $end_at
  * @property AppointmentStatus $status
- * @property string $payment_method
+ * @property PaymentMethod $payment_method
  * @property int|null $loyalty_points_spent
  * @property User $customer
  * @property DoctorProfile $doctor
@@ -37,6 +38,7 @@ class Appointment extends Model
         'created_by_role' => UserRole::class,
         'price_at_booking' => 'decimal:2',
         'home_surcharge_amount' => 'decimal:2',
+        'payment_method' => PaymentMethod::class,
     ];
 
     public function customer(): BelongsTo

@@ -74,6 +74,17 @@ jobs:
         run: |
           grep -rEn '\b(float|double)\b' app database 2>/dev/null | grep -i 'price\|amount\|fee\|total' && (echo 'Use DECIMAL for money columns, not float/double' && exit 1) || exit 0
 
+      - name: Append-only — LoyaltyLedger
+        run: |
+          if grep -rE 'LoyaltyLedger::.*->(update|delete)\(' app/ database/ 2>/dev/null; then
+            echo "::error::LoyaltyLedger is append-only — direct ->update() or ->delete() is not allowed."
+            exit 1
+          fi
+          if grep -rE 'DB::table\(.loyalty_ledger.\)' app/ database/ 2>/dev/null; then
+            echo "::error::LoyaltyLedger is append-only — direct DB::table('loyalty_ledger') bypasses Eloquent guards."
+            exit 1
+          fi
+
       - name: RTL logical-properties (our code only; shadcn-vue ui/ vendored is excluded)
         run: |
           if grep -REn '\b(pl-|pr-|ml-|mr-)[0-9]|\btext-left\b|\btext-right\b' \

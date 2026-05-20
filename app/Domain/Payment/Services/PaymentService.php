@@ -2,6 +2,7 @@
 
 namespace App\Domain\Payment\Services;
 
+use App\Domain\Loyalty\Services\LoyaltyService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Domain\Payment\Exceptions\InvalidPaymentTransitionException;
 use App\Enums\PaymentStatus;
@@ -18,7 +19,10 @@ class PaymentService
 
     private const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'application/pdf'];
 
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly LoyaltyService $loyalty,
+    ) {}
 
     public function uploadReceipt(Payment $payment, UploadedFile $file, User $uploader): PaymentReceipt
     {
@@ -77,6 +81,9 @@ class PaymentService
             return $payment;
         });
         $this->notifications->paymentApproved($payment);
+        if ($payment->appointment->service->loyalty_enabled) {
+            $this->loyalty->awardForPayment($payment);
+        }
 
         return $payment;
     }
@@ -137,6 +144,7 @@ class PaymentService
             return $payment;
         });
         $this->notifications->paymentRefunded($payment);
+        $this->loyalty->clawbackForRefund($payment);
 
         return $payment;
     }

@@ -18,7 +18,7 @@ class MedicalEntryService
 
     public function create(Appointment $appointment, User $author, array $data): MedicalEntry
     {
-        return DB::transaction(function () use ($appointment, $author, $data) {
+        $entry = DB::transaction(function () use ($appointment, $author, $data) {
             $entry = MedicalEntry::create([
                 'appointment_id' => $appointment->id,
                 'author_id' => $author->id,
@@ -31,10 +31,14 @@ class MedicalEntryService
                 $appointment->customer,
                 ['visible_summary', 'staff_notes'],
             );
-            $this->notifications->medicalEntryCreated($entry->fresh()->load('appointment.customer'));
 
             return $entry;
         });
+        // Notify AFTER the transaction commits — a notification failure must
+        // not roll back the medical entry or its audit log.
+        $this->notifications->medicalEntryCreated($entry->fresh()->load('appointment.customer'));
+
+        return $entry;
     }
 
     public function update(MedicalEntry $entry, array $data): MedicalEntry

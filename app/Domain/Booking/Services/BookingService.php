@@ -26,7 +26,7 @@ class BookingService
 
     public function book(BookingData $d): Appointment
     {
-        return DB::transaction(function () use ($d) {
+        $appt = DB::transaction(function () use ($d) {
             // Serialises concurrent book() calls for the same doctor on PostgreSQL.
             // lockForUpdate() is a no-op on SQLite (test driver) — the double-booking
             // test proves the re-check logic, not the lock itself; production
@@ -83,10 +83,12 @@ class BookingService
                 'status' => PaymentStatus::Pending,
             ]);
 
-            $fresh = $appt->fresh(['serviceAddress', 'payment']);
-            $this->notifications->bookingRequested($fresh->load('customer'));
-
-            return $fresh;
+            return $appt->fresh(['serviceAddress', 'payment']);
         });
+        // Notify AFTER the transaction commits — a notification failure
+        // must not roll back a successful booking.
+        $this->notifications->bookingRequested($appt->load('customer'));
+
+        return $appt;
     }
 }

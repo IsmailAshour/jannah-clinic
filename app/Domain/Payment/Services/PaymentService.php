@@ -32,7 +32,7 @@ class PaymentService
             throw new InvalidPaymentTransitionException("لا يمكن رفع إيصال عندما تكون الحالة {$payment->status->value}.");
         }
 
-        return DB::transaction(function () use ($payment, $file, $uploader) {
+        $receipt = DB::transaction(function () use ($payment, $file, $uploader) {
             $ext = $file->getClientOriginalExtension() ?: 'bin';
             $name = Str::uuid()->toString().'.'.$ext;
             $path = $file->storeAs("receipts/{$payment->id}", $name, 'local');
@@ -50,10 +50,14 @@ class PaymentService
                 'status' => PaymentStatus::Submitted,
                 'rejection_reason' => null,
             ]);
-            $this->notifications->paymentReceiptUploaded($payment->refresh());
 
             return $receipt;
         });
+        // Notify AFTER the transaction commits: a notification failure must not
+        // roll back a stored receipt or leave an orphaned file on disk.
+        $this->notifications->paymentReceiptUploaded($payment);
+
+        return $receipt;
     }
 
     public function verify(Payment $payment, User $manager): Payment
@@ -62,17 +66,19 @@ class PaymentService
             throw new InvalidPaymentTransitionException("لا يمكن التحقّق إلا من إيصال قيد المراجعة (الحالة الحالية: {$payment->status->value}).");
         }
 
-        return DB::transaction(function () use ($payment, $manager) {
+        $payment = DB::transaction(function () use ($payment, $manager) {
             $payment->update([
                 'status' => PaymentStatus::Paid,
                 'verified_at' => now(),
                 'verified_by' => $manager->id,
                 'rejection_reason' => null,
             ]);
-            $this->notifications->paymentApproved($payment->refresh());
 
             return $payment;
         });
+        $this->notifications->paymentApproved($payment);
+
+        return $payment;
     }
 
     public function reject(Payment $payment, User $manager, string $reason): Payment
@@ -81,7 +87,7 @@ class PaymentService
             throw new InvalidPaymentTransitionException("لا يمكن رفض إلا إيصالًا قيد المراجعة (الحالة الحالية: {$payment->status->value}).");
         }
 
-        return DB::transaction(function () use ($payment, $manager, $reason) {
+        $payment = DB::transaction(function () use ($payment, $manager, $reason) {
             /** @var PaymentReceipt|null $latest */
             $latest = $payment->receipts()->first();
             if ($latest && $latest->status === 'uploaded') {
@@ -96,10 +102,12 @@ class PaymentService
                 'status' => PaymentStatus::Rejected,
                 'rejection_reason' => $reason,
             ]);
-            $this->notifications->paymentRejected($payment->refresh());
 
             return $payment;
         });
+        $this->notifications->paymentRejected($payment);
+
+        return $payment;
     }
 
     public function markRefundPending(Payment $payment): Payment
@@ -118,16 +126,18 @@ class PaymentService
             throw new InvalidPaymentTransitionException("لا يمكن تسجيل استرداد إلا لدفعة بانتظار الاسترداد (الحالة الحالية: {$payment->status->value}).");
         }
 
-        return DB::transaction(function () use ($payment, $manager, $reference) {
+        $payment = DB::transaction(function () use ($payment, $manager, $reference) {
             $payment->update([
                 'status' => PaymentStatus::Refunded,
                 'refunded_at' => now(),
                 'refunded_by' => $manager->id,
                 'refund_reference' => $reference,
             ]);
-            $this->notifications->paymentRefunded($payment->refresh());
 
             return $payment;
         });
+        $this->notifications->paymentRefunded($payment);
+
+        return $payment;
     }
 }

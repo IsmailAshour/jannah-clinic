@@ -24,29 +24,32 @@ class AppointmentTransitionService
             throw new InvalidTransitionException("انتقال غير مسموح: {$a->status->value} → {$to->value}");
         }
 
-        return DB::transaction(function () use ($a, $to, $reason) {
+        $a = DB::transaction(function () use ($a, $to, $reason) {
             $a->status = $to;
             if ($to === AppointmentStatus::Cancelled) {
                 $a->cancellation_reason = $reason;
             }
             $a->save();
-            $a->load('customer', 'doctor.user');
-
-            match ($to) {
-                AppointmentStatus::Confirmed => $this->notifications->appointmentConfirmed($a),
-                AppointmentStatus::Rejected => $this->notifications->appointmentRejected($a),
-                AppointmentStatus::Cancelled => $this->notifications->appointmentCancelledByStaff($a),
-                AppointmentStatus::Completed => $this->notifications->appointmentCompleted($a),
-                default => null,
-            };
 
             return $a;
         });
+        // Notify AFTER the transaction commits — a notification failure
+        // must not roll back an appointment status change.
+        $a->load('customer', 'doctor.user');
+        match ($to) {
+            AppointmentStatus::Confirmed => $this->notifications->appointmentConfirmed($a),
+            AppointmentStatus::Rejected => $this->notifications->appointmentRejected($a),
+            AppointmentStatus::Cancelled => $this->notifications->appointmentCancelledByStaff($a),
+            AppointmentStatus::Completed => $this->notifications->appointmentCompleted($a),
+            default => null,
+        };
+
+        return $a;
     }
 
     public function reschedule(Appointment $old, CarbonImmutable $newStart): Appointment
     {
-        return DB::transaction(function () use ($old, $newStart) {
+        $new = DB::transaction(function () use ($old, $newStart) {
             if (! $old->status->canTransitionTo(AppointmentStatus::Rescheduled)) {
                 throw new InvalidTransitionException('لا يمكن إعادة جدولة هذا الموعد.');
             }
@@ -67,9 +70,11 @@ class AppointmentTransitionService
             $new->save();
             $old->status = AppointmentStatus::Rescheduled;
             $old->save();
-            $this->notifications->appointmentRescheduledForCustomer($new->fresh()->load('customer'));
 
             return $new;
         });
+        $this->notifications->appointmentRescheduledForCustomer($new->fresh()->load('customer'));
+
+        return $new;
     }
 }

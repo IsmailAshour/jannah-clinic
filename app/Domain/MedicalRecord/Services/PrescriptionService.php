@@ -17,7 +17,8 @@ class PrescriptionService
 
     public function syncForEntry(MedicalEntry $entry, array $desired): void
     {
-        DB::transaction(function () use ($entry, $desired) {
+        $createdIds = [];
+        DB::transaction(function () use ($entry, $desired, &$createdIds) {
             $existing = $entry->prescriptions()->get()->keyBy('id');
             $keepIds = [];
             foreach ($desired as $row) {
@@ -49,7 +50,7 @@ class PrescriptionService
                         $entry->appointment->customer,
                         ['medication_name', 'dosage', 'frequency', 'duration', 'notes'],
                     );
-                    $this->notifications->prescriptionAdded($created->fresh()->load('entry.appointment.customer'));
+                    $createdIds[] = $created->id;
                     $keepIds[] = $created->id;
                 }
             }
@@ -65,6 +66,13 @@ class PrescriptionService
                 $p->delete();
             }
         });
+        // Notify AFTER the transaction commits. Per-prescription dispatch lets
+        // a single failure log + continue without blocking the others.
+        if ($createdIds !== []) {
+            foreach (Prescription::query()->whereIn('id', $createdIds)->with('entry.appointment.customer')->get() as $created) {
+                $this->notifications->prescriptionAdded($created);
+            }
+        }
     }
 
     private function normalize(array $row): array

@@ -82,6 +82,8 @@ const form = useForm({
   icon_key: '',
   is_active: true,
   display_order: 0,
+  loyalty_enabled: true,
+  loyalty_redemption_points: '',
 })
 
 function openCreate() {
@@ -104,6 +106,8 @@ function openEdit(row) {
   form.icon_key = row.icon_key ?? ''
   form.is_active = row.is_active
   form.display_order = row.display_order
+  form.loyalty_enabled = row.loyalty_enabled
+  form.loyalty_redemption_points = row.loyalty_redemption_points ?? ''
   showModal.value = true
 }
 
@@ -308,6 +312,40 @@ const columns = [
             <Input id="display_order" v-model.number="form.display_order" type="number" name="display_order" min="0" :aria-describedby="describedby" />
           </template>
         </FormGroup>
+
+        <fieldset class="space-y-3 border-t border-border-default pt-4">
+          <legend class="text-sm font-semibold text-text-primary">الولاء</legend>
+          <FormGroup label="تفعيل الولاء" name="loyalty_enabled" :error="form.errors.loyalty_enabled">
+            <template #default>
+              <input
+                id="loyalty_enabled"
+                v-model="form.loyalty_enabled"
+                type="checkbox"
+                name="loyalty_enabled"
+                class="h-4 w-4"
+              />
+            </template>
+          </FormGroup>
+          <FormGroup
+            v-if="form.loyalty_enabled"
+            label="نقاط الاستبدال"
+            name="loyalty_redemption_points"
+            :error="form.errors.loyalty_redemption_points"
+            hint="اتركه فارغًا إن أردت كسب النقاط فقط دون السماح بالاستبدال."
+          >
+            <template #default="{ describedby }">
+              <Input
+                id="loyalty_redemption_points"
+                v-model="form.loyalty_redemption_points"
+                type="number"
+                min="1"
+                name="loyalty_redemption_points"
+                dir="ltr"
+                :aria-describedby="describedby"
+              />
+            </template>
+          </FormGroup>
+        </fieldset>
       </form>
       <template #footer>
         <Button variant="outline" @click="showModal = false">إلغاء</Button>

@@ -33,6 +33,8 @@ class ServiceController extends Controller
             'icon_key' => 'nullable|string|max:64',
             'is_active' => 'boolean',
             'display_order' => 'nullable|integer|min:0',
+            'loyalty_enabled' => ['sometimes', 'boolean'],
+            'loyalty_redemption_points' => ['nullable', 'integer', 'min:1'],
         ]);
 
         Service::create($data);
@@ -52,6 +54,8 @@ class ServiceController extends Controller
             'icon_key' => 'nullable|string|max:64',
             'is_active' => 'boolean',
             'display_order' => 'nullable|integer|min:0',
+            'loyalty_enabled' => ['sometimes', 'boolean'],
+            'loyalty_redemption_points' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $service->update($data);

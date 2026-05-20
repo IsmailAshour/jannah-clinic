@@ -25,13 +25,16 @@ describe('ClientShell — adaptive', () => {
     expect(w.find('[data-testid="bell"]').exists()).toBe(false)
   })
 
-  it('authed customer renders bell + 6-tab nav', () => {
+  it('authed customer renders bell + 4-tab nav (Home/Appointments/Notifications/Profile)', () => {
     pageProps = { auth: { user: { id: 1, name: 'أحمد', role: 'customer' } }, notifications: { unread_count: 0 } }
     currentUrl = '/portal'
     const w = mount(ClientShell, { slots: { default: '<p>x</p>' } })
     expect(w.find('[data-testid="bell"]').exists()).toBe(true)
     expect(w.html()).toContain('خروج')
-    expect(w.findAll('nav a').length).toBe(6)
+    expect(w.findAll('nav a').length).toBe(4)
+    expect(w.html()).toContain('مواعيدي')
+    expect(w.html()).toContain('الإشعارات')
+    expect(w.html()).toContain('البروفايل')
   })
 
   it('authed customer header shows their name', () => {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
 use App\Models\Service;
+use App\Models\ServiceCategory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,6 +24,12 @@ class HomeController extends Controller
             ->limit(4)
             ->with('category:id,name,color_variant')
             ->get();
+
+        $categories = ServiceCategory::query()
+            ->where('is_active', true)
+            ->withCount(['services' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('display_order')
+            ->get(['id', 'name', 'slug', 'color_variant', 'icon_key']);
 
         $featuredDoctor = DoctorProfile::query()
             ->where('is_bookable', true)
@@ -48,6 +55,7 @@ class HomeController extends Controller
         }
 
         return Inertia::render('Public/Home', [
+            'categories' => $categories,
             'featuredServices' => $featuredServices,
             'featuredDoctor' => $featuredDoctor,
             'tip' => $tip,

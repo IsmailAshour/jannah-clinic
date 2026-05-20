@@ -1,6 +1,16 @@
 <script setup>
 import { computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
+import {
+  Home as HomeIcon,
+  CalendarDays,
+  Bell,
+  User,
+  Briefcase,
+  Stethoscope,
+  HelpCircle,
+  Heart,
+} from 'lucide-vue-next'
 import { NotificationBell } from '@/Components/foundation'
 
 const page = usePage()
@@ -8,19 +18,17 @@ const authedUser = computed(() => page.props?.auth?.user ?? null)
 const isAuthed = computed(() => authedUser.value !== null)
 
 const guestTabs = [
-  { label: 'الرئيسية', href: '/' },
-  { label: 'الخدمات', href: '/services' },
-  { label: 'الأطبّاء', href: '/doctors' },
-  { label: 'الدعم', href: '/support' },
+  { label: 'الرئيسية', href: '/', icon: HomeIcon },
+  { label: 'الخدمات', href: '/services', icon: Briefcase },
+  { label: 'الأطبّاء', href: '/doctors', icon: Stethoscope },
+  { label: 'الدعم', href: '/support', icon: HelpCircle },
 ]
 
 const authedTabs = [
-  { label: 'الرئيسية', href: '/' },
-  { label: 'مواعيدي', href: '/portal/appointments' },
-  { label: 'سجلي', href: '/portal/medical-record' },
-  { label: 'نقاطي', href: '/portal/loyalty' },
-  { label: 'حسابي', href: '/portal/profile' },
-  { label: 'خدمات', href: '/services' },
+  { label: 'الرئيسية', href: '/', icon: HomeIcon },
+  { label: 'مواعيدي', href: '/portal/appointments', icon: CalendarDays },
+  { label: 'الإشعارات', href: '/portal/notifications', icon: Bell },
+  { label: 'البروفايل', href: '/portal/profile', icon: User },
 ]
 
 const tabs = computed(() => (isAuthed.value ? authedTabs : guestTabs))
@@ -35,7 +43,10 @@ function isActive(href) {
 <template>
   <div class="min-h-screen mx-auto max-w-md flex flex-col bg-surface-page">
     <header class="h-14 flex items-center px-4 border-b border-border-default bg-surface-card gap-2">
-      <span class="font-bold text-brand">عيادة جنّة</span>
+      <Link href="/" class="flex items-center gap-1.5">
+        <Heart class="w-5 h-5 text-brand" aria-hidden="true" />
+        <span class="font-bold text-brand">عيادة جنّة</span>
+      </Link>
 
       <template v-if="isAuthed">
         <NotificationBell href="/portal/notifications" class="ms-auto" />
@@ -54,16 +65,18 @@ function isActive(href) {
     <main class="flex-1 pb-20"><slot /></main>
 
     <nav
-      class="z-shell fixed bottom-0 inset-inline-0 mx-auto max-w-md bg-surface-card border-t border-border-default grid"
-      :class="isAuthed ? 'grid-cols-6' : 'grid-cols-4'"
+      class="z-shell fixed bottom-0 inset-inline-0 mx-auto max-w-md bg-surface-card border-t border-border-default grid grid-cols-4"
     >
       <Link
         v-for="t in tabs"
         :key="t.label"
         :href="t.href"
         :aria-current="isActive(t.href) ? 'page' : undefined"
-        :class="['py-3 text-center text-xs hover:text-brand transition', isActive(t.href) ? 'text-brand font-semibold' : 'text-text-secondary']"
-      >{{ t.label }}</Link>
+        :class="['py-2 flex flex-col items-center gap-0.5 text-xs hover:text-brand transition', isActive(t.href) ? 'text-brand font-semibold' : 'text-text-secondary']"
+      >
+        <component :is="t.icon" class="w-5 h-5" aria-hidden="true" />
+        <span>{{ t.label }}</span>
+      </Link>
     </nav>
   </div>
 </template>

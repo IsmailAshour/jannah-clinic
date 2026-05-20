@@ -2,8 +2,9 @@
 import { computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import ClientShell from '@/Layouts/ClientShell.vue'
-import { PageHeader } from '@/Components/foundation'
+import { PageHeader, AuthGuardLink } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
+import { iconForCategory, colorClassForCategory } from '@/Lib/categoryIcons'
 
 const props = defineProps({
   services: { type: Array, default: () => [] },
@@ -12,6 +13,10 @@ const props = defineProps({
 })
 
 const selectedCategory = computed(() => props.filters?.category ?? null)
+const selectedCategoryObj = computed(() => {
+  if (!selectedCategory.value) return null
+  return props.categories.find((c) => String(c.id) === String(selectedCategory.value)) ?? null
+})
 
 function filterByCategory(catId) {
   router.get('/services', catId ? { category: catId } : {}, { preserveScroll: true })
@@ -26,35 +31,68 @@ const visibleServices = computed(() => {
 <template>
   <ClientShell>
     <div class="p-4 space-y-4">
-      <PageHeader title="خدماتنا" description="استعرض الخدمات المتاحة." />
+      <!-- Category header — when one is selected -->
+      <div v-if="selectedCategoryObj" class="bg-surface-card rounded-xl shadow-sm p-4 flex items-center gap-3">
+        <div :class="['w-12 h-12 rounded-2xl flex items-center justify-center', colorClassForCategory(selectedCategoryObj)]">
+          <component :is="iconForCategory(selectedCategoryObj)" class="w-6 h-6" aria-hidden="true" />
+        </div>
+        <div class="flex-1">
+          <h1 class="text-lg font-bold text-text-primary">{{ selectedCategoryObj.name }}</h1>
+          <p class="text-xs text-text-tertiary">{{ visibleServices.length }} خدمة</p>
+        </div>
+        <Button size="sm" variant="ghost" @click="filterByCategory(null)">عرض الكل</Button>
+      </div>
 
-      <div class="flex flex-wrap gap-2">
-        <Button
-          :variant="!selectedCategory ? 'default' : 'outline'"
-          size="sm"
-          @click="filterByCategory(null)"
-        >الكل</Button>
+      <PageHeader v-else title="خدماتنا" description="استعرض الخدمات المتاحة." />
+
+      <!-- Category chips (when no selection) -->
+      <div v-if="!selectedCategoryObj" class="flex flex-wrap gap-2">
         <Button
           v-for="c in categories"
           :key="c.id"
-          :variant="String(selectedCategory) === String(c.id) ? 'default' : 'outline'"
+          variant="outline"
           size="sm"
           @click="filterByCategory(c.id)"
         >{{ c.name }}</Button>
       </div>
 
+      <!-- Services grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <article
           v-for="s in visibleServices"
           :key="s.id"
-          class="bg-surface-card rounded-lg shadow-sm p-4 space-y-2"
+          class="bg-surface-card rounded-lg shadow-sm overflow-hidden flex flex-col"
         >
-          <p class="text-xs text-text-tertiary">{{ s.category?.name }}</p>
-          <h3 class="font-medium text-text-primary">{{ s.name }}</h3>
-          <p class="text-sm text-text-secondary line-clamp-2">{{ s.description || '' }}</p>
-          <div class="flex items-center justify-between">
-            <p class="text-sm font-semibold text-brand">{{ s.base_price }} ₪</p>
-            <p class="text-xs text-text-tertiary">{{ s.duration_minutes }} دقيقة</p>
+          <!-- Image or placeholder -->
+          <div
+            v-if="s.image_path"
+            class="w-full aspect-[16/9] bg-surface-page bg-cover bg-center"
+            :style="{ backgroundImage: `url(/storage/${s.image_path})` }"
+          />
+          <div
+            v-else
+            :class="['w-full aspect-[16/9] flex items-center justify-center', colorClassForCategory(s.category)]"
+          >
+            <component :is="iconForCategory(s.category)" class="w-12 h-12 opacity-70" aria-hidden="true" />
+          </div>
+
+          <div class="p-4 space-y-2 flex-1 flex flex-col">
+            <p class="text-xs text-text-tertiary">{{ s.category?.name }}</p>
+            <h3 class="font-medium text-text-primary">{{ s.name }}</h3>
+            <p v-if="s.description" class="text-sm text-text-secondary line-clamp-2">{{ s.description }}</p>
+            <div class="flex items-center justify-between pt-2 mt-auto">
+              <div>
+                <p class="text-sm font-semibold text-brand">{{ s.base_price }} ₪</p>
+                <p class="text-xs text-text-tertiary">{{ s.duration_minutes }} دقيقة</p>
+              </div>
+              <AuthGuardLink
+                intent="booking"
+                :authed-href="`/portal/booking?service=${s.id}`"
+                :context="{ service: s.id }"
+              >
+                <Button size="sm">احجز</Button>
+              </AuthGuardLink>
+            </div>
           </div>
         </article>
       </div>

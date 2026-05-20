@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['category_id', 'name', 'description', 'base_price', 'duration_minutes', 'home_service_enabled', 'icon_key', 'is_active', 'display_order', 'loyalty_enabled', 'loyalty_redemption_points'])]
 class Service extends Model
@@ -30,6 +31,11 @@ class Service extends Model
         return $this->belongsToMany(DoctorProfile::class, 'doctor_service')
             ->using(DoctorServicePivot::class)
             ->withPivot('price_override')->withTimestamps();
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
     }
 
     public function slotCount(): int

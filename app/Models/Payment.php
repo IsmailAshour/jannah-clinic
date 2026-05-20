@@ -8,6 +8,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $appointment_id
+ * @property string $amount
+ * @property PaymentStatus $status
+ * @property \Carbon\CarbonImmutable|null $verified_at
+ * @property int|null $verified_by
+ * @property \Carbon\CarbonImmutable|null $refunded_at
+ * @property int|null $refunded_by
+ * @property string|null $refund_reference
+ * @property string|null $rejection_reason
+ * @property string|null $notes
+ * @property Appointment $appointment
+ */
 #[Fillable([
     'appointment_id', 'amount', 'status',
     'verified_at', 'verified_by',

@@ -4,7 +4,7 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P2 — Payment + PaymentReceipt entities, PaymentStatus enum, AppointmentObserver auto-refund; hybrid lifecycle, AppointmentStatus unchanged)
+> Last updated: 2026-05-20 (P3 — MedicalEntry + Prescription + MedicalAuditLog entities with at-rest encryption + append-only audit; MedicalAuditAction enum; CustomerProfile gains chronic_conditions/allergies and notes is reclassified PHI/encrypted)
 > P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 schedule slot-grid (DoctorScheduleSlot, ScheduleException, ScheduleExceptionSlot — redesign), P1 Task 5 entities (HomeServiceCoverageArea), and P1 Task 6 entities (Appointment, ServiceAddress) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
@@ -641,12 +641,84 @@ Registered in `AppServiceProvider::boot` via `Appointment::observe(AppointmentOb
 
 ---
 
-## P3+ Entities (OUT OF SCOPE — YAGNI)
+## P3 Entities — Medical Records (encrypted + audited)
 
-The following entities are explicitly deferred to P3–P5. They MUST NOT be
+Authority: ADR-003 (`docs/adr/003-encrypted-medical-records.md`). Every PHI free-text column below is encrypted at rest via Laravel's `encrypted` Eloquent cast, keyed by `APP_KEY` (AES-256-CBC). The database row holds ciphertext only; the application encrypts on save and decrypts on read.
+
+### `MedicalEntry`
+
+Table: `medical_entries`. One-to-one with `Appointment`. Author is the `User` (must have `role=Doctor`) who wrote the entry — enforced by `MedicalEntryPolicy::create` and `MedicalEntryPolicy::update`.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK |
+| `appointment_id` | bigint unsigned | FK → `appointments.id`, **unique**, cascadeOnDelete |
+| `author_id` | bigint unsigned | FK → `users.id`, restrictOnDelete |
+| `visible_summary` | text (encrypted) | NOT NULL; required by validation; the customer sees this |
+| `staff_notes` | text nullable (encrypted) | internal only; **never** serialized to a customer response |
+| `created_at`, `updated_at` | timestamp | |
+
+Relations: `appointment()` (BelongsTo), `author()` (BelongsTo `User`), `prescriptions()` (HasMany, ordered by `created_at`).
+
+### `Prescription`
+
+Table: `prescriptions`. N:1 with `MedicalEntry`. All medication fields encrypted.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK |
+| `medical_entry_id` | bigint unsigned | FK, cascadeOnDelete |
+| `medication_name` | varchar (encrypted) | NOT NULL |
+| `dosage` | varchar (encrypted) | NOT NULL |
+| `frequency` | varchar (encrypted) | NOT NULL |
+| `duration` | varchar (encrypted) | NOT NULL |
+| `notes` | text nullable (encrypted) | |
+| `created_at`, `updated_at` | timestamp | |
+
+Composite index `(medical_entry_id, created_at)` for ordered retrieval.
+
+### `MedicalAuditLog`
+
+Table: `medical_audit_logs`. **Append-only**: the model's `save()` throws `\LogicException` on `exists`, and `delete()` throws unconditionally. No `updated_at` column. CI grep gate fails on any `MedicalAuditLog::*->update|delete`.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK |
+| `user_id` | bigint unsigned | FK → `users.id` nullable, restrictOnDelete; actor (null = system) |
+| `action` | varchar(32) | NOT NULL; pgsql CHECK `IN ('entry.created','entry.updated','entry.viewed','prescription.created','prescription.updated','prescription.deleted','profile_medical.viewed','profile_medical.updated')` |
+| `auditable_type` | varchar(255) | polymorphic class name |
+| `auditable_id` | bigint unsigned | polymorphic key |
+| `customer_id` | bigint unsigned | FK → `users.id`, restrictOnDelete; the patient whose data was touched (denormalized for fast per-patient queries) |
+| `changed_fields` | json nullable | **names only** — never values |
+| `ip_address` | varchar(45) nullable | IPv4/IPv6 |
+| `user_agent` | varchar(255) nullable | truncated |
+| `created_at` | timestamp | indexed |
+
+Indexes: `(customer_id, created_at)`, `(auditable_type, auditable_id)`, `(user_id, created_at)`.
+
+### `MedicalAuditAction` enum
+
+`app/Enums/MedicalAuditAction.php` — string-backed cases: `EntryCreated`, `EntryUpdated`, `EntryViewed`, `PrescriptionCreated`, `PrescriptionUpdated`, `PrescriptionDeleted`, `ProfileMedicalViewed`, `ProfileMedicalUpdated`. The pgsql CHECK constraint on `medical_audit_logs.action` mirrors these values.
+
+### `CustomerProfile` (modified in P3)
+
+`customer_profiles.chronic_conditions` (text nullable, encrypted) and `customer_profiles.allergies` (text nullable, encrypted) added. The pre-existing `notes` column is now reclassified PHI and encrypted via the cast. The `medical:encrypt-customer-notes` idempotent artisan command re-encrypts existing plaintext rows in place.
+
+### Services and Policies
+
+- `App\Domain\MedicalRecord\Services\AuditLogger` — explicit, transactional; captures actor/IP/UA/changed-field-names. Always called from inside the same `DB::transaction` as the entity change so audit failure aborts the write.
+- `App\Domain\MedicalRecord\Services\MedicalEntryService` — `create()` and `update()` in transactions; update audits only dirty fields.
+- `App\Domain\MedicalRecord\Services\PrescriptionService` — `syncForEntry()` diffs the desired list (create / update / delete) and audits each transition.
+- `App\Policies\MedicalEntryPolicy` — registered via `Gate::policy()` in `AppServiceProvider`. Customer: own only. Receptionist: always denied. Manager: read-only. Doctor: create on assigned + `completed` appointments, update own entries only.
+
+---
+
+## P4+ Entities (OUT OF SCOPE — YAGNI)
+
+The following entities are explicitly deferred to P4–P5. They MUST NOT be
 modelled, migrated, or referenced until their phase begins:
 
-> MedicalRecord, MedicalEntry, Prescription, MembershipPlan, UserMembership, LoyaltyTransaction, Notification
+> MembershipPlan, UserMembership, LoyaltyTransaction, Notification
 
 Roadmap: `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md` §2
 and the `clinic` reference feature inventory.

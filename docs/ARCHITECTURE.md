@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (P2 Payments: bank-transfer receipt model — Payment/PaymentReceipt entities, PaymentService, AppointmentObserver auto-refund, 9 routes, R12 bank settings, hybrid lifecycle)
+> Last updated: 2026-05-20 (P3 Medical Records: encrypted MedicalEntry/Prescription/MedicalAuditLog with append-only invariant, AuditLogger explicit-call inside transactions, MedicalEntryPolicy, Admin entry write + Customer portal read, ADR-003 supersedes ADR-002 — production now permits real PHI; AdminDataTable family on shadcn-vue + @tanstack/vue-table for new admin list surfaces, 8-page R-DataTable migration debt recorded)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -50,7 +50,8 @@ output lives in `docs/`:
 | `docs/DOCS-AUTHORITY-AND-CONFLICT-RESOLUTION.md` | Document authority ladder |
 | `docs/CANONICAL-DECISION-REGISTRY.md` | Registry of all canonical decisions |
 | `docs/adr/001-adopt-methodology-kit.md` | ADR-001 — kit adoption + derivation interview YAML |
-| `docs/adr/002-basic-security-posture.md` | ADR-002 — MVP security posture + production gate |
+| `docs/adr/002-basic-security-posture.md` | ADR-002 — MVP security posture (SUPERSEDED by ADR-003 on 2026-05-20) |
+| `docs/adr/003-encrypted-medical-records.md` | ADR-003 — Encrypted medical records + audit log (ACTIVE; supersedes ADR-002) |
 
 **Key rules affecting this codebase:**
 
@@ -64,8 +65,16 @@ output lives in `docs/`:
   `text-align: left/right`). CI greps `resources/js/**/*.vue` for violations.
 - **R6** — `docs/ARCHITECTURE.md` and `docs/DOMAIN-MODEL.md` are the kit
   `autodoc_targets` and must be updated with every relevant change.
-- **ADR-002** — Real patient data MUST NOT reach production under the current
-  posture (basic auth + roles only; no medical-record audit or at-rest encryption).
+- **ADR-003** — Strict security posture for medical records: every PHI free-text
+  field (medical_entries.visible_summary/staff_notes, prescriptions.*,
+  customer_profiles.notes/chronic_conditions/allergies) is encrypted at rest via
+  Laravel's `encrypted` cast keyed by `APP_KEY`. Every CREATE/UPDATE/VIEW of
+  these fields appends to `medical_audit_logs` (append-only, enforced at the
+  model layer; CI grep gate fails on any `MedicalAuditLog::*->update|delete`).
+  Receptionists are explicitly excluded from PHI surfaces.
+- **ADR-002 (SUPERSEDED by ADR-003 on 2026-05-20)** — The MVP "basic posture"
+  (no encryption, no audit) is no longer in force. Production now permits real
+  patient data subject to ADR-003 remaining ACCEPTED/ACTIVE in the registry.
 
 ---
 
@@ -424,7 +433,9 @@ P2–P5 roadmap is in
 - **✅ RESOLVED — AdminShell sidebar collapse:** responsive hamburger drawer (mobile) + desktop collapsible sidebar, preference persisted to `localStorage`. See "P1 resolved items" above.
 - **Inertia persistent layouts:** `defineOptions` layout for shell state preservation across navigations still deferred (in-file `TODO(P1)`).
 - **ConfirmablePassword phone-only hazard:** `ConfirmablePasswordController` fails for phone-only users (email null); add phone-aware confirmation before any route uses `password.confirm` middleware.
-- **ADR-002 production gate:** medical-record audit logging and at-rest encryption are mandatory before real patient data reaches production. This ADR MUST be superseded before any production deployment with real patient data.
+- **✅ RESOLVED — ADR-002 production gate (P3):** medical-record audit logging and at-rest encryption are now in place. ADR-002 SUPERSEDED by ADR-003 (`docs/adr/003-encrypted-medical-records.md`) on 2026-05-20. Production now permits real patient data subject to ADR-003 remaining ACCEPTED in the canonical registry.
+- **R-DataTable migration debt (introduced in P3):** the new `AdminDataTable` family (TanStack-based, full row-actions / pagination / sorting / filtering / column-visibility / row-selection) is the standard for every admin list page going forward. The following 8 legacy pages still use the old slim `<DataTable>` and MUST migrate in the dedicated `R-DataTable Migration` phase: `Admin/Catalog/Services.vue`, `Admin/Catalog/Categories.vue`, `Admin/Appointments/Index.vue`, `Admin/Doctors/Index.vue`, `Admin/Customers/Index.vue`, `Admin/Payments/Index.vue`, `Admin/Coverage/Index.vue`, `Admin/Doctors/Schedule.vue` (calendar/grid — flag during R-DataTable for possible exemption).
+- **APP_KEY rotation runbook (introduced in P3 via ADR-003):** ADR-003 mandates quarterly key rotation. Re-encrypt artisan command + rotation runbook are deferred; manual rotation steps documented in ADR-003.
 - **Cairo WOFF2:** Cairo shipped as TTF (~599KB); convert to WOFF2 in post-P1 polish (spec §3.3 prescribed woff2).
 - **`--easing-spring` token:** cubic-bezier easing token not yet defined in `@theme`; add when overlay animations land.
 - **Avatar cleanup:** old avatar file is not deleted on replace (post-P1 cleanup).
@@ -478,7 +489,8 @@ Implementation plan: `docs/superpowers/plans/2026-05-20-jannahclinic-p2-payments
 ## Related Documents
 
 - ADR-001: `docs/adr/001-adopt-methodology-kit.md`
-- ADR-002: `docs/adr/002-basic-security-posture.md`
+- ADR-002 (SUPERSEDED): `docs/adr/002-basic-security-posture.md`
+- ADR-003 (ACTIVE): `docs/adr/003-encrypted-medical-records.md`
 - Definition of Done: `docs/DEFINITION-OF-DONE.md`
 - Spec roadmap (§2 P1–P5): `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md`
 - Domain Model: `docs/DOMAIN-MODEL.md`

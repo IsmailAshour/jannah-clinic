@@ -1,12 +1,12 @@
 # ADR-002: Basic Security Posture for MVP
 
-> Status: ACTIVE
+> Status: SUPERSEDED
 > Scope: security
 > Owner: Product
 > Decision Authority: Yes
 > Date: 2026-05-19
 > Supersedes: NONE
-> Superseded By: NONE
+> Superseded By: ADR-003 (docs/adr/003-encrypted-medical-records.md), 2026-05-20
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
 
 ## Context

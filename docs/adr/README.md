@@ -21,4 +21,5 @@ formal update to an existing one.
 | ADR | Title | Status | Scope | Date |
 |-----|-------|--------|-------|------|
 | 001 | Adopt Methodology Kit | ACTIVE | governance | 2026-05-19 |
-| 002 | Basic Security Posture for MVP | ACTIVE | security | 2026-05-19 |
+| 002 | Basic Security Posture for MVP | SUPERSEDED (by 003) | security | 2026-05-19 |
+| 003 | Encrypted Medical Records + Audit Log | ACCEPTED | security | 2026-05-20 |

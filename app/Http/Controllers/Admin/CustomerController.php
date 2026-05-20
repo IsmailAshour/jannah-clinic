@@ -53,7 +53,7 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function show(User $customer): Response
+    public function show(Request $request, User $customer): Response
     {
         abort_unless($customer->role === UserRole::Customer, 404);
 
@@ -77,10 +77,31 @@ class CustomerController extends Controller
                 ->value('start_at'),
         ];
 
+        $isReceptionist = $request->user()->role === UserRole::Receptionist;
+
+        $medicalEntries = null;
+        if (! $isReceptionist) {
+            $medicalEntries = \App\Models\MedicalEntry::query()
+                ->whereHas('appointment', fn ($q) => $q->where('customer_id', $customer->id))
+                ->with(['appointment:id,start_at', 'prescriptions:id,medical_entry_id'])
+                ->latest('created_at')
+                ->paginate(15);
+
+            $medicalEntries->through(fn ($e) => [
+                'id' => $e->id,
+                'date' => $e->appointment?->start_at?->toIso8601String(),
+                'visible_summary' => $e->visible_summary,
+                'prescriptions_count' => $e->prescriptions->count(),
+            ]);
+        }
+
         return Inertia::render('Admin/Customers/Show', [
             'customer' => $customer,
             'appointments' => $appointments,
             'stats' => $stats,
+            'medicalEntries' => $medicalEntries,
+            'canViewMedical' => ! $isReceptionist,
+            'canEditMedicalProfile' => in_array($request->user()->role, [UserRole::Manager, UserRole::Doctor], true),
         ]);
     }
 
@@ -145,13 +166,14 @@ class CustomerController extends Controller
                 || ! empty($data['gender'] ?? null)
                 || ! empty($data['notes'] ?? null);
             if ($hasProfileFields) {
-                CustomerProfile::query()
-                    ->where('user_id', $created->id)
-                    ->update([
+                CustomerProfile::updateOrCreate(
+                    ['user_id' => $created->id],
+                    [
                         'date_of_birth' => $data['date_of_birth'] ?? null,
                         'gender' => $data['gender'] ?? null,
                         'notes' => $data['notes'] ?? null,
-                    ]);
+                    ],
+                );
             }
 
             return $created;

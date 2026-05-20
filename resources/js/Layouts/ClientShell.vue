@@ -6,6 +6,7 @@ const tabs = [
   { label: 'الخدمات', href: '/portal/services', real: true },
   { label: 'الحجز', href: '/portal/booking', real: true },
   { label: 'مواعيدي', href: '/portal/appointments', real: true },
+  { label: 'سجلي الطبي', href: '/portal/medical-record', real: true },
 ]
 const page = usePage()
 function isActive(t) {
@@ -22,7 +23,7 @@ function isActive(t) {
       <Link href="/logout" method="post" as="button" class="ms-auto text-xs text-text-secondary">خروج</Link>
     </header>
     <main class="flex-1 pb-20"><slot /></main>
-    <nav class="z-shell fixed bottom-0 inset-inline-0 mx-auto max-w-md bg-surface-card border-t border-border-default grid grid-cols-4">
+    <nav class="z-shell fixed bottom-0 inset-inline-0 mx-auto max-w-md bg-surface-card border-t border-border-default grid grid-cols-5">
       <template v-for="t in tabs" :key="t.label">
         <Link v-if="t.real" :href="t.href"
               :aria-current="isActive(t) ? 'page' : undefined"

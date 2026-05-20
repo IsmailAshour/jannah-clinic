@@ -3,15 +3,20 @@ import { ref } from 'vue'
 import { router, useForm, usePage } from '@inertiajs/vue3'
 import { Pencil } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
+import { h } from 'vue'
 import {
   PageHeader,
   DataTable,
+  AdminDataTable,
+  AdminDataTableColumnHeader,
+  AdminDataTableRowActions,
   FormGroup,
   Modal,
   FormSection,
   StatCard,
   StatusBadge,
 } from '@/Components/foundation'
+import { DropdownMenuItem } from '@/Components/ui/dropdown-menu'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
@@ -19,6 +24,9 @@ const props = defineProps({
   customer: { type: Object, required: true },
   appointments: { type: Object, default: () => ({ data: [], links: [] }) },
   stats: { type: Object, default: () => ({ total: 0, completed: 0, noShow: 0, lastVisit: null }) },
+  medicalEntries: { type: Object, default: null },
+  canViewMedical: { type: Boolean, default: false },
+  canEditMedicalProfile: { type: Boolean, default: false },
 })
 
 const page = usePage()
@@ -127,6 +135,51 @@ const apptColumns = [
   { key: 'status',        label: 'الحالة' },
   { key: 'delivery_mode', label: 'طريقة التقديم' },
   { key: 'price',         label: 'السعر' },
+  ...(props.canViewMedical ? [{ key: 'record',  label: 'السجل الطبي' }] : []),
+]
+
+// Medical profile form (chronic + allergies)
+const medForm = useForm({
+  chronic_conditions: props.customer.customer_profile?.chronic_conditions ?? '',
+  allergies: props.customer.customer_profile?.allergies ?? '',
+})
+
+function saveMedical() {
+  medForm.put(`/admin/customers/${props.customer.id}/profile/medical`, { preserveScroll: true })
+}
+
+// Medical entries — AdminDataTable column defs
+const entryColumns = [
+  {
+    accessorKey: 'date',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'تاريخ الزيارة' }),
+    cell: ({ row }) => row.original.date ? new Date(row.original.date).toLocaleDateString('ar-SA') : '—',
+    meta: { label: 'تاريخ الزيارة' },
+  },
+  {
+    accessorKey: 'visible_summary',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الخلاصة' }),
+    cell: ({ row }) => {
+      const t = row.original.visible_summary ?? ''
+      return t.length > 80 ? t.slice(0, 80) + '…' : t
+    },
+    meta: { label: 'الخلاصة' },
+  },
+  {
+    accessorKey: 'prescriptions_count',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'وصفات' }),
+    meta: { label: 'وصفات' },
+  },
+  {
+    id: 'actions',
+    enableHiding: false,
+    header: () => '',
+    cell: ({ row }) => h(AdminDataTableRowActions, null, {
+      default: () => h(DropdownMenuItem, {
+        onClick: () => router.visit(`/admin/medical-entries/${row.original.id}/edit`),
+      }, 'فتح السجل'),
+    }),
+  },
 ]
 </script>
 
@@ -215,6 +268,62 @@ const apptColumns = [
         <StatCard title="آخر زيارة" :value="formatDateTime(stats.lastVisit)" />
       </div>
 
+      <!-- Medical profile (chronic + allergies) -->
+      <FormSection v-if="canViewMedical" title="الملف الطبي" description="حقول حساسة مُشفّرة عند التخزين.">
+        <form v-if="canEditMedicalProfile" class="space-y-4" @submit.prevent="saveMedical">
+          <FormGroup label="الأمراض المزمنة" name="chronic_conditions" :error="medForm.errors.chronic_conditions">
+            <template #default="{ describedby }">
+              <textarea
+                id="chronic_conditions"
+                v-model="medForm.chronic_conditions"
+                name="chronic_conditions"
+                rows="3"
+                :aria-describedby="describedby"
+                class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
+              />
+            </template>
+          </FormGroup>
+          <FormGroup label="الحساسية" name="allergies" :error="medForm.errors.allergies">
+            <template #default="{ describedby }">
+              <textarea
+                id="allergies"
+                v-model="medForm.allergies"
+                name="allergies"
+                rows="3"
+                :aria-describedby="describedby"
+                class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
+              />
+            </template>
+          </FormGroup>
+          <div class="flex justify-end">
+            <Button :disabled="medForm.processing">حفظ</Button>
+          </div>
+        </form>
+        <dl v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <dt class="text-text-secondary">الأمراض المزمنة</dt>
+            <dd class="text-text-primary whitespace-pre-line">{{ customer.customer_profile?.chronic_conditions || '—' }}</dd>
+          </div>
+          <div>
+            <dt class="text-text-secondary">الحساسية</dt>
+            <dd class="text-text-primary whitespace-pre-line">{{ customer.customer_profile?.allergies || '—' }}</dd>
+          </div>
+        </dl>
+      </FormSection>
+
+      <!-- Medical entries — AdminDataTable -->
+      <FormSection v-if="canViewMedical && medicalEntries" title="السجل الطبي للزيارات">
+        <AdminDataTable
+          :columns="entryColumns"
+          :data="medicalEntries.data"
+          filter-column="visible_summary"
+          filter-placeholder="ابحث في الخلاصات…"
+          :server-meta="medicalEntries.meta"
+          :on-page-change="(p) => router.get(`/admin/customers/${customer.id}`, { page: p }, { preserveState: true, preserveScroll: true })"
+          empty-text="لا توجد سجلات طبية."
+        />
+      </FormSection>
+
       <!-- Appointments table -->
       <FormSection title="المواعيد">
         <DataTable :columns="apptColumns" :rows="appointments.data" empty-text="لا توجد مواعيد.">
@@ -228,6 +337,14 @@ const apptColumns = [
             <StatusBadge :type="row.delivery_mode === 'home' ? 'warning' : 'info'" :label="deliveryLabel(row.delivery_mode)" />
           </template>
           <template #cell-price="{ row }">{{ row.price_at_booking }} ₪</template>
+          <template #cell-record="{ row }">
+            <a
+              v-if="row.status === 'completed'"
+              :href="`/admin/appointments/${row.id}/medical-entry/create`"
+              class="text-sm text-brand underline"
+            >إضافة/فتح</a>
+            <span v-else class="text-text-tertiary">—</span>
+          </template>
         </DataTable>
 
         <div v-if="appointments.links && appointments.links.length > 3" class="mt-4 flex gap-1 justify-center">

@@ -16,6 +16,8 @@ class ClinicSettingController extends Controller
         $settings = app(SettingService::class);
 
         return Inertia::render('Admin/Settings/Index', [
+            'clinic_name' => $settings->get('clinic_name', config('clinic.name', 'عيادة جنّة')),
+            'clinic_logo_path' => $settings->get('clinic_logo_path'),
             'home_surcharge_pct' => $settings->get('home_surcharge_pct', config('clinic.home_surcharge_pct')),
             'bank' => [
                 'name' => $settings->get('bank_name', config('clinic.bank_name', '')),
@@ -24,6 +26,27 @@ class ClinicSettingController extends Controller
                 'account_number' => $settings->get('bank_account_number', config('clinic.bank_account_number', '')),
             ],
         ]);
+    }
+
+    public function updateClinicInfo(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'clinic_name' => ['required', 'string', 'max:120'],
+        ]);
+        app(SettingService::class)->set('clinic_name', $data['clinic_name']);
+
+        return back()->with('success', 'تم حفظ اسم العيادة.');
+    }
+
+    public function uploadLogo(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'logo' => ['required', 'image', 'max:2048'],
+        ]);
+        $path = $request->file('logo')->store('clinic', 'public');
+        app(SettingService::class)->set('clinic_logo_path', $path);
+
+        return back()->with('success', 'تم حفظ شعار العيادة.');
     }
 
     public function updateSurcharge(Request $request): RedirectResponse

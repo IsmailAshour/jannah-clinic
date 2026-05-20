@@ -10,12 +10,38 @@ import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
 const props = defineProps({
+  clinic_name: { type: String, default: 'عيادة جنّة' },
+  clinic_logo_path: { type: String, default: null },
   home_surcharge_pct: { type: [String, Number], default: 30 },
   bank: {
     type: Object,
     default: () => ({ name: '', account_holder: '', iban: '', account_number: '' }),
   },
 })
+
+const clinicForm = useForm({
+  clinic_name: props.clinic_name,
+})
+
+function saveClinic() {
+  clinicForm.put('/admin/settings/clinic')
+}
+
+const logoForm = useForm({
+  logo: null,
+})
+
+function pickLogo(event) {
+  logoForm.logo = event.target.files?.[0] ?? null
+}
+
+function uploadLogo() {
+  if (!logoForm.logo) return
+  logoForm.post('/admin/settings/clinic/logo', {
+    forceFormData: true,
+    onSuccess: () => { logoForm.reset() },
+  })
+}
 
 const surchargeForm = useForm({
   home_surcharge_pct: props.home_surcharge_pct,
@@ -41,6 +67,54 @@ function saveBank() {
   <AdminShell>
     <div class="p-6 space-y-8">
       <PageHeader title="إعدادات العيادة" />
+
+      <FormSection title="هويّة العيادة" description="الاسم الذي يظهر للعميل في الترويسة وأعلى كل صفحة.">
+        <form class="space-y-4" @submit.prevent="saveClinic">
+          <FormGroup label="اسم العيادة" name="clinic_name" :error="clinicForm.errors.clinic_name" required>
+            <template #default="{ describedby }">
+              <Input
+                id="clinic_name"
+                v-model="clinicForm.clinic_name"
+                name="clinic_name"
+                maxlength="120"
+                :aria-describedby="describedby"
+                class="w-full max-w-md"
+              />
+            </template>
+          </FormGroup>
+        </form>
+
+        <div class="flex justify-end">
+          <Button :disabled="clinicForm.processing" @click="saveClinic">حفظ الاسم</Button>
+        </div>
+
+        <div class="border-t border-border-default pt-4 space-y-3">
+          <p class="text-sm font-semibold text-text-primary">شعار العيادة</p>
+          <div class="flex items-center gap-3">
+            <img
+              v-if="clinic_logo_path"
+              :src="`/storage/${clinic_logo_path}`"
+              alt="شعار العيادة"
+              class="w-16 h-16 rounded-md object-cover bg-surface-page"
+            />
+            <div v-else class="w-16 h-16 rounded-md bg-surface-page flex items-center justify-center text-text-tertiary text-xs">
+              لا يوجد
+            </div>
+            <div class="flex-1 space-y-2">
+              <input
+                type="file"
+                accept="image/*"
+                @change="pickLogo"
+                class="block text-sm"
+              />
+              <p v-if="logoForm.errors.logo" class="text-xs text-danger">{{ logoForm.errors.logo }}</p>
+              <Button size="sm" :disabled="!logoForm.logo || logoForm.processing" @click="uploadLogo">
+                رفع الشعار
+              </Button>
+            </div>
+          </div>
+        </div>
+      </FormSection>
 
       <FormSection title="إعدادات الخدمة المنزلية">
         <form class="space-y-4" @submit.prevent="saveSurcharge">

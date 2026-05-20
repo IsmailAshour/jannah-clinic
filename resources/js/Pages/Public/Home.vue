@@ -1,8 +1,12 @@
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import { Button } from '@/Components/ui/button'
 import { iconForCategory, colorClassForCategory } from '@/Lib/categoryIcons'
+
+const page = usePage()
+const clinicName = computed(() => page.props?.clinic?.name ?? 'عيادة جنّة')
 
 defineProps({
   categories: { type: Array, default: () => [] },
@@ -27,7 +31,7 @@ function formatDateTime(dt) {
       <!-- Hero -->
       <section class="bg-gradient-to-bl from-brand/15 to-surface-card rounded-xl shadow-sm p-6 space-y-3">
         <h1 v-if="greetingName" class="text-2xl font-bold text-text-primary">أهلًا {{ greetingName }} 👋</h1>
-        <h1 v-else class="text-2xl font-bold text-text-primary">أهلًا بك في عيادة جنّة</h1>
+        <h1 v-else class="text-2xl font-bold text-text-primary">أهلًا بك في {{ clinicName }}</h1>
         <p class="text-sm text-text-secondary">نهتمّ بصحّتك وجمالك — اختر فئة الخدمة لتبدأ.</p>
       </section>
 

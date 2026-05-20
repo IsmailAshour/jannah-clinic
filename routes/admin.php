@@ -98,6 +98,8 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::delete('coverage/{area}', [CoverageAreaController::class, 'destroy'])->name('coverage.destroy');
 
             // Settings mutations – manager only
+            Route::put('settings/clinic', [ClinicSettingController::class, 'updateClinicInfo'])->name('settings.clinic');
+            Route::post('settings/clinic/logo', [ClinicSettingController::class, 'uploadLogo'])->name('settings.clinic.logo');
             Route::put('settings/surcharge', [ClinicSettingController::class, 'updateSurcharge'])->name('settings.surcharge');
             Route::put('settings/bank', [ClinicSettingController::class, 'saveBankInfo'])->name('settings.bank');
 

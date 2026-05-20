@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domain\Settings\Services\SettingService;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -54,6 +55,12 @@ class HandleInertiaRequests extends Middleware
             'notifications' => fn () => $request->user()
                 ? ['unread_count' => $request->user()->unreadNotifications()->count()]
                 : null,
+            // P5b — clinic brand name + logo, editable by manager from /admin/settings.
+            'clinic' => fn () => [
+                'name' => app(SettingService::class)
+                    ->get('clinic_name', config('clinic.name', 'عيادة جنّة')),
+                'logo_path' => app(SettingService::class)->get('clinic_logo_path'),
+            ],
         ];
     }
 }

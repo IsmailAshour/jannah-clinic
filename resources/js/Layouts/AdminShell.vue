@@ -154,7 +154,7 @@ const NavLink = defineComponent({
           icon-rail width. The brand intentionally has no icon glyph — the
           rail's content cue is the row of menu icons below.
         -->
-        <div class="text-lg font-bold px-2 py-1 whitespace-nowrap group-data-[collapsible=icon]:hidden">عيادة جنّة</div>
+        <div class="text-lg font-bold px-2 py-1 whitespace-nowrap group-data-[collapsible=icon]:hidden">{{ page.props?.clinic?.name ?? 'عيادة جنّة' }}</div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

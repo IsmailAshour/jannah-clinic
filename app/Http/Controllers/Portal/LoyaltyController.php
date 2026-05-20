@@ -25,6 +25,14 @@ class LoyaltyController extends Controller
             $query->where('points_delta', '<', 0);
         }
         $ledger = $query->orderByDesc('id')->paginate(20)->withQueryString();
+        $ledger->through(fn ($e) => [
+            'id' => $e->id,
+            'points_delta' => $e->points_delta,
+            'balance_after' => $e->balance_after,
+            'reason' => $e->reason,
+            'notes' => $e->notes,
+            'created_at' => $e->created_at->toIso8601String(),
+        ]);
 
         $summary = [
             'earned' => LoyaltyLedger::query()->where('customer_id', $user->id)

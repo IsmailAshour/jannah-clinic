@@ -4,6 +4,7 @@ use App\Http\Controllers\Booking\AvailabilityController;
 use App\Http\Controllers\Booking\AvailableDaysController;
 use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\BookingController;
+use App\Http\Controllers\Portal\LoyaltyController;
 use App\Http\Controllers\Portal\MedicalRecordController;
 use App\Http\Controllers\Portal\NotificationController;
 use App\Http\Controllers\Portal\PaymentController;
@@ -44,4 +45,7 @@ Route::middleware(['auth', 'role:customer'])
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
         Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+
+        // P4a — Loyalty (customer feed)
+        Route::get('loyalty', [LoyaltyController::class, 'index'])->name('loyalty.index');
     });

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\ClinicSettingController;
 use App\Http\Controllers\Admin\CoverageAreaController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\CustomerLoyaltyController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\DoctorScheduleController;
 use App\Http\Controllers\Admin\MedicalEntryController;
@@ -53,6 +54,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
 
+        // P4a — Loyalty: any staff role can read
+        Route::get('customers/{customer}/loyalty', [CustomerLoyaltyController::class, 'show'])
+            ->name('customers.loyalty.show');
+
         // P3 — Medical Records read (all staff with view policy; receptionist blocked at policy layer)
         Route::get('medical-entries/{entry}/edit', [MedicalEntryController::class, 'edit'])
             ->name('medical-entries.edit');
@@ -100,6 +105,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
             Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
             Route::post('customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
+
+            // P4a — manager only adjust
+            Route::post('customers/{customer}/loyalty/adjust', [CustomerLoyaltyController::class, 'adjust'])
+                ->name('customers.loyalty.adjust');
 
             // Payments (P2) — manager only mutations
             Route::post('payments/{payment}/verify', [PaymentController::class, 'verify'])->name('payments.verify');

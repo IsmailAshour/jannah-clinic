@@ -1,13 +1,14 @@
 <script setup>
-import { ref, h } from 'vue'
+import { ref, h, computed } from 'vue'
 import { router, useForm, usePage } from '@inertiajs/vue3'
-import { UserPlus } from 'lucide-vue-next'
+import { UserPlus, Search } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
   AdminDataTable,
   AdminDataTableColumnHeader,
   AdminDataTableRowActions,
+  StatCard,
   StatusBadge,
   Modal,
   FormGroup,
@@ -19,6 +20,7 @@ import { Input } from '@/Components/ui/input'
 const props = defineProps({
   customers: { type: Object, default: () => ({ data: [] }) },
   filters: { type: Object, default: () => ({}) },
+  stats: { type: Object, default: () => ({ total: 0, active: 0, inactive: 0, new_this_month: 0 }) },
 })
 
 const page = usePage()
@@ -49,6 +51,31 @@ function goToPage(p) {
   applyFilters({ page: p })
 }
 
+// Trend hints — small contextual signals under each stat
+const activeShare = computed(() =>
+  props.stats.total > 0 ? Math.round((props.stats.active / props.stats.total) * 100) : 0
+)
+const inactiveShare = computed(() =>
+  props.stats.total > 0 ? Math.round((props.stats.inactive / props.stats.total) * 100) : 0
+)
+
+// Row selection — header checkbox + per-row checkbox
+const SelectAllHeader = (table) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الكل',
+  checked: table.getIsAllPageRowsSelected(),
+  indeterminate: table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected(),
+  onChange: (e) => table.toggleAllPageRowsSelected(e.target.checked),
+})
+const SelectRow = (row) => h('input', {
+  type: 'checkbox',
+  class: 'h-4 w-4 cursor-pointer',
+  'aria-label': 'تحديد الصف',
+  checked: row.getIsSelected(),
+  onChange: (e) => row.toggleSelected(e.target.checked),
+})
+
 const showCreate = ref(false)
 const form = useForm({
   name: '',
@@ -71,8 +98,20 @@ function submitCreate() {
 
 const columns = [
   {
+    id: 'select',
+    enableHiding: false,
+    enableSorting: false,
+    header: ({ table }) => SelectAllHeader(table),
+    cell: ({ row }) => SelectRow(row),
+    meta: { label: 'تحديد' },
+  },
+  {
     accessorKey: 'name',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الاسم' }),
+    cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
+      h('span', { class: 'font-medium text-text-primary' }, row.original.name),
+      h('span', { class: 'text-xs text-text-tertiary', dir: 'ltr' }, row.original.email || row.original.phone || '—'),
+    ]),
     meta: { label: 'الاسم' },
   },
   {
@@ -103,7 +142,7 @@ const columns = [
     cell: ({ row }) => h(AdminDataTableRowActions, null, {
       default: () => h(DropdownMenuItem, {
         onClick: () => router.visit(`/admin/customers/${row.original.id}`),
-      }, 'عرض'),
+      }, 'عرض التفاصيل'),
     }),
   },
 ]
@@ -111,8 +150,9 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6">
-      <PageHeader title="العملاء">
+    <div class="p-6 space-y-6">
+      <!-- 1 — Header -->
+      <PageHeader title="العملاء" description="إدارة قاعدة العملاء ومتابعة حالاتهم.">
         <template v-if="isManager" #action>
           <Button @click="openCreate">
             <UserPlus class="h-4 w-4" aria-hidden="true" />
@@ -121,35 +161,71 @@ const columns = [
         </template>
       </PageHeader>
 
-      <form class="mb-6 flex flex-wrap gap-3 items-end" @submit.prevent="applyFilters()">
-        <div class="flex flex-col gap-1">
-          <label for="q" class="text-xs font-medium text-text-secondary">بحث (الاسم، البريد، الهاتف)</label>
-          <Input id="q" v-model="q" name="q" placeholder="ابحث..." class="w-64" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label for="status" class="text-xs font-medium text-text-secondary">الحالة</label>
+      <!-- 2 — Stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="إجمالي العملاء"
+          :value="stats.total"
+          :trend="stats.total === 0 ? 'لا يوجد عملاء بعد' : `نشط: ${activeShare}%`"
+          trend-direction="neutral"
+        />
+        <StatCard
+          title="العملاء النشطون"
+          :value="stats.active"
+          :trend="stats.total > 0 ? `${activeShare}% من الإجمالي` : ''"
+          trend-direction="up"
+        />
+        <StatCard
+          title="غير النشطين"
+          :value="stats.inactive"
+          :trend="stats.total > 0 ? `${inactiveShare}% من الإجمالي` : ''"
+          :trend-direction="stats.inactive > 0 ? 'down' : 'neutral'"
+        />
+        <StatCard
+          title="جدد هذا الشهر"
+          :value="stats.new_this_month"
+          :trend="stats.new_this_month > 0 ? `+${stats.new_this_month} منذ بداية الشهر` : 'لا انضمامات بعد'"
+          :trend-direction="stats.new_this_month > 0 ? 'up' : 'neutral'"
+        />
+      </div>
+
+      <!-- 3 — Toolbar + 4 — Table (wrapped in a single card-style surface for cohesion) -->
+      <div class="bg-surface-card rounded-lg shadow-sm">
+        <form class="flex flex-wrap gap-3 items-center p-4 border-b border-border-default" @submit.prevent="applyFilters()">
+          <div class="relative flex-1 min-w-64 max-w-md">
+            <Search class="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-text-tertiary" aria-hidden="true" />
+            <Input
+              id="q"
+              v-model="q"
+              name="q"
+              placeholder="ابحث بالاسم، البريد، الهاتف…"
+              class="ps-9"
+            />
+          </div>
           <select
-            id="status"
             v-model="status"
             name="status"
+            aria-label="فلتر الحالة"
             class="rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
           >
-            <option value="">الكل</option>
+            <option value="">كل الحالات</option>
             <option value="active">نشط</option>
             <option value="inactive">غير نشط</option>
           </select>
-        </div>
-        <Button type="submit">بحث</Button>
-        <Button type="button" variant="outline" @click="resetFilters">تفريغ</Button>
-      </form>
+          <Button type="submit" size="sm">تطبيق</Button>
+          <Button type="button" variant="ghost" size="sm" @click="resetFilters">تفريغ</Button>
+        </form>
 
-      <AdminDataTable
-        :columns="columns"
-        :data="customers.data"
-        :server-meta="customers"
-        :on-page-change="goToPage"
-        empty-text="لا يوجد عملاء."
-      />
+        <div class="px-4 pb-4">
+          <AdminDataTable
+            :columns="columns"
+            :data="customers.data"
+            :server-meta="customers"
+            :on-page-change="goToPage"
+            empty-text="لا يوجد عملاء يطابقون الفلاتر."
+          />
+        </div>
+      </div>
     </div>
 
     <Modal :open="showCreate" title="إضافة عميل" @update:open="showCreate = $event">

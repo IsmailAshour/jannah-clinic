@@ -50,9 +50,18 @@ class CustomerController extends Controller
 
         $customers = $query->paginate(20)->withQueryString();
 
+        $base = User::query()->where('role', UserRole::Customer);
+        $stats = [
+            'total' => (clone $base)->count(),
+            'active' => (clone $base)->where('is_active', true)->count(),
+            'inactive' => (clone $base)->where('is_active', false)->count(),
+            'new_this_month' => (clone $base)->where('created_at', '>=', now()->startOfMonth())->count(),
+        ];
+
         return Inertia::render('Admin/Customers/Index', [
             'customers' => $customers,
             'filters' => $request->only(['q', 'status']),
+            'stats' => $stats,
         ]);
     }
 

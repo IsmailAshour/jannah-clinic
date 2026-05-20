@@ -6,8 +6,10 @@ use App\Domain\Booking\Data\BookingData;
 use App\Domain\Booking\Exceptions\InvalidTransitionException;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\AppointmentStatus;
+use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\ServiceAddress;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +20,7 @@ class AppointmentTransitionService
         private readonly NotificationService $notifications,
     ) {}
 
-    public function transition(Appointment $a, AppointmentStatus $to, ?string $reason = null): Appointment
+    public function transition(Appointment $a, AppointmentStatus $to, ?string $reason = null, ?User $initiator = null): Appointment
     {
         if (! $a->status->canTransitionTo($to)) {
             throw new InvalidTransitionException("انتقال غير مسموح: {$a->status->value} → {$to->value}");
@@ -36,18 +38,20 @@ class AppointmentTransitionService
         // Notify AFTER the transaction commits — a notification failure
         // must not roll back an appointment status change.
         $a->load('customer', 'doctor.user');
-        match ($to) {
-            AppointmentStatus::Confirmed => $this->notifications->appointmentConfirmed($a),
-            AppointmentStatus::Rejected => $this->notifications->appointmentRejected($a),
-            AppointmentStatus::Cancelled => $this->notifications->appointmentCancelledByStaff($a),
-            AppointmentStatus::Completed => $this->notifications->appointmentCompleted($a),
+        $byCustomer = $initiator?->role === UserRole::Customer;
+        match (true) {
+            $to === AppointmentStatus::Confirmed => $this->notifications->appointmentConfirmed($a),
+            $to === AppointmentStatus::Rejected => $this->notifications->appointmentRejected($a),
+            $to === AppointmentStatus::Cancelled && $byCustomer => $this->notifications->appointmentCancelledByCustomer($a),
+            $to === AppointmentStatus::Cancelled => $this->notifications->appointmentCancelledByStaff($a),
+            $to === AppointmentStatus::Completed => $this->notifications->appointmentCompleted($a),
             default => null,
         };
 
         return $a;
     }
 
-    public function reschedule(Appointment $old, CarbonImmutable $newStart): Appointment
+    public function reschedule(Appointment $old, CarbonImmutable $newStart, ?User $initiator = null): Appointment
     {
         $new = DB::transaction(function () use ($old, $newStart) {
             if (! $old->status->canTransitionTo(AppointmentStatus::Rescheduled)) {
@@ -73,7 +77,12 @@ class AppointmentTransitionService
 
             return $new;
         });
-        $this->notifications->appointmentRescheduledForCustomer($new->fresh()->load('customer'));
+        $fresh = $new->fresh()->load('customer', 'doctor.user');
+        if ($initiator?->role === UserRole::Customer) {
+            $this->notifications->appointmentRescheduledForStaff($fresh);
+        } else {
+            $this->notifications->appointmentRescheduledForCustomer($fresh);
+        }
 
         return $new;
     }

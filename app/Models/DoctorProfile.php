@@ -10,6 +10,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string|null $specialty
+ * @property string|null $bio
+ * @property string|null $rating_average
+ * @property bool $is_bookable
+ * @property int $display_order
+ * @property User $user
+ */
 #[Fillable(['user_id', 'specialty', 'bio', 'rating_average', 'is_bookable', 'display_order'])]
 class DoctorProfile extends Model
 {

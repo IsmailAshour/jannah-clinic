@@ -170,6 +170,45 @@ it('PrescriptionService::syncForEntry notifies the customer on new prescription'
     expect($this->customer->notifications()->latest()->first()?->data['title'])->toContain('وصفة');
 });
 
+it('customer cancel notifies managers + assigned doctor, NOT the customer', function () {
+    $appt = mkApptWithPayment($this->customer, $this->doctor);
+    $this->customer->notifications()->delete();
+    $this->manager->notifications()->delete();
+    $this->doctorUser->notifications()->delete();
+
+    app(AppointmentTransitionService::class)
+        ->transition($appt, AppointmentStatus::Cancelled, 'customer-changed-mind', $this->customer);
+
+    expect($this->manager->notifications()->count())->toBe(1)
+        ->and($this->doctorUser->notifications()->count())->toBe(1)
+        ->and($this->customer->notifications()->count())->toBe(0)
+        ->and($this->manager->notifications()->latest()->first()?->data['title'])->toContain('إلغاء موعد من العميل');
+});
+
+it('staff cancel notifies the customer, NOT managers', function () {
+    $appt = mkApptWithPayment($this->customer, $this->doctor);
+    $this->customer->notifications()->delete();
+    $this->manager->notifications()->delete();
+    $this->doctorUser->notifications()->delete();
+
+    app(AppointmentTransitionService::class)
+        ->transition($appt, AppointmentStatus::Cancelled, 'overbook', $this->manager);
+
+    expect($this->customer->notifications()->count())->toBe(1)
+        ->and($this->manager->notifications()->count())->toBe(0)
+        ->and($this->customer->notifications()->latest()->first()?->data['title'])->toContain('تمّ إلغاء موعدك');
+});
+
+it('staff cancel with null initiator still notifies the customer (backward compatible)', function () {
+    $appt = mkApptWithPayment($this->customer, $this->doctor);
+    $this->customer->notifications()->delete();
+
+    app(AppointmentTransitionService::class)
+        ->transition($appt, AppointmentStatus::Cancelled, 'reason');
+
+    expect($this->customer->notifications()->latest()->first()?->data['title'])->toContain('تمّ إلغاء موعدك');
+});
+
 it('markRefundPending does NOT notify (internal staging)', function () {
     Storage::fake('local');
     $appt = mkApptWithPayment($this->customer, $this->doctor);

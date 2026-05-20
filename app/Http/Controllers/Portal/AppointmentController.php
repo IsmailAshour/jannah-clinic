@@ -43,7 +43,8 @@ class AppointmentController extends Controller
             app(AppointmentTransitionService::class)->transition(
                 $appointment,
                 AppointmentStatus::Cancelled,
-                $v['reason']
+                $v['reason'],
+                $request->user(),
             );
         } catch (InvalidTransitionException $e) {
             return back()->withErrors(['appointment' => $e->getMessage()]);
@@ -63,7 +64,7 @@ class AppointmentController extends Controller
         $startAt = CarbonImmutable::parse($v['start']);
 
         try {
-            app(AppointmentTransitionService::class)->reschedule($appointment, $startAt);
+            app(AppointmentTransitionService::class)->reschedule($appointment, $startAt, $request->user());
         } catch (InvalidTransitionException $e) {
             return back()->withErrors(['appointment' => $e->getMessage()]);
         } catch (SlotUnavailableException $e) {

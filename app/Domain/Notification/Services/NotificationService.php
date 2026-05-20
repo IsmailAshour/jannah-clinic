@@ -85,6 +85,28 @@ class NotificationService
         ]), 'appointmentRejected');
     }
 
+    public function appointmentCancelledByCustomer(Appointment $a): void
+    {
+        $recipients = User::query()
+            ->where('role', UserRole::Manager)
+            ->where('is_active', true)
+            ->get();
+        $payload = [
+            'category' => NotificationCategory::Appointment->value,
+            'title' => 'إلغاء موعد من العميل',
+            'body' => "ألغى {$a->customer->name} الموعد بتاريخ {$a->start_at->isoFormat('D MMM HH:mm')}.",
+            'action_url' => "/admin/appointments/{$a->id}",
+            'subject_type' => Appointment::class,
+            'subject_id' => $a->id,
+        ];
+        foreach ($recipients as $r) {
+            $this->dispatch($r, new AppointmentChanged($payload), 'appointmentCancelledByCustomer');
+        }
+        if ($a->doctor && $a->doctor->user) {
+            $this->dispatch($a->doctor->user, new AppointmentChanged($payload), 'appointmentCancelledByCustomer');
+        }
+    }
+
     public function appointmentCancelledByStaff(Appointment $a): void
     {
         $this->dispatch($a->customer, new AppointmentChanged([
@@ -95,6 +117,28 @@ class NotificationService
             'subject_type' => Appointment::class,
             'subject_id' => $a->id,
         ]), 'appointmentCancelledByStaff');
+    }
+
+    public function appointmentRescheduledForStaff(Appointment $newAppt): void
+    {
+        $recipients = User::query()
+            ->where('role', UserRole::Manager)
+            ->where('is_active', true)
+            ->get();
+        $payload = [
+            'category' => NotificationCategory::Appointment->value,
+            'title' => 'إعادة جدولة من العميل',
+            'body' => "غيّر {$newAppt->customer->name} الموعد إلى {$newAppt->start_at->isoFormat('D MMM HH:mm')}.",
+            'action_url' => "/admin/appointments/{$newAppt->id}",
+            'subject_type' => Appointment::class,
+            'subject_id' => $newAppt->id,
+        ];
+        foreach ($recipients as $r) {
+            $this->dispatch($r, new AppointmentChanged($payload), 'appointmentRescheduledForStaff');
+        }
+        if ($newAppt->doctor && $newAppt->doctor->user) {
+            $this->dispatch($newAppt->doctor->user, new AppointmentChanged($payload), 'appointmentRescheduledForStaff');
+        }
     }
 
     public function appointmentRescheduledForCustomer(Appointment $newAppt): void

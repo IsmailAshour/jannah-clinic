@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Appointment;
+use App\Observers\AppointmentObserver;
 use App\Policies\AppointmentPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
@@ -26,5 +27,9 @@ class AppServiceProvider extends ServiceProvider
         Vite::prefetch(concurrency: 3);
 
         Gate::policy(Appointment::class, AppointmentPolicy::class);
+
+        // P2: auto-mark Payment as refund_pending when Appointment transitions to
+        // Cancelled or Rejected while paid (spec §3 hybrid lifecycle).
+        Appointment::observe(AppointmentObserver::class);
     }
 }

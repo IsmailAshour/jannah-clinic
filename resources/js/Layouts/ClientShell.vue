@@ -1,5 +1,6 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3'
+import { NotificationBell } from '@/Components/foundation'
 // TODO(P1): switch to Inertia persistent layout (defineOptions layout) to preserve bottom-nav/shell state across navigation.
 const tabs = [
   { label: 'الرئيسية', href: '/portal', real: true },
@@ -20,7 +21,8 @@ function isActive(t) {
   <div class="min-h-screen mx-auto max-w-md flex flex-col bg-surface-page">
     <header class="h-14 flex items-center px-4 border-b border-border-default bg-surface-card">
       <span class="font-bold text-brand">عيادة جنّة</span>
-      <Link href="/logout" method="post" as="button" class="ms-auto text-xs text-text-secondary">خروج</Link>
+      <NotificationBell href="/portal/notifications" class="ms-auto me-2" />
+      <Link href="/logout" method="post" as="button" class="text-xs text-text-secondary">خروج</Link>
     </header>
     <main class="flex-1 pb-20"><slot /></main>
     <nav class="z-shell fixed bottom-0 inset-inline-0 mx-auto max-w-md bg-surface-card border-t border-border-default grid grid-cols-5">

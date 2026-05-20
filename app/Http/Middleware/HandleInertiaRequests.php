@@ -49,6 +49,11 @@ class HandleInertiaRequests extends Middleware
             'adminCounts' => fn () => $request->user()?->isStaff()
                 ? ['submitted_payments' => Payment::query()->where('status', 'submitted')->count()]
                 : null,
+            // P5a — per-user unread notification count. Closure evaluated per request;
+            // single COUNT query when share is materialized. Guests get null.
+            'notifications' => fn () => $request->user()
+                ? ['unread_count' => $request->user()->unreadNotifications()->count()]
+                : null,
         ];
     }
 }

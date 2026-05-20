@@ -2,7 +2,7 @@
 import AdminShell from '@/Layouts/AdminShell.vue'
 import { PageHeader } from '@/Components/foundation'
 defineProps({
-  notifications: { type: Object, required: true },
+  feed: { type: Object, required: true },
   filters: { type: Object, required: true },
   categories: { type: Array, required: true },
 })

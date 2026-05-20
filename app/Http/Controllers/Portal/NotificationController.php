@@ -38,7 +38,7 @@ class NotificationController extends Controller
         ]);
 
         return Inertia::render('Portal/Notifications/Index', [
-            'notifications' => $notifications,
+            'feed' => $notifications,
             'filters' => ['category' => $category, 'unread' => $onlyUnread],
             'categories' => NotificationCategory::values(),
         ]);

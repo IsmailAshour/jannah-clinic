@@ -39,6 +39,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/Components/ui/collapsible'
+import { NotificationBell } from '@/Components/foundation'
 
 // TODO(P1): consider Inertia persistent layout (defineOptions layout) to keep shell state across navigations.
 //
@@ -257,6 +258,7 @@ const NavLink = defineComponent({
           the inline-start (visually right, adjacent to the sidebar).
         -->
         <SidebarTrigger class="-ms-2 me-auto" aria-label="القائمة" />
+        <NotificationBell href="/admin/notifications" class="me-2" />
         <Link href="/logout" method="post" as="button" class="text-sm text-text-secondary hover:text-text-primary">تسجيل الخروج</Link>
       </header>
       <div class="flex-1"><slot /></div>

@@ -3,6 +3,21 @@
 All notable changes to jannahclinic are documented here. Per Definition of Done Q.9,
 every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–P5).
 
+## [P4a] Loyalty Points — 2026-05-20
+
+**P4a complete:** customers earn `floor(amount)` points per shekel paid (1 ₪ = 1 point) on appointments whose service has `loyalty_enabled=true`. Points redeem at booking time against a per-service `loyalty_redemption_points` cost, replacing the `Payment` row entirely (the ledger entry IS the proof). Refunds claw back points symmetrically; cancellation/rejection of a loyalty-redeemed booking returns the points; reschedule preserves the balance (reverse old + redeem new). Manager-adjustment widget on the customer page (with reason + audit). Notifications dispatched after each ledger write through P5a's contained dispatcher. **No SMS/email, no expiry, no tiers** — all deferred.
+
+- **Domain:** append-only `loyalty_ledger` (`save()` throws on update, `delete()` throws unconditionally, CI grep gate prevents bypass) + `customer_profiles.loyalty_balance` cache + `services.loyalty_enabled` / `services.loyalty_redemption_points` + `appointments.payment_method` / `appointments.loyalty_points_spent`. Postgres CHECK constraints on reason set, points sign, and method/spent consistency. Partial unique index `(reason, reference_type, reference_id) WHERE reference_type IS NOT NULL` enforces idempotency at DB level.
+- **`LoyaltyService`** mirrors `AuditLogger` / `NotificationService` patterns: explicit, transactional, idempotent via DB partial unique + try/catch. `redeemForAppointment` is the only call INSIDE a domain transaction (`BookingService`) — every other writer dispatches AFTER `DB::transaction` returns, per the P5a lesson. `writeEntry` uses `lockForUpdate()` on the profile to serialize concurrent balance arithmetic.
+- **Routes (3 new — locked):** `admin.customers.loyalty.show` / `admin.customers.loyalty.adjust` (manager only) / `portal.loyalty.index`.
+- **Notifications (P5a integration):** new `NotificationCategory::Loyalty` enum case; new `LoyaltyChanged` notification class; 4 generators wired through the existing `dispatch()` helper that contains failures via try/catch + log.
+- **UI:** service-edit modal gains loyalty section (toggle + redemption cost, conditional disable, watch-clear on toggle-off); customer-detail page gains balance + 10-row preview + manager adjust modal + full-ledger page at `/admin/customers/{id}/loyalty`; portal gains `/portal/loyalty` with balance card + lifetime summary + filter tabs (all/earn/redeem); BookingWizard step 3 gets a `<PaymentMethodPicker>` (extracted as a foundation component for testability). ClientShell bottom nav extends from 5 to 6 tabs (adds "نقاطي").
+- **Auth:** customer reads own ledger only; staff read any; manager-only adjust (route middleware + service-layer double check); receptionist/doctor cannot adjust.
+- **Tests:** ~30 Pest + 7 Vitest covering: rollback invariant, append-only invariant, idempotency via partial unique, chain invariant across consecutive writes, earn-only-when-enabled, refund clawback, redeem at booking, reschedule preserves balance, reject reverses, manager-adjust dispatches notification, payment-picker visibility matrix, full Portal loyalty page rendering.
+- **Reduced scope:** redemption badges on services browse page (originally Task 8 sub-feature) — dropped per the no-badges directive.
+- **Ops:** `loyalty:rebuild-balances` artisan command (chunked, idempotent).
+- **Tag:** `p4a-loyalty`.
+
 ## [P5a] Notification System — 2026-05-20
 
 **P5a complete:** event-driven in-app notifications fan out from the existing

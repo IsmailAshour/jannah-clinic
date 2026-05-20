@@ -526,6 +526,24 @@ The deferred-items table in the spec §9 lists the reactivation trigger for each
 
 ---
 
+## Loyalty Points (P4a)
+
+In-app retention mechanic: every cash payment earns `floor(amount)` points (1 ₪ = 1 point); points redeem at booking against per-service redemption costs.
+
+- **Storage:** append-only `loyalty_ledger` (mirrors `medical_audit_logs` invariants — `save()` throws on `$exists`, `delete()` throws unconditionally; CI grep gate enforces no `LoyaltyLedger::*->update()` or direct `DB::table('loyalty_ledger')`). `customer_profiles.loyalty_balance` is a denormalized cache; ledger is the source of truth.
+- **Reasons enum:** `App\Enums\LoyaltyReason` — `earned_from_payment` / `redeemed_for_appointment` / `clawback_from_refund` / `refund_reversal` / `adjustment_by_manager`. Postgres CHECK constraint pins the set.
+- **Per-service flags:** `services.loyalty_enabled` (bool, required at create/update) controls participation in both directions; `services.loyalty_redemption_points` (int, nullable, > 0) is the redemption cost.
+- **Booking payment methods:** `appointments.payment_method` ∈ `{cash, loyalty_points}` (cast to `App\Enums\PaymentMethod`). Loyalty-paid appointments have NO `Payment` row; the ledger entry IS the proof of payment.
+- **Generator:** `App\Domain\Loyalty\Services\LoyaltyService` — explicit, transactional. Idempotent on award/clawback/reverse via the partial unique index `(reason, reference_type, reference_id) WHERE reference_type IS NOT NULL` + try/catch on `UniqueConstraintViolationException`. Balance writes use `lockForUpdate()` on the profile to serialize concurrent arithmetic.
+- **Wiring:** `PaymentService::verify` (award, gated on `service.loyalty_enabled`), `PaymentService::markRefunded` (clawback, unconditional/idempotent), `BookingService::book` (redeem INSIDE the transaction — the redemption must roll back if booking fails), `AppointmentTransitionService::transition` (reverse on `Cancelled` OR `Rejected` with `payment_method=loyalty_points`), `AppointmentTransitionService::reschedule` (reverse old redemption FIRST, then re-redeem for the new appointment, preserving the customer's balance across reschedules).
+- **Notifications:** 4 LoyaltyChanged generators (`loyaltyPointsEarned/Redeemed/Adjusted/Reversed`) dispatched after the ledger write commits via P5a's `dispatch()` helper (try/catch + log on failure — never propagates).
+- **Authorization:** customer reads own ledger; staff read any; manager-only `adjust` (route + service-layer double-check).
+- **Ops command:** `php artisan loyalty:rebuild-balances` recomputes the cache from the ledger sum (chunked, idempotent).
+
+**Deferred to future ADRs:** points expiry, VIP tiers, promotional 2x campaigns, point transfers between customers, mixed redemption (partial points + cash), SMS/email loyalty notifications, memberships (P4b — independent sub-project). See spec §10 for the full deferred-items table.
+
+---
+
 ## Related Documents
 
 - ADR-001: `docs/adr/001-adopt-methodology-kit.md`
@@ -535,3 +553,4 @@ The deferred-items table in the spec §9 lists the reactivation trigger for each
 - Spec roadmap (§2 P1–P5): `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md`
 - Domain Model: `docs/DOMAIN-MODEL.md`
 - P5a Notifications spec: `docs/superpowers/specs/2026-05-20-jannahclinic-p5a-notifications-design.md`
+- P4a Loyalty Points spec: `docs/superpowers/specs/2026-05-20-jannahclinic-p4a-loyalty-design.md`

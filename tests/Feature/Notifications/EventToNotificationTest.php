@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Booking\Services\AppointmentTransitionService;
 use App\Domain\Payment\Services\PaymentService;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
@@ -104,6 +105,38 @@ it('markRefunded notifies the customer', function () {
     app(PaymentService::class)->markRefunded($payment->fresh(), $this->manager, 'TX-001');
 
     expect($this->customer->notifications()->latest()->first()?->data['title'])->toContain('استرداد');
+});
+
+it('appointment Confirmed transition notifies the customer', function () {
+    $appt = mkApptWithPayment($this->customer, $this->doctor);
+    $appt->status = AppointmentStatus::Requested;
+    $appt->save();
+    $this->customer->notifications()->delete();
+
+    app(AppointmentTransitionService::class)
+        ->transition($appt, AppointmentStatus::Confirmed);
+
+    expect($this->customer->notifications()->latest()->first()?->data['title'])->toContain('تأكيد');
+});
+
+it('appointment Cancelled-by-staff notifies the customer', function () {
+    $appt = mkApptWithPayment($this->customer, $this->doctor);
+    $this->customer->notifications()->delete();
+
+    app(AppointmentTransitionService::class)
+        ->transition($appt, AppointmentStatus::Cancelled, 'overbook');
+
+    expect($this->customer->notifications()->latest()->first()?->data['title'])->toContain('إلغاء');
+});
+
+it('appointment Completed notifies the customer', function () {
+    $appt = mkApptWithPayment($this->customer, $this->doctor);
+    $this->customer->notifications()->delete();
+
+    app(AppointmentTransitionService::class)
+        ->transition($appt, AppointmentStatus::Completed);
+
+    expect($this->customer->notifications()->latest()->first()?->data['title'])->toContain('اكتمل');
 });
 
 it('markRefundPending does NOT notify (internal staging)', function () {

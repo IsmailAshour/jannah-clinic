@@ -4,6 +4,7 @@ namespace App\Domain\Booking\Services;
 
 use App\Domain\Booking\Data\BookingData;
 use App\Domain\Booking\Exceptions\InvalidTransitionException;
+use App\Domain\Notification\Services\NotificationService;
 use App\Enums\AppointmentStatus;
 use App\Models\Appointment;
 use App\Models\ServiceAddress;
@@ -12,24 +13,35 @@ use Illuminate\Support\Facades\DB;
 
 class AppointmentTransitionService
 {
-    public function __construct(private readonly BookingService $booking) {}
+    public function __construct(
+        private readonly BookingService $booking,
+        private readonly NotificationService $notifications,
+    ) {}
 
     public function transition(Appointment $a, AppointmentStatus $to, ?string $reason = null): Appointment
     {
-        // MVP: no row lock — two concurrent staff transitions are last-write-wins between
-        // two *valid* successors (cannot produce an invalid/terminal-bypassing state, since
-        // canTransitionTo() guards against the in-memory status). Acceptable for low-concurrency
-        // trusted staff; revisit with DB::transaction+lockForUpdate if multi-staff contention appears (P2).
         if (! $a->status->canTransitionTo($to)) {
             throw new InvalidTransitionException("انتقال غير مسموح: {$a->status->value} → {$to->value}");
         }
-        $a->status = $to;
-        if ($to === AppointmentStatus::Cancelled) {
-            $a->cancellation_reason = $reason;
-        }
-        $a->save();
 
-        return $a;
+        return DB::transaction(function () use ($a, $to, $reason) {
+            $a->status = $to;
+            if ($to === AppointmentStatus::Cancelled) {
+                $a->cancellation_reason = $reason;
+            }
+            $a->save();
+            $a->load('customer', 'doctor.user');
+
+            match ($to) {
+                AppointmentStatus::Confirmed => $this->notifications->appointmentConfirmed($a),
+                AppointmentStatus::Rejected => $this->notifications->appointmentRejected($a),
+                AppointmentStatus::Cancelled => $this->notifications->appointmentCancelledByStaff($a),
+                AppointmentStatus::Completed => $this->notifications->appointmentCompleted($a),
+                default => null,
+            };
+
+            return $a;
+        });
     }
 
     public function reschedule(Appointment $old, CarbonImmutable $newStart): Appointment
@@ -55,6 +67,7 @@ class AppointmentTransitionService
             $new->save();
             $old->status = AppointmentStatus::Rescheduled;
             $old->save();
+            $this->notifications->appointmentRescheduledForCustomer($new->fresh()->load('customer'));
 
             return $new;
         });

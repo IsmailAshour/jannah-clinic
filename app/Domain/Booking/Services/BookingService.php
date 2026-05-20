@@ -5,6 +5,7 @@ namespace App\Domain\Booking\Services;
 use App\Domain\Booking\Data\BookingData;
 use App\Domain\Booking\Exceptions\InvalidBookingException;
 use App\Domain\Booking\Exceptions\SlotUnavailableException;
+use App\Domain\Notification\Services\NotificationService;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
 use App\Enums\PaymentStatus;
@@ -20,6 +21,7 @@ class BookingService
     public function __construct(
         private readonly AvailabilityService $availability,
         private readonly PricingService $pricing,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function book(BookingData $d): Appointment
@@ -81,7 +83,10 @@ class BookingService
                 'status' => PaymentStatus::Pending,
             ]);
 
-            return $appt->fresh(['serviceAddress', 'payment']);
+            $fresh = $appt->fresh(['serviceAddress', 'payment']);
+            $this->notifications->bookingRequested($fresh->load('customer'));
+
+            return $fresh;
         });
     }
 }

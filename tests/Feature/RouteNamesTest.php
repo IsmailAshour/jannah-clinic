@@ -22,6 +22,9 @@ it('exposes canonical single-prefixed P1 route names', function () {
         'portal.appointments.payment', 'portal.appointments.payment.upload',
         'admin.payments.index', 'admin.payments.show', 'admin.payments.receipt-file',
         'admin.payments.verify', 'admin.payments.reject', 'admin.payments.mark-refund-pending', 'admin.payments.mark-refunded',
+        'admin.appointments.medical-entry.store', 'admin.appointments.medical-entry.create',
+        'admin.medical-entries.edit', 'admin.medical-entries.update',
+        'admin.customers.profile.medical.update',
     ];
     foreach ($names as $n) {
         expect(Route::has($n))->toBeTrue("missing route name: {$n}");

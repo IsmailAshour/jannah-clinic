@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CoverageAreaController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\DoctorScheduleController;
+use App\Http\Controllers\Admin\MedicalEntryController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
@@ -50,6 +51,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         // Customer admin (Polish-D) — read-only for all staff
         Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
         Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+
+        // P3 — Medical Records read (all staff with view policy; receptionist blocked at policy layer)
+        Route::get('medical-entries/{entry}/edit', [MedicalEntryController::class, 'edit'])
+            ->name('medical-entries.edit');
 
         // Payments (P2) — read + receipt file (all staff)
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
@@ -95,5 +100,21 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::post('payments/{payment}/reject', [PaymentController::class, 'reject'])->name('payments.reject');
             Route::post('payments/{payment}/mark-refund-pending', [PaymentController::class, 'markRefundPending'])->name('payments.mark-refund-pending');
             Route::post('payments/{payment}/mark-refunded', [PaymentController::class, 'markRefunded'])->name('payments.mark-refunded');
+        });
+
+        // P3 — Medical record writes (doctor only)
+        Route::middleware('role:doctor')->group(function () {
+            Route::post('appointments/{appointment}/medical-entry', [MedicalEntryController::class, 'store'])
+                ->name('appointments.medical-entry.store');
+            Route::get('appointments/{appointment}/medical-entry/create', [MedicalEntryController::class, 'create'])
+                ->name('appointments.medical-entry.create');
+            Route::put('medical-entries/{entry}', [MedicalEntryController::class, 'update'])
+                ->name('medical-entries.update');
+        });
+
+        // P3 — Customer medical profile (manager + doctor)
+        Route::middleware('role:manager,doctor')->group(function () {
+            Route::put('customers/{customer}/profile/medical', [CustomerController::class, 'updateMedicalProfile'])
+                ->name('customers.profile.medical.update');
         });
     });

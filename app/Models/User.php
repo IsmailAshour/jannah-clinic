@@ -48,6 +48,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(CustomerProfile::class);
     }
 
+    public function doctorProfile(): HasOne
+    {
+        return $this->hasOne(DoctorProfile::class);
+    }
+
     public function isStaff(): bool
     {
         return $this->role instanceof UserRole && $this->role->isStaff();

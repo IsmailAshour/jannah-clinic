@@ -174,4 +174,38 @@ class CustomerController extends Controller
             $customer->is_active ? 'تم تفعيل العميل.' : 'تم تعطيل العميل.'
         );
     }
+
+    public function updateMedicalProfile(
+        Request $request,
+        User $customer,
+        \App\Domain\MedicalRecord\Services\AuditLogger $audit
+    ): RedirectResponse {
+        abort_unless($customer->role === UserRole::Customer, 404);
+        abort_unless(
+            in_array($request->user()->role, [UserRole::Manager, UserRole::Doctor], true),
+            403,
+        );
+
+        $data = $request->validate([
+            'chronic_conditions' => 'nullable|string|max:5000',
+            'allergies' => 'nullable|string|max:5000',
+        ]);
+
+        DB::transaction(function () use ($customer, $data, $audit) {
+            $profile = CustomerProfile::firstOrCreate(['user_id' => $customer->id]);
+            $profile->fill($data);
+            $dirty = array_keys($profile->getDirty());
+            $profile->save();
+            if ($dirty !== []) {
+                $audit->record(
+                    \App\Enums\MedicalAuditAction::ProfileMedicalUpdated,
+                    $profile,
+                    $customer,
+                    $dirty,
+                );
+            }
+        });
+
+        return back()->with('success', 'تم تحديث الملف الطبي.');
+    }
 }

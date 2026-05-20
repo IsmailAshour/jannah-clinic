@@ -82,6 +82,24 @@ class CustomerController extends Controller
 
         $isReceptionist = $request->user()->role === UserRole::Receptionist;
 
+        $addableAppointments = [];
+        if ($request->user()->role === UserRole::Doctor && $request->user()->doctorProfile) {
+            $addableAppointments = Appointment::query()
+                ->where('customer_id', $customer->id)
+                ->where('doctor_profile_id', $request->user()->doctorProfile->id)
+                ->where('status', AppointmentStatus::Completed)
+                ->whereDoesntHave('medicalEntry')
+                ->with('service:id,name')
+                ->orderByDesc('start_at')
+                ->get()
+                ->map(fn ($a) => [
+                    'id' => $a->id,
+                    'start_at' => $a->start_at->toIso8601String(),
+                    'service' => $a->service->name,
+                ])
+                ->all();
+        }
+
         $medicalEntries = null;
         if (! $isReceptionist) {
             $medicalEntries = MedicalEntry::query()
@@ -105,6 +123,7 @@ class CustomerController extends Controller
             'medicalEntries' => $medicalEntries,
             'canViewMedical' => ! $isReceptionist,
             'canEditMedicalProfile' => in_array($request->user()->role, [UserRole::Manager, UserRole::Doctor], true),
+            'addableAppointments' => $addableAppointments,
         ]);
     }
 

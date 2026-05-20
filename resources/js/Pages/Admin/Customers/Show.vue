@@ -26,7 +26,15 @@ const props = defineProps({
   medicalEntries: { type: Object, default: null },
   canViewMedical: { type: Boolean, default: false },
   canEditMedicalProfile: { type: Boolean, default: false },
+  addableAppointments: { type: Array, default: () => [] },
 })
+
+const showAddEntryModal = ref(false)
+
+function openMedicalEntryFor(apptId) {
+  showAddEntryModal.value = false
+  router.visit(`/admin/appointments/${apptId}/medical-entry/create`)
+}
 
 const page = usePage()
 // Role lives on the authenticated user — staff is manager/doctor/receptionist;
@@ -362,6 +370,11 @@ const entryColumns = [
 
       <!-- Medical entries — AdminDataTable -->
       <FormSection v-if="canViewMedical && medicalEntries" title="السجل الطبي للزيارات">
+        <div v-if="addableAppointments.length > 0" class="flex justify-end">
+          <Button variant="default" size="sm" @click="showAddEntryModal = true">
+            + إضافة سجل لزيارة مكتملة
+          </Button>
+        </div>
         <AdminDataTable
           :columns="entryColumns"
           :data="medicalEntries.data"
@@ -450,6 +463,33 @@ const entryColumns = [
       <template #footer>
         <Button variant="outline" @click="showEdit = false">إلغاء</Button>
         <Button :disabled="form.processing" @click="submitEdit">حفظ التعديلات</Button>
+      </template>
+    </Modal>
+
+    <!-- Add medical entry modal — picks from completed appointments without an entry -->
+    <Modal
+      :open="showAddEntryModal"
+      title="اختر زيارة لإضافة سجلها الطبي"
+      @update:open="showAddEntryModal = $event"
+    >
+      <div v-if="addableAppointments.length === 0" class="text-sm text-text-secondary">
+        لا توجد زيارات مكتملة بانتظار التوثيق.
+      </div>
+      <ul v-else class="divide-y divide-border-default">
+        <li
+          v-for="appt in addableAppointments"
+          :key="appt.id"
+          class="flex items-center justify-between py-3"
+        >
+          <div class="text-sm">
+            <div class="text-text-primary">{{ formatDateTime(appt.start_at) }}</div>
+            <div class="text-text-secondary">{{ appt.service || '—' }}</div>
+          </div>
+          <Button size="sm" @click="openMedicalEntryFor(appt.id)">إضافة</Button>
+        </li>
+      </ul>
+      <template #footer>
+        <Button variant="outline" @click="showAddEntryModal = false">إغلاق</Button>
       </template>
     </Modal>
   </AdminShell>

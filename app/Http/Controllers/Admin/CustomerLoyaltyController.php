@@ -26,6 +26,16 @@ class CustomerLoyaltyController extends Controller
             ->orderByDesc('id')
             ->paginate(20);
 
+        $ledger->through(fn (\Illuminate\Notifications\DatabaseNotification|LoyaltyLedger $e) => [
+            'id' => $e->id,
+            'points_delta' => $e->points_delta,
+            'balance_after' => $e->balance_after,
+            'reason' => $e->reason,
+            'notes' => $e->notes,
+            'actor_name' => $e->actor?->name,
+            'created_at' => $e->created_at->toIso8601String(),
+        ]);
+
         return Inertia::render('Admin/Customers/Loyalty', [
             'customer' => ['id' => $customer->id, 'name' => $customer->name],
             'balance' => $this->loyalty->balance($customer),

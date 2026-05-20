@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Auth\Services\AuthService;
+use App\Domain\Loyalty\Services\LoyaltyService;
 use App\Domain\MedicalRecord\Services\AuditLogger;
 use App\Enums\AppointmentStatus;
 use App\Enums\MedicalAuditAction;
@@ -10,6 +11,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\CustomerProfile;
+use App\Models\LoyaltyLedger;
 use App\Models\MedicalEntry;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -125,6 +127,30 @@ class CustomerController extends Controller
             ]);
         }
 
+        $loyaltyBalance = app(LoyaltyService::class)->balance($customer);
+        $loyaltyPreview = LoyaltyLedger::query()
+            ->where('customer_id', $customer->id)
+            ->with('actor:id,name')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get()
+            ->map(fn ($e) => [
+                'id' => $e->id,
+                'points_delta' => $e->points_delta,
+                'balance_after' => $e->balance_after,
+                'reason' => $e->reason,
+                'notes' => $e->notes,
+                'actor_name' => $e->actor?->name,
+                'created_at' => $e->created_at->toIso8601String(),
+            ])
+            ->all();
+        $loyaltyTotals = [
+            'earned' => (int) LoyaltyLedger::query()->where('customer_id', $customer->id)
+                ->where('points_delta', '>', 0)->sum('points_delta'),
+            'redeemed' => abs((int) LoyaltyLedger::query()->where('customer_id', $customer->id)
+                ->where('points_delta', '<', 0)->sum('points_delta')),
+        ];
+
         return Inertia::render('Admin/Customers/Show', [
             'customer' => $customer,
             'appointments' => $appointments,
@@ -133,6 +159,10 @@ class CustomerController extends Controller
             'canViewMedical' => ! $isReceptionist,
             'canEditMedicalProfile' => in_array($request->user()->role, [UserRole::Manager, UserRole::Doctor], true),
             'addableAppointments' => $addableAppointments,
+            'loyaltyBalance' => $loyaltyBalance,
+            'loyaltyPreview' => $loyaltyPreview,
+            'loyaltyTotals' => $loyaltyTotals,
+            'canAdjustLoyalty' => $request->user()->role === UserRole::Manager,
         ]);
     }
 

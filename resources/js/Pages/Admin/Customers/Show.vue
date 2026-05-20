@@ -27,6 +27,10 @@ const props = defineProps({
   canViewMedical: { type: Boolean, default: false },
   canEditMedicalProfile: { type: Boolean, default: false },
   addableAppointments: { type: Array, default: () => [] },
+  loyaltyBalance: { type: Number, default: 0 },
+  loyaltyPreview: { type: Array, default: () => [] },
+  loyaltyTotals: { type: Object, default: () => ({ earned: 0, redeemed: 0 }) },
+  canAdjustLoyalty: { type: Boolean, default: false },
 })
 
 const showAddEntryModal = ref(false)
@@ -205,6 +209,31 @@ function saveMedical() {
   medForm.put(`/admin/customers/${props.customer.id}/profile/medical`, { preserveScroll: true })
 }
 
+const showAdjustModal = ref(false)
+const adjustForm = useForm({ delta: '', note: '' })
+
+function openAdjust() {
+  adjustForm.reset()
+  adjustForm.clearErrors()
+  showAdjustModal.value = true
+}
+function submitAdjust() {
+  adjustForm
+    .transform((data) => ({ delta: Number(data.delta), note: data.note }))
+    .post(`/admin/customers/${props.customer.id}/loyalty/adjust`, {
+      preserveScroll: true,
+      onSuccess: () => { showAdjustModal.value = false },
+    })
+}
+
+const reasonLabel = {
+  earned_from_payment: 'كسب من زيارة',
+  redeemed_for_appointment: 'استبدال للحجز',
+  clawback_from_refund: 'سحب بعد استرداد',
+  refund_reversal: 'إعادة بعد إلغاء',
+  adjustment_by_manager: 'تعديل من الإدارة',
+}
+
 // Medical entries — AdminDataTable column defs
 const entryColumns = [
   {
@@ -368,6 +397,51 @@ const entryColumns = [
         </dl>
       </FormSection>
 
+      <!-- Loyalty section -->
+      <FormSection v-if="canViewMedical" title="نقاط الولاء" description="رصيد العميل وآخر 10 حركات.">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-surface-page rounded-lg p-4">
+            <p class="text-sm text-text-secondary">الرصيد الحالي</p>
+            <p class="text-3xl font-bold text-text-primary">{{ loyaltyBalance }}</p>
+          </div>
+          <div class="bg-surface-page rounded-lg p-4">
+            <p class="text-sm text-text-secondary">الكسب الإجمالي</p>
+            <p class="text-2xl font-semibold text-success">+{{ loyaltyTotals.earned }}</p>
+          </div>
+          <div class="bg-surface-page rounded-lg p-4">
+            <p class="text-sm text-text-secondary">الاستبدال الإجمالي</p>
+            <p class="text-2xl font-semibold text-danger">−{{ loyaltyTotals.redeemed }}</p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <Button v-if="canAdjustLoyalty" size="sm" variant="outline" @click="openAdjust">+ تعديل يدوي</Button>
+          <Button size="sm" variant="ghost" @click="router.visit(`/admin/customers/${customer.id}/loyalty`)">
+            عرض الكل
+          </Button>
+        </div>
+
+        <ul class="divide-y divide-border-default">
+          <li v-if="loyaltyPreview.length === 0" class="py-4 text-center text-text-tertiary text-sm">
+            لا توجد حركات نقاط بعد.
+          </li>
+          <li v-for="row in loyaltyPreview" :key="row.id" class="py-3 flex items-center gap-3">
+            <span :class="['text-sm font-semibold w-16', row.points_delta > 0 ? 'text-success' : 'text-danger']">
+              {{ row.points_delta > 0 ? '+' : '' }}{{ row.points_delta }}
+            </span>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm text-text-primary">{{ reasonLabel[row.reason] || row.reason }}</div>
+              <div class="text-xs text-text-tertiary truncate">
+                {{ row.notes || '—' }} {{ row.actor_name ? `· بواسطة ${row.actor_name}` : '' }}
+              </div>
+            </div>
+            <div class="text-xs text-text-tertiary shrink-0">
+              {{ new Date(row.created_at).toLocaleDateString('ar-SA') }}
+            </div>
+          </li>
+        </ul>
+      </FormSection>
+
       <!-- Medical entries — AdminDataTable -->
       <FormSection v-if="canViewMedical && medicalEntries" title="السجل الطبي للزيارات">
         <div v-if="addableAppointments.length > 0" class="flex justify-end">
@@ -463,6 +537,33 @@ const entryColumns = [
       <template #footer>
         <Button variant="outline" @click="showEdit = false">إلغاء</Button>
         <Button :disabled="form.processing" @click="submitEdit">حفظ التعديلات</Button>
+      </template>
+    </Modal>
+
+    <Modal :open="showAdjustModal" title="تعديل رصيد النقاط" @update:open="showAdjustModal = $event">
+      <form class="space-y-4" @submit.prevent="submitAdjust">
+        <FormGroup label="التغيير (موجب للإضافة، سالب للحسم)" name="delta" :error="adjustForm.errors.delta" required>
+          <template #default="{ describedby }">
+            <Input id="adj-delta" v-model="adjustForm.delta" type="number" name="delta" dir="ltr" :aria-describedby="describedby" />
+          </template>
+        </FormGroup>
+        <FormGroup label="السبب" name="note" :error="adjustForm.errors.note" required>
+          <template #default="{ describedby }">
+            <textarea
+              id="adj-note"
+              v-model="adjustForm.note"
+              name="note"
+              rows="3"
+              maxlength="500"
+              :aria-describedby="describedby"
+              class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
+            />
+          </template>
+        </FormGroup>
+      </form>
+      <template #footer>
+        <Button variant="outline" @click="showAdjustModal = false">إلغاء</Button>
+        <Button :disabled="adjustForm.processing" @click="submitAdjust">حفظ</Button>
       </template>
     </Modal>
 

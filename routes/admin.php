@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\DoctorScheduleController;
 use App\Http\Controllers\Admin\MedicalEntryController;
+use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
@@ -55,6 +56,11 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         // P3 — Medical Records read (all staff with view policy; receptionist blocked at policy layer)
         Route::get('medical-entries/{entry}/edit', [MedicalEntryController::class, 'edit'])
             ->name('medical-entries.edit');
+
+        // P5a — Notifications (any staff role can read their own feed)
+        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+        Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
 
         // Payments (P2) — read + receipt file (all staff)
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');

@@ -5,6 +5,7 @@ use App\Http\Controllers\Booking\AvailableDaysController;
 use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\BookingController;
 use App\Http\Controllers\Portal\MedicalRecordController;
+use App\Http\Controllers\Portal\NotificationController;
 use App\Http\Controllers\Portal\PaymentController;
 use App\Http\Controllers\Portal\ServiceBrowseController;
 use App\Http\Controllers\ProfileController;
@@ -38,4 +39,9 @@ Route::middleware(['auth', 'role:customer'])
         // P3 — Medical Record (customer view of own record)
         Route::get('medical-record', [MedicalRecordController::class, 'index'])->name('medical-record.index');
         Route::get('medical-record/entries/{entry}', [MedicalRecordController::class, 'show'])->name('medical-record.show');
+
+        // P5a — Notifications (customer feed)
+        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+        Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
     });

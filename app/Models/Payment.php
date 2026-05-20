@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PaymentStatus;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,9 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $appointment_id
  * @property string $amount
  * @property PaymentStatus $status
- * @property \Carbon\CarbonImmutable|null $verified_at
+ * @property CarbonImmutable|null $verified_at
  * @property int|null $verified_by
- * @property \Carbon\CarbonImmutable|null $refunded_at
+ * @property CarbonImmutable|null $refunded_at
  * @property int|null $refunded_by
  * @property string|null $refund_reference
  * @property string|null $rejection_reason

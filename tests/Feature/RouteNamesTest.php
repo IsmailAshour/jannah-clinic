@@ -31,6 +31,7 @@ it('exposes canonical single-prefixed P1 route names', function () {
         'admin.customers.loyalty.show', 'admin.customers.loyalty.adjust',
         'portal.loyalty.index',
         'public.home', 'public.services', 'public.doctors', 'public.support',
+        'portal.profile.edit', 'portal.profile.update',
     ];
     foreach ($names as $n) {
         expect(Route::has($n))->toBeTrue("missing route name: {$n}");

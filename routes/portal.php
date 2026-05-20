@@ -8,6 +8,7 @@ use App\Http\Controllers\Portal\LoyaltyController;
 use App\Http\Controllers\Portal\MedicalRecordController;
 use App\Http\Controllers\Portal\NotificationController;
 use App\Http\Controllers\Portal\PaymentController;
+use App\Http\Controllers\Portal\ProfileController as PortalProfileController;
 use App\Http\Controllers\Portal\ServiceBrowseController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -48,4 +49,8 @@ Route::middleware(['auth', 'role:customer'])
 
         // P4a — Loyalty (customer feed)
         Route::get('loyalty', [LoyaltyController::class, 'index'])->name('loyalty.index');
+
+        // P5b — customer profile
+        Route::get('profile', [PortalProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('profile', [PortalProfileController::class, 'update'])->name('profile.update');
     });

@@ -81,3 +81,38 @@ it('portal notifications index renders for customer', function () {
     notif($u);
     $this->actingAs($u)->get('/portal/notifications')->assertOk();
 });
+
+it('filters by category', function () {
+    $u = User::factory()->create(['role' => UserRole::Customer]);
+    notif($u, NotificationCategory::Appointment);
+    notif($u, NotificationCategory::Payment);
+    notif($u, NotificationCategory::Medical);
+
+    $resp = $this->actingAs($u)->get('/portal/notifications?category=payment')->assertOk();
+    $rows = $resp->viewData('page')['props']['feed']['data'];
+    expect($rows)->toHaveCount(1)
+        ->and($rows[0]['data']['category'])->toBe('payment');
+});
+
+it('filters by unread only', function () {
+    $u = User::factory()->create(['role' => UserRole::Customer]);
+    $r = notif($u);
+    $r->markAsRead();
+    notif($u);
+
+    $resp = $this->actingAs($u)->get('/portal/notifications?unread=1')->assertOk();
+    expect($resp->viewData('page')['props']['feed']['data'])->toHaveCount(1);
+});
+
+it('paginates at 20 per page', function () {
+    $u = User::factory()->create(['role' => UserRole::Customer]);
+    for ($i = 0; $i < 25; $i++) {
+        notif($u);
+    }
+
+    $resp = $this->actingAs($u)->get('/portal/notifications')->assertOk();
+    $meta = $resp->viewData('page')['props']['feed'];
+    expect(count($meta['data']))->toBe(20)
+        ->and($meta['current_page'])->toBe(1)
+        ->and($meta['last_page'])->toBe(2);
+});

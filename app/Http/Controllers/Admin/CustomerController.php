@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Auth\Services\AuthService;
+use App\Domain\MedicalRecord\Services\AuditLogger;
 use App\Enums\AppointmentStatus;
+use App\Enums\MedicalAuditAction;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\CustomerProfile;
+use App\Models\MedicalEntry;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -81,7 +84,7 @@ class CustomerController extends Controller
 
         $medicalEntries = null;
         if (! $isReceptionist) {
-            $medicalEntries = \App\Models\MedicalEntry::query()
+            $medicalEntries = MedicalEntry::query()
                 ->whereHas('appointment', fn ($q) => $q->where('customer_id', $customer->id))
                 ->with(['appointment:id,start_at', 'prescriptions:id,medical_entry_id'])
                 ->latest('created_at')
@@ -89,7 +92,7 @@ class CustomerController extends Controller
 
             $medicalEntries->through(fn ($e) => [
                 'id' => $e->id,
-                'date' => $e->appointment?->start_at?->toIso8601String(),
+                'date' => $e->appointment->start_at->toIso8601String(),
                 'visible_summary' => $e->visible_summary,
                 'prescriptions_count' => $e->prescriptions->count(),
             ]);
@@ -200,7 +203,7 @@ class CustomerController extends Controller
     public function updateMedicalProfile(
         Request $request,
         User $customer,
-        \App\Domain\MedicalRecord\Services\AuditLogger $audit
+        AuditLogger $audit
     ): RedirectResponse {
         abort_unless($customer->role === UserRole::Customer, 404);
         abort_unless(
@@ -220,7 +223,7 @@ class CustomerController extends Controller
             $profile->save();
             if ($dirty !== []) {
                 $audit->record(
-                    \App\Enums\MedicalAuditAction::ProfileMedicalUpdated,
+                    MedicalAuditAction::ProfileMedicalUpdated,
                     $profile,
                     $customer,
                     $dirty,

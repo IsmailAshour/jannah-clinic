@@ -16,7 +16,7 @@ it('throws on save after create (append-only)', function () {
 
     $log->action = MedicalAuditAction::EntryUpdated->value;
 
-    expect(fn () => $log->save())->toThrow(\LogicException::class, 'append-only');
+    expect(fn () => $log->save())->toThrow(LogicException::class, 'append-only');
 });
 
 it('throws on delete (append-only)', function () {
@@ -29,5 +29,5 @@ it('throws on delete (append-only)', function () {
         'customer_id' => $u->id,
     ]);
 
-    expect(fn () => $log->delete())->toThrow(\LogicException::class, 'append-only');
+    expect(fn () => $log->delete())->toThrow(LogicException::class, 'append-only');
 });

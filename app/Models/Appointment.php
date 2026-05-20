@@ -5,11 +5,25 @@ namespace App\Models;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
 use App\Enums\UserRole;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property int $id
+ * @property int $customer_id
+ * @property int $doctor_profile_id
+ * @property CarbonImmutable $start_at
+ * @property CarbonImmutable $end_at
+ * @property AppointmentStatus $status
+ * @property User $customer
+ * @property DoctorProfile $doctor
+ * @property Service $service
+ * @property Payment|null $payment
+ * @property MedicalEntry|null $medicalEntry
+ */
 #[Fillable(['customer_id', 'doctor_profile_id', 'service_id', 'start_at', 'end_at', 'status', 'price_at_booking', 'delivery_mode', 'home_surcharge_amount', 'created_by_role', 'cancellation_reason', 'rescheduled_from_id'])]
 class Appointment extends Model
 {

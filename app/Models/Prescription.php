@@ -6,6 +6,16 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $medical_entry_id
+ * @property string $medication_name
+ * @property string $dosage
+ * @property string $frequency
+ * @property string $duration
+ * @property string|null $notes
+ * @property MedicalEntry $entry
+ */
 #[Fillable(['medical_entry_id', 'medication_name', 'dosage', 'frequency', 'duration', 'notes'])]
 class Prescription extends Model
 {

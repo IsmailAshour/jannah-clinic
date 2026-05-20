@@ -19,7 +19,14 @@ use Illuminate\Notifications\Notifiable;
  * phone-only customers get trapped on /email/verify. See ADR-002 and the P0 plan
  * Task 8. Introduce a phone-aware verification guard before requiring verification.
  *
+ * @property int $id
+ * @property string $name
+ * @property string|null $email
+ * @property string|null $phone
  * @property UserRole $role
+ * @property bool $is_active
+ * @property CustomerProfile|null $customerProfile
+ * @property DoctorProfile|null $doctorProfile
  */
 #[Fillable(['name', 'email', 'password', 'phone', 'role', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]

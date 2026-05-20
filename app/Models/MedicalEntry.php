@@ -3,11 +3,22 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $appointment_id
+ * @property int $author_id
+ * @property string $visible_summary
+ * @property string|null $staff_notes
+ * @property Appointment $appointment
+ * @property User $author
+ * @property Collection<int, Prescription> $prescriptions
+ */
 #[Fillable(['appointment_id', 'author_id', 'visible_summary', 'staff_notes'])]
 class MedicalEntry extends Model
 {

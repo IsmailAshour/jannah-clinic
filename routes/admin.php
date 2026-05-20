@@ -83,6 +83,7 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
 
             // Settings mutations – manager only
             Route::put('settings/surcharge', [ClinicSettingController::class, 'updateSurcharge'])->name('settings.surcharge');
+            Route::put('settings/bank', [ClinicSettingController::class, 'saveBankInfo'])->name('settings.bank');
 
             // Customer admin mutations – manager only
             Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');

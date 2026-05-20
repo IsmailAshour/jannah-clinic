@@ -10,4 +10,10 @@ return [
     'day_start' => '08:00',
     'day_end' => '22:00',
     'band_split' => '15:00',
+    // Bank account info (P2). Defaults are empty; the live values are set at
+    // runtime via SettingService (DB-backed override) from the admin Settings page.
+    'bank_name' => env('CLINIC_BANK_NAME', ''),
+    'bank_account_holder' => env('CLINIC_BANK_ACCOUNT_HOLDER', ''),
+    'bank_iban' => env('CLINIC_BANK_IBAN', ''),
+    'bank_account_number' => env('CLINIC_BANK_ACCOUNT_NUMBER', ''),
 ];

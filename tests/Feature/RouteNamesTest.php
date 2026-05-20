@@ -10,7 +10,7 @@ it('exposes canonical single-prefixed P1 route names', function () {
         'admin.doctors.index', 'admin.doctors.store', 'admin.doctors.update', 'admin.doctors.destroy',
         'admin.doctors.schedule', 'admin.doctors.schedule.save', 'admin.doctors.exceptions.add', 'admin.doctors.exceptions.delete',
         'admin.coverage.index', 'admin.coverage.store', 'admin.coverage.update', 'admin.coverage.destroy',
-        'admin.settings.index', 'admin.settings.surcharge',
+        'admin.settings.index', 'admin.settings.surcharge', 'admin.settings.bank',
         'portal.services.index',
         'admin.availability', 'portal.availability',
         'admin.availability.days', 'portal.availability.days',

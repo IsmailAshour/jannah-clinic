@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (post-P1 polish: AdminShell sidebar rebuilt on shadcn-vue Sidebar — fixes desktop-RTL off-screen bug)
+> Last updated: 2026-05-20 (post-P1 polish: Customer admin page Polish-D — list/search/show/update/toggle-active; `users.is_active` + login guard)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -164,6 +164,17 @@ Vue page: `Pages/Admin/Booking/Create.vue` — wraps `BookingWizard` with `custo
 | POST | `/admin/appointments/{appointment}/transition` | `admin.appointments.transition` | `Admin\AppointmentController@transition` | all staff |
 
 Vue page: `Pages/Admin/Appointments/Index.vue` — paginated appointments with filter bar (status / doctor / date); per-row action buttons for status transitions gated by current state; cancel uses a `Modal` with reason textarea; delegates to `AppointmentTransitionService` (R7); `Gate::authorize('manage', $appointment)` (policy: isStaff). Error bag: `withErrors(['appointment' => $e->getMessage()])` on `InvalidTransitionException` (never abort).
+
+**Customer admin routes (Polish-D):**
+
+| Method | Path | Name | Controller | Auth |
+|--------|------|------|------------|------|
+| GET | `/admin/customers` | `admin.customers.index` | `Admin\CustomerController@index` | all staff |
+| GET | `/admin/customers/{customer}` | `admin.customers.show` | `Admin\CustomerController@show` | all staff |
+| PUT | `/admin/customers/{customer}` | `admin.customers.update` | `Admin\CustomerController@update` | manager only |
+| POST | `/admin/customers/{customer}/toggle-active` | `admin.customers.toggle-active` | `Admin\CustomerController@toggleActive` | manager only |
+
+Vue pages: `Pages/Admin/Customers/Index.vue` (list + filter bar — q across name/email/phone, status active/inactive), `Pages/Admin/Customers/Show.vue` (profile block + stats + paginated appointments + edit `Modal`). List always scoped to `role = Customer`; `show`/`update`/`toggleActive` `abort_unless($customer->role === Customer, 404)` (matches T10 ownership-guard pattern). Update validation: name (required), email/phone (nullable + unique ignoring own id), `is_active` (boolean), `date_of_birth` (nullable|date|before:today), `gender` (nullable|max:16), `notes` (nullable|max:2000). User + CustomerProfile upsert in `DB::transaction`. No destroy. Soft-disable via `users.is_active`; `LoginRequest` rejects inactive users with the uniform `auth.failed` failure (defence in depth, no info leak). AdminShell nav: `العملاء` leaf under the `العيادة` group (lucide `Contact2`).
 
 **`AppointmentTransitionService`** (`app/Domain/Booking/Services/AppointmentTransitionService.php`): encapsulates all appointment lifecycle transitions. `transition(Appointment, AppointmentStatus, ?reason)` enforces the state machine via `AppointmentStatus::canTransitionTo()`, throws `InvalidTransitionException` on illegal transitions, sets `cancellation_reason` when cancelling. `reschedule(Appointment, CarbonImmutable)` runs in `DB::transaction`: creates a new `requested` appointment via `BookingService::book()`, sets `rescheduled_from_id`, marks old appointment `rescheduled`.
 

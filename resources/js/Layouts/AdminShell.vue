@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CalendarPlus,
   ChevronRight,
+  Contact2,
   LayoutDashboard,
   MapPin,
   Package,
@@ -64,6 +65,7 @@ const nav = [
     label: 'العيادة',
     icon: Stethoscope,
     children: [
+      { label: 'العملاء', href: '/admin/customers', icon: Contact2 },
       { label: 'الأطباء', href: '/admin/doctors', icon: Users },
       { label: 'المواعيد', href: '/admin/appointments', icon: CalendarDays },
       { label: 'حجز موعد  لعميل', href: '/admin/booking', icon: CalendarPlus },

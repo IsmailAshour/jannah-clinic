@@ -21,7 +21,7 @@ use Illuminate\Notifications\Notifiable;
  *
  * @property UserRole $role
  */
-#[Fillable(['name', 'email', 'password', 'phone', 'role'])]
+#[Fillable(['name', 'email', 'password', 'phone', 'role', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -39,6 +39,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'is_active' => 'boolean',
         ];
     }
 

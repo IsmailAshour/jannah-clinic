@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AppointmentController;
 use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\ClinicSettingController;
 use App\Http\Controllers\Admin\CoverageAreaController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\DoctorScheduleController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
@@ -45,6 +46,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
         Route::post('appointments/{appointment}/transition', [AppointmentController::class, 'transition'])->name('appointments.transition');
 
+        // Customer admin (Polish-D) — read-only for all staff
+        Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+        Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+
         // Catalog mutations – manager only
         Route::middleware('role:manager')->group(function () {
             Route::post('catalog/categories', [ServiceCategoryController::class, 'store'])->name('catalog.categories.store');
@@ -72,5 +77,9 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
 
             // Settings mutations – manager only
             Route::put('settings/surcharge', [ClinicSettingController::class, 'updateSurcharge'])->name('settings.surcharge');
+
+            // Customer admin mutations – manager only
+            Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+            Route::post('customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
         });
     });

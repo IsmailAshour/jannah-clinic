@@ -54,6 +54,18 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Defence-in-depth: reject deactivated users with the SAME uniform
+        // failure message so we don't leak "account disabled" information.
+        // Mirrors industry norm — Customer-admin (Polish-D) lets staff toggle
+        // is_active; LoginRequest blocks here so the toggle takes effect at
+        // the login boundary.
+        if (! $user->is_active) {
+            RateLimiter::hit($this->throttleKey());
+            throw ValidationException::withMessages([
+                'identifier' => trans('auth.failed'),
+            ]);
+        }
+
         Auth::login($user, $this->boolean('remember'));
         RateLimiter::clear($this->throttleKey());
     }

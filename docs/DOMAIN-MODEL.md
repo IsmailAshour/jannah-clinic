@@ -26,6 +26,7 @@ Table: `users`
 | `phone` | varchar(32) | nullable, unique |
 | `password` | varchar(255) | NOT NULL (hashed — bcrypt) |
 | `role` | varchar(20) | NOT NULL, default `customer`, indexed |
+| `is_active` | boolean | NOT NULL, default `true`, indexed (Polish-D) |
 | `remember_token` | varchar(100) | nullable |
 | `email_verified_at` | timestamp | nullable |
 | `created_at` / `updated_at` | timestamp | nullable |
@@ -41,9 +42,16 @@ CONSTRAINT users_email_or_phone
     CHECK (email IS NOT NULL OR phone IS NOT NULL)
 ```
 
-**Fillable (attribute #[Fillable]):** `name`, `email`, `password`, `phone`, `role`
+**Fillable (attribute #[Fillable]):** `name`, `email`, `password`, `phone`, `role`, `is_active`
 **Hidden:** `password`, `remember_token`
-**Casts:** `email_verified_at → datetime`, `password → hashed`, `role → UserRole`
+**Casts:** `email_verified_at → datetime`, `password → hashed`, `role → UserRole`, `is_active → boolean`
+
+**`is_active` (Polish-D):** soft-disable flag used by the Customer-admin surface
+(`Admin\CustomerController@toggleActive`). `LoginRequest::authenticate()` rejects
+inactive users with the uniform `auth.failed` error (defence in depth — no info
+leak about disabled accounts). No hard delete in the customer admin UI:
+`appointments.customer_id` is `cascadeOnDelete`, so deletion would silently
+destroy appointment history; the toggle is the right UX.
 
 **Key methods:**
 
@@ -90,6 +98,9 @@ Table: `customer_profiles`
 - `avatar_path` stores the filesystem path relative to `storage/app/public`.
   P1 debt: the old avatar file is not deleted on replacement.
 - `UNIQUE(user_id)` enforces the one-to-one relationship at the DB level (R12).
+- `notes` (Polish-D): clinic-staff-managed free-text note about the customer,
+  edited from the Customer-admin Show page (`Admin\CustomerController@update`).
+  Deliberately distinct from P3 medical records (out of P1 scope, ADR-002).
 
 **Model path:** `app/Models/CustomerProfile.php`
 

@@ -15,9 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $notes
  * @property string|null $chronic_conditions
  * @property string|null $allergies
+ * @property int $loyalty_balance
  * @property User $user
  */
-#[Fillable(['user_id', 'date_of_birth', 'gender', 'notes', 'avatar_path', 'profile_completed_at', 'chronic_conditions', 'allergies'])]
+#[Fillable(['user_id', 'date_of_birth', 'gender', 'notes', 'avatar_path', 'profile_completed_at', 'chronic_conditions', 'allergies', 'loyalty_balance'])]
 class CustomerProfile extends Model
 {
     protected $casts = [

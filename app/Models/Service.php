@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['category_id', 'name', 'description', 'base_price', 'duration_minutes', 'home_service_enabled', 'icon_key', 'is_active', 'display_order'])]
+#[Fillable(['category_id', 'name', 'description', 'base_price', 'duration_minutes', 'home_service_enabled', 'icon_key', 'is_active', 'display_order', 'loyalty_enabled', 'loyalty_redemption_points'])]
 class Service extends Model
 {
     protected $casts = [
@@ -16,6 +16,8 @@ class Service extends Model
         'home_service_enabled' => 'boolean',
         'is_active' => 'boolean',
         'display_order' => 'integer',
+        'loyalty_enabled' => 'boolean',
+        'loyalty_redemption_points' => 'integer',
     ];
 
     public function category(): BelongsTo

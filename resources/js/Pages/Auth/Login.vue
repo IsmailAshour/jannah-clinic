@@ -93,6 +93,16 @@ const submit = () => {
                     دخول
                 </PrimaryButton>
             </div>
+
+            <div class="mt-6 text-center text-sm">
+                <span class="text-gray-600">ليس لديك حساب؟</span>
+                <Link
+                    :href="route('register')"
+                    class="ms-1 text-brand underline hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+                >
+                    إنشاء حساب
+                </Link>
+            </div>
         </form>
     </GuestLayout>
 </template>

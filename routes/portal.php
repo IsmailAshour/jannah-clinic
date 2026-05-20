@@ -10,6 +10,7 @@ use App\Http\Controllers\Portal\NotificationController;
 use App\Http\Controllers\Portal\PaymentController;
 use App\Http\Controllers\Portal\ProfileController as PortalProfileController;
 use App\Http\Controllers\Portal\ServiceBrowseController;
+use App\Http\Controllers\Portal\SettingsController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -53,4 +54,8 @@ Route::middleware(['auth', 'role:customer'])
         // P5b — customer profile
         Route::get('profile', [PortalProfileController::class, 'edit'])->name('profile.edit');
         Route::put('profile', [PortalProfileController::class, 'update'])->name('profile.update');
+
+        // P5b — customer settings
+        Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::put('settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
     });

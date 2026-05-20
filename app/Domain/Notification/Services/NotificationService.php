@@ -14,6 +14,7 @@ use App\Notifications\AppointmentChanged;
 use App\Notifications\LoyaltyChanged;
 use App\Notifications\MedicalRecordChanged;
 use App\Notifications\PaymentChanged;
+use App\Notifications\SecurityChanged;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
@@ -293,6 +294,18 @@ class NotificationService
             'subject_type' => LoyaltyLedger::class,
             'subject_id' => $entry->id,
         ]), 'loyaltyPointsReversed');
+    }
+
+    public function securityPasswordChanged(User $user): void
+    {
+        $this->dispatch($user, new SecurityChanged([
+            'category' => NotificationCategory::System->value,
+            'title' => 'تمّ تغيير كلمة المرور',
+            'body' => 'إذا لم يكن هذا أنت، تواصل مع الإدارة فورًا.',
+            'action_url' => '/portal/settings',
+            'subject_type' => User::class,
+            'subject_id' => $user->id,
+        ]), 'securityPasswordChanged');
     }
 
     public function markAsRead(DatabaseNotification $n, User $user): void

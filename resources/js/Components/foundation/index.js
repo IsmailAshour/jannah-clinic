@@ -1,6 +1,5 @@
 export { default as PageStates } from './PageStates.vue'
 export { default as PageHeader } from './PageHeader.vue'
-export { default as DataTable } from './DataTable.vue'
 export { default as AdminDataTable } from './AdminDataTable.vue'
 export { default as AdminDataTablePagination } from './AdminDataTablePagination.vue'
 export { default as AdminDataTableColumnHeader } from './AdminDataTableColumnHeader.vue'

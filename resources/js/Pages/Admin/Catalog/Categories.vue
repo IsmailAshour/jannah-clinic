@@ -1,28 +1,21 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, h } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
-  DataTable,
+  AdminDataTable,
+  AdminDataTableColumnHeader,
+  AdminDataTableRowActions,
   FormGroup,
   Modal,
   ConfirmModal,
-  PageStates,
 } from '@/Components/foundation'
+import { DropdownMenuItem } from '@/Components/ui/dropdown-menu'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
 const props = defineProps({ categories: { type: Array, default: () => [] } })
-
-const columns = [
-  { key: 'name', label: 'الاسم' },
-  { key: 'slug', label: 'المعرّف' },
-  { key: 'color_variant', label: 'اللون' },
-  { key: 'display_order', label: 'الترتيب' },
-  { key: 'is_active', label: 'نشطة' },
-  { key: 'actions', label: 'إجراءات', align: 'end' },
-]
 
 const showModal = ref(false)
 const editingId = ref(null)
@@ -82,11 +75,51 @@ function doDelete() {
     onSuccess: () => { confirmDelete.value = false; deleteTarget.value = null },
     onError: (errors) => {
       deleteError.value = errors.delete ?? 'لا يمكن حذف هذه الفئة.'
-      // Re-open the confirm modal to show the error (ConfirmModal auto-closes on confirm click)
       confirmDelete.value = true
     },
   })
 }
+
+const columns = [
+  {
+    accessorKey: 'name',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الاسم' }),
+    meta: { label: 'الاسم' },
+  },
+  {
+    accessorKey: 'slug',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'المعرّف' }),
+    cell: ({ row }) => h('span', { dir: 'ltr' }, row.original.slug),
+    meta: { label: 'المعرّف' },
+  },
+  {
+    accessorKey: 'color_variant',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'اللون' }),
+    meta: { label: 'اللون' },
+  },
+  {
+    accessorKey: 'display_order',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الترتيب' }),
+    meta: { label: 'الترتيب' },
+  },
+  {
+    accessorKey: 'is_active',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'نشطة' }),
+    cell: ({ row }) => row.original.is_active ? 'نعم' : 'لا',
+    meta: { label: 'نشطة' },
+  },
+  {
+    id: 'actions',
+    enableHiding: false,
+    header: () => '',
+    cell: ({ row }) => h(AdminDataTableRowActions, null, {
+      default: () => [
+        h(DropdownMenuItem, { onClick: () => openEdit(row.original) }, 'تعديل'),
+        h(DropdownMenuItem, { class: 'text-danger', onClick: () => askDelete(row.original) }, 'حذف'),
+      ],
+    }),
+  },
+]
 </script>
 
 <template>
@@ -98,22 +131,13 @@ function doDelete() {
         </template>
       </PageHeader>
 
-      <PageStates :is-empty="categories.length === 0">
-        <template #empty>
-          <div class="text-text-secondary p-6">لا توجد فئات بعد.</div>
-        </template>
-        <DataTable :columns="columns" :rows="categories">
-          <template #cell-is_active="{ row }">
-            {{ row.is_active ? 'نعم' : 'لا' }}
-          </template>
-          <template #cell-actions="{ row }">
-            <div class="flex justify-end gap-2">
-              <Button variant="outline" size="sm" @click="openEdit(row)">تعديل</Button>
-              <Button variant="outline" size="sm" class="text-danger" @click="askDelete(row)">حذف</Button>
-            </div>
-          </template>
-        </DataTable>
-      </PageStates>
+      <AdminDataTable
+        :columns="columns"
+        :data="categories"
+        filter-column="name"
+        filter-placeholder="ابحث في الفئات…"
+        empty-text="لا توجد فئات بعد."
+      />
     </div>
 
     <Modal :open="showModal" :title="editingId ? 'تعديل الفئة' : 'إضافة فئة'" @update:open="showModal = $event">

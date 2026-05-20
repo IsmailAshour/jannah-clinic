@@ -1,28 +1,29 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, h } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
-  DataTable,
+  AdminDataTable,
+  AdminDataTableColumnHeader,
+  AdminDataTableRowActions,
   Modal,
   ConfirmModal,
-  PageStates,
   StatusBadge,
   FormGroup,
 } from '@/Components/foundation'
+import { DropdownMenuItem, DropdownMenuSeparator } from '@/Components/ui/dropdown-menu'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
 const props = defineProps({
-  appointments: { type: Object, default: () => ({ data: [], links: [] }) },
+  appointments: { type: Object, default: () => ({ data: [] }) },
   doctors: { type: Array, default: () => [] },
   statusOptions: { type: Array, default: () => [] },
   filters: { type: Object, default: () => ({}) },
   errors: { type: Object, default: () => ({}) },
 })
 
-// Arabic label + StatusBadge variant for each AppointmentStatus value
 const statusMap = {
   requested:   { label: 'بانتظار التأكيد', variant: 'warning' },
   confirmed:   { label: 'مؤكد',            variant: 'success' },
@@ -32,36 +33,29 @@ const statusMap = {
   no_show:     { label: 'لم يحضر',         variant: 'warning' },
   rescheduled: { label: 'أُعيد جدولته',    variant: 'info'    },
 }
-
 function statusLabel(val) { return statusMap[val]?.label ?? val }
 function statusVariant(val) { return statusMap[val]?.variant ?? 'info' }
 
-// Filters
 const filterStatus = ref(props.filters.status ?? '')
 const filterDoctor = ref(props.filters.doctor ?? '')
 const filterDate = ref(props.filters.date ?? '')
 
-function applyFilters() {
+function applyFilters(extraQuery = {}) {
   router.get(
     '/admin/appointments',
     {
       status: filterStatus.value || undefined,
       doctor: filterDoctor.value || undefined,
       date: filterDate.value || undefined,
+      ...extraQuery,
     },
     { preserveScroll: true, replace: true }
   )
 }
 
-const columns = [
-  { key: 'customer',      label: 'العميل' },
-  { key: 'doctor',        label: 'الطبيب' },
-  { key: 'service',       label: 'الخدمة' },
-  { key: 'start_at',      label: 'الموعد' },
-  { key: 'status',        label: 'الحالة' },
-  { key: 'delivery_mode', label: 'طريقة التقديم' },
-  { key: 'actions',       label: 'إجراءات', align: 'end' },
-]
+function goToPage(p) {
+  applyFilters({ page: p })
+}
 
 function formatDate(dt) {
   if (!dt) return ''
@@ -77,7 +71,6 @@ function isTerminal(status) {
   return ['completed', 'cancelled', 'rejected', 'no_show', 'rescheduled'].includes(status)
 }
 
-// Quick transitions — routed through ConfirmModal before posting
 const confirmOpen = ref(false)
 const pendingTransition = ref(null)
 
@@ -98,7 +91,6 @@ function handleConfirmTransition() {
   doTransition(appt, status)
 }
 
-// Cancel with reason
 const showCancelModal = ref(false)
 const cancelTarget = ref(null)
 const cancelForm = useForm({ status: 'cancelled', reason: '' })
@@ -116,6 +108,75 @@ function submitCancel() {
     onSuccess: () => { showCancelModal.value = false; cancelTarget.value = null },
   })
 }
+
+const columns = [
+  {
+    accessorKey: 'customer',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'العميل' }),
+    cell: ({ row }) => row.original.customer?.name ?? '—',
+    meta: { label: 'العميل' },
+  },
+  {
+    accessorKey: 'doctor',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الطبيب' }),
+    cell: ({ row }) => row.original.doctor?.user?.name ?? '—',
+    meta: { label: 'الطبيب' },
+  },
+  {
+    accessorKey: 'service',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الخدمة' }),
+    cell: ({ row }) => row.original.service?.name ?? '—',
+    meta: { label: 'الخدمة' },
+  },
+  {
+    accessorKey: 'start_at',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الموعد' }),
+    cell: ({ row }) => formatDate(row.original.start_at),
+    meta: { label: 'الموعد' },
+  },
+  {
+    accessorKey: 'status',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الحالة' }),
+    cell: ({ row }) => h(StatusBadge, {
+      type: statusVariant(row.original.status),
+      label: statusLabel(row.original.status),
+    }),
+    meta: { label: 'الحالة' },
+  },
+  {
+    accessorKey: 'delivery_mode',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'طريقة التقديم' }),
+    cell: ({ row }) => deliveryLabel(row.original.delivery_mode),
+    meta: { label: 'طريقة التقديم' },
+  },
+  {
+    id: 'actions',
+    enableHiding: false,
+    header: () => '',
+    cell: ({ row }) => {
+      const r = row.original
+      if (isTerminal(r.status)) {
+        return h(AdminDataTableRowActions, null, {
+          default: () => h(DropdownMenuItem, { disabled: true }, '— لا توجد إجراءات —'),
+        })
+      }
+      const items = []
+      if (r.status === 'requested') {
+        items.push(h(DropdownMenuItem, { onClick: () => requestTransition(r, 'confirmed') }, 'تأكيد'))
+        items.push(h(DropdownMenuItem, { class: 'text-danger', onClick: () => requestTransition(r, 'rejected') }, 'رفض'))
+      }
+      if (r.status === 'confirmed') {
+        items.push(h(DropdownMenuItem, { onClick: () => requestTransition(r, 'completed') }, 'إكمال'))
+        items.push(h(DropdownMenuItem, { class: 'text-warning', onClick: () => requestTransition(r, 'no_show') }, 'لم يحضر'))
+      }
+      if (items.length > 0) {
+        items.push(h(DropdownMenuSeparator))
+      }
+      items.push(h(DropdownMenuItem, { class: 'text-danger', onClick: () => openCancelModal(r) }, 'إلغاء بسبب…'))
+      return h(AdminDataTableRowActions, null, { default: () => items })
+    },
+  },
+]
 </script>
 
 <template>
@@ -123,7 +184,6 @@ function submitCancel() {
     <div class="p-6">
       <PageHeader title="المواعيد" />
 
-      <!-- Appointment error banner -->
       <div
         v-if="errors.appointment"
         class="mb-4 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger"
@@ -132,7 +192,6 @@ function submitCancel() {
         {{ errors.appointment }}
       </div>
 
-      <!-- Filter bar -->
       <div class="mb-6 flex flex-wrap gap-3 items-end">
         <div class="flex flex-col gap-1">
           <label class="text-xs font-medium text-text-secondary">الحالة</label>
@@ -160,53 +219,18 @@ function submitCancel() {
           <label class="text-xs font-medium text-text-secondary">التاريخ</label>
           <Input v-model="filterDate" type="date" dir="ltr" class="w-40" />
         </div>
-        <Button @click="applyFilters">تصفية</Button>
+        <Button @click="applyFilters()">تصفية</Button>
       </div>
 
-      <PageStates :is-empty="appointments.data.length === 0">
-        <template #empty>
-          <div class="text-text-secondary p-6">لا توجد مواعيد.</div>
-        </template>
-
-        <DataTable :columns="columns" :rows="appointments.data">
-          <template #cell-customer="{ row }">{{ row.customer?.name }}</template>
-          <template #cell-doctor="{ row }">{{ row.doctor?.user?.name }}</template>
-          <template #cell-service="{ row }">{{ row.service?.name }}</template>
-          <template #cell-start_at="{ row }">{{ formatDate(row.start_at) }}</template>
-          <template #cell-status="{ row }">
-            <StatusBadge :type="statusVariant(row.status)" :label="statusLabel(row.status)" />
-          </template>
-          <template #cell-delivery_mode="{ row }">{{ deliveryLabel(row.delivery_mode) }}</template>
-          <template #cell-actions="{ row }">
-            <div class="flex justify-end gap-2 flex-wrap">
-              <template v-if="!isTerminal(row.status)">
-                <Button v-if="row.status === 'requested'" variant="outline" size="sm" @click="requestTransition(row, 'confirmed')">تأكيد</Button>
-                <Button v-if="row.status === 'requested'" variant="outline" size="sm" class="text-danger" @click="requestTransition(row, 'rejected')">رفض</Button>
-                <Button v-if="row.status === 'confirmed'" variant="outline" size="sm" @click="requestTransition(row, 'completed')">إكمال</Button>
-                <Button v-if="row.status === 'confirmed'" variant="outline" size="sm" class="text-warning" @click="requestTransition(row, 'no_show')">لم يحضر</Button>
-                <Button variant="outline" size="sm" class="text-danger" @click="openCancelModal(row)">إلغاء</Button>
-              </template>
-              <span v-else class="text-xs text-text-tertiary">—</span>
-            </div>
-          </template>
-        </DataTable>
-
-        <!-- Pagination links -->
-        <div v-if="appointments.links && appointments.links.length > 3" class="mt-4 flex gap-1 justify-center">
-          <template v-for="link in appointments.links" :key="link.label">
-            <component
-              :is="link.url ? 'a' : 'span'"
-              :href="link.url ?? undefined"
-              class="px-3 py-1 text-sm rounded-md border border-border-default"
-              :class="link.active ? 'bg-brand text-white' : 'bg-surface-card text-text-secondary hover:bg-surface-sunken'"
-              v-html="link.label"
-            />
-          </template>
-        </div>
-      </PageStates>
+      <AdminDataTable
+        :columns="columns"
+        :data="appointments.data"
+        :server-meta="appointments"
+        :on-page-change="goToPage"
+        empty-text="لا توجد مواعيد."
+      />
     </div>
 
-    <!-- Quick-transition confirmation modal -->
     <ConfirmModal
       :open="confirmOpen"
       title="تأكيد تغيير الحالة"
@@ -217,7 +241,6 @@ function submitCancel() {
       @update:open="confirmOpen = $event"
     />
 
-    <!-- Cancel with reason modal -->
     <Modal
       :open="showCancelModal"
       title="إلغاء الموعد"

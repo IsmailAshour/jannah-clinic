@@ -6,7 +6,6 @@ import AdminShell from '@/Layouts/AdminShell.vue'
 import { h } from 'vue'
 import {
   PageHeader,
-  DataTable,
   AdminDataTable,
   AdminDataTableColumnHeader,
   AdminDataTableRowActions,
@@ -128,14 +127,64 @@ function submitEdit() {
   })
 }
 
+function goToAppointmentsPage(p) {
+  router.get(`/admin/customers/${props.customer.id}`, { page: p }, { preserveScroll: true, preserveState: true })
+}
+
 const apptColumns = [
-  { key: 'start_at',      label: 'الموعد' },
-  { key: 'doctor',        label: 'الطبيب' },
-  { key: 'service',       label: 'الخدمة' },
-  { key: 'status',        label: 'الحالة' },
-  { key: 'delivery_mode', label: 'طريقة التقديم' },
-  { key: 'price',         label: 'السعر' },
-  ...(props.canViewMedical ? [{ key: 'record',  label: 'السجل الطبي' }] : []),
+  {
+    accessorKey: 'start_at',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الموعد' }),
+    cell: ({ row }) => formatDateTime(row.original.start_at),
+    meta: { label: 'الموعد' },
+  },
+  {
+    accessorKey: 'doctor',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الطبيب' }),
+    cell: ({ row }) => row.original.doctor?.user?.name ?? '—',
+    meta: { label: 'الطبيب' },
+  },
+  {
+    accessorKey: 'service',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الخدمة' }),
+    cell: ({ row }) => row.original.service?.name ?? '—',
+    meta: { label: 'الخدمة' },
+  },
+  {
+    accessorKey: 'status',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الحالة' }),
+    cell: ({ row }) => h(StatusBadge, {
+      type: statusVariant(row.original.status),
+      label: statusLabel(row.original.status),
+    }),
+    meta: { label: 'الحالة' },
+  },
+  {
+    accessorKey: 'delivery_mode',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'طريقة التقديم' }),
+    cell: ({ row }) => h(StatusBadge, {
+      type: row.original.delivery_mode === 'home' ? 'warning' : 'info',
+      label: deliveryLabel(row.original.delivery_mode),
+    }),
+    meta: { label: 'طريقة التقديم' },
+  },
+  {
+    accessorKey: 'price_at_booking',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'السعر' }),
+    cell: ({ row }) => `${row.original.price_at_booking} ₪`,
+    meta: { label: 'السعر' },
+  },
+  ...(props.canViewMedical ? [{
+    id: 'record',
+    enableHiding: false,
+    header: () => 'السجل الطبي',
+    cell: ({ row }) => row.original.status === 'completed'
+      ? h('a', {
+          href: `/admin/appointments/${row.original.id}/medical-entry/create`,
+          class: 'text-sm text-brand underline',
+        }, 'إضافة/فتح')
+      : h('span', { class: 'text-text-tertiary' }, '—'),
+  }] : []),
 ]
 
 // Medical profile form (chronic + allergies)
@@ -326,38 +375,13 @@ const entryColumns = [
 
       <!-- Appointments table -->
       <FormSection title="المواعيد">
-        <DataTable :columns="apptColumns" :rows="appointments.data" empty-text="لا توجد مواعيد.">
-          <template #cell-start_at="{ row }">{{ formatDateTime(row.start_at) }}</template>
-          <template #cell-doctor="{ row }">{{ row.doctor?.user?.name ?? '—' }}</template>
-          <template #cell-service="{ row }">{{ row.service?.name ?? '—' }}</template>
-          <template #cell-status="{ row }">
-            <StatusBadge :type="statusVariant(row.status)" :label="statusLabel(row.status)" />
-          </template>
-          <template #cell-delivery_mode="{ row }">
-            <StatusBadge :type="row.delivery_mode === 'home' ? 'warning' : 'info'" :label="deliveryLabel(row.delivery_mode)" />
-          </template>
-          <template #cell-price="{ row }">{{ row.price_at_booking }} ₪</template>
-          <template #cell-record="{ row }">
-            <a
-              v-if="row.status === 'completed'"
-              :href="`/admin/appointments/${row.id}/medical-entry/create`"
-              class="text-sm text-brand underline"
-            >إضافة/فتح</a>
-            <span v-else class="text-text-tertiary">—</span>
-          </template>
-        </DataTable>
-
-        <div v-if="appointments.links && appointments.links.length > 3" class="mt-4 flex gap-1 justify-center">
-          <template v-for="link in appointments.links" :key="link.label">
-            <component
-              :is="link.url ? 'a' : 'span'"
-              :href="link.url ?? undefined"
-              class="px-3 py-1 text-sm rounded-md border border-border-default"
-              :class="link.active ? 'bg-brand text-white' : 'bg-surface-card text-text-secondary hover:bg-surface-sunken'"
-              v-html="link.label"
-            />
-          </template>
-        </div>
+        <AdminDataTable
+          :columns="apptColumns"
+          :data="appointments.data"
+          :server-meta="appointments"
+          :on-page-change="goToAppointmentsPage"
+          empty-text="لا توجد مواعيد."
+        />
       </FormSection>
     </div>
 

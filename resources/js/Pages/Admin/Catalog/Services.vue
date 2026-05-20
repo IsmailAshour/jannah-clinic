@@ -1,15 +1,17 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, h } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
-  DataTable,
+  AdminDataTable,
+  AdminDataTableColumnHeader,
+  AdminDataTableRowActions,
   FormGroup,
   Modal,
   ConfirmModal,
-  PageStates,
 } from '@/Components/foundation'
+import { DropdownMenuItem } from '@/Components/ui/dropdown-menu'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
@@ -17,16 +19,6 @@ const props = defineProps({
   services: { type: Array, default: () => [] },
   categories: { type: Array, default: () => [] },
 })
-
-const columns = [
-  { key: 'category_name', label: 'الفئة' },
-  { key: 'name', label: 'الاسم' },
-  { key: 'base_price', label: 'السعر' },
-  { key: 'duration_minutes', label: 'المدة (د)' },
-  { key: 'home_service_enabled', label: 'خدمة منزلية' },
-  { key: 'is_active', label: 'نشطة' },
-  { key: 'actions', label: 'إجراءات', align: 'end' },
-]
 
 const rows = computed(() => props.services.map(s => ({
   ...s,
@@ -96,6 +88,54 @@ function doDelete() {
     onSuccess: () => { confirmDelete.value = false; deleteTarget.value = null },
   })
 }
+
+const columns = [
+  {
+    accessorKey: 'category_name',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الفئة' }),
+    meta: { label: 'الفئة' },
+  },
+  {
+    accessorKey: 'name',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الاسم' }),
+    meta: { label: 'الاسم' },
+  },
+  {
+    accessorKey: 'base_price',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'السعر' }),
+    cell: ({ row }) => `${row.original.base_price} ₪`,
+    meta: { label: 'السعر' },
+  },
+  {
+    accessorKey: 'duration_minutes',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'المدة (د)' }),
+    cell: ({ row }) => `${row.original.duration_minutes} دقيقة`,
+    meta: { label: 'المدة' },
+  },
+  {
+    accessorKey: 'home_service_enabled',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'خدمة منزلية' }),
+    cell: ({ row }) => row.original.home_service_enabled ? 'نعم' : 'لا',
+    meta: { label: 'خدمة منزلية' },
+  },
+  {
+    accessorKey: 'is_active',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'نشطة' }),
+    cell: ({ row }) => row.original.is_active ? 'نعم' : 'لا',
+    meta: { label: 'نشطة' },
+  },
+  {
+    id: 'actions',
+    enableHiding: false,
+    header: () => '',
+    cell: ({ row }) => h(AdminDataTableRowActions, null, {
+      default: () => [
+        h(DropdownMenuItem, { onClick: () => openEdit(row.original) }, 'تعديل'),
+        h(DropdownMenuItem, { class: 'text-danger', onClick: () => askDelete(row.original) }, 'حذف'),
+      ],
+    }),
+  },
+]
 </script>
 
 <template>
@@ -107,31 +147,13 @@ function doDelete() {
         </template>
       </PageHeader>
 
-      <PageStates :is-empty="services.length === 0">
-        <template #empty>
-          <div class="text-text-secondary p-6">لا توجد خدمات بعد.</div>
-        </template>
-        <DataTable :columns="columns" :rows="rows">
-          <template #cell-home_service_enabled="{ row }">
-            {{ row.home_service_enabled ? 'نعم' : 'لا' }}
-          </template>
-          <template #cell-is_active="{ row }">
-            {{ row.is_active ? 'نعم' : 'لا' }}
-          </template>
-          <template #cell-base_price="{ row }">
-            {{ row.base_price }} ₪
-          </template>
-          <template #cell-duration_minutes="{ row }">
-            {{ row.duration_minutes }} دقيقة
-          </template>
-          <template #cell-actions="{ row }">
-            <div class="flex justify-end gap-2">
-              <Button variant="outline" size="sm" @click="openEdit(row)">تعديل</Button>
-              <Button variant="outline" size="sm" class="text-danger" @click="askDelete(row)">حذف</Button>
-            </div>
-          </template>
-        </DataTable>
-      </PageStates>
+      <AdminDataTable
+        :columns="columns"
+        :data="rows"
+        filter-column="name"
+        filter-placeholder="ابحث في الخدمات…"
+        empty-text="لا توجد خدمات بعد."
+      />
     </div>
 
     <Modal :open="showModal" :title="editingId ? 'تعديل الخدمة' : 'إضافة خدمة'" @update:open="showModal = $event">

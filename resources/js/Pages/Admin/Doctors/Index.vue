@@ -1,15 +1,17 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, h } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
-  DataTable,
+  AdminDataTable,
+  AdminDataTableColumnHeader,
+  AdminDataTableRowActions,
   FormGroup,
   Modal,
   ConfirmModal,
-  PageStates,
 } from '@/Components/foundation'
+import { DropdownMenuItem } from '@/Components/ui/dropdown-menu'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
@@ -17,14 +19,6 @@ const props = defineProps({
   doctors: { type: Array, default: () => [] },
   services: { type: Array, default: () => [] },
 })
-
-const columns = [
-  { key: 'doctor_name', label: 'الاسم' },
-  { key: 'specialty', label: 'التخصص' },
-  { key: 'is_bookable', label: 'قابل للحجز' },
-  { key: 'services_count', label: 'الخدمات' },
-  { key: 'actions', label: 'إجراءات', align: 'end' },
-]
 
 const rows = computed(() => props.doctors.map(d => ({
   ...d,
@@ -114,6 +108,42 @@ function doDelete() {
     onError: (errors) => { deleteError.value = errors.delete ?? null },
   })
 }
+
+const columns = [
+  {
+    accessorKey: 'doctor_name',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الاسم' }),
+    meta: { label: 'الاسم' },
+  },
+  {
+    accessorKey: 'specialty',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'التخصص' }),
+    meta: { label: 'التخصص' },
+  },
+  {
+    accessorKey: 'is_bookable',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'قابل للحجز' }),
+    cell: ({ row }) => row.original.is_bookable ? 'نعم' : 'لا',
+    meta: { label: 'قابل للحجز' },
+  },
+  {
+    accessorKey: 'services_count',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الخدمات' }),
+    meta: { label: 'الخدمات' },
+  },
+  {
+    id: 'actions',
+    enableHiding: false,
+    header: () => '',
+    cell: ({ row }) => h(AdminDataTableRowActions, null, {
+      default: () => [
+        h(DropdownMenuItem, { onClick: () => openSchedule(row.original) }, 'الجدول'),
+        h(DropdownMenuItem, { onClick: () => openEdit(row.original) }, 'تعديل'),
+        h(DropdownMenuItem, { class: 'text-danger', onClick: () => askDelete(row.original) }, 'حذف'),
+      ],
+    }),
+  },
+]
 </script>
 
 <template>
@@ -125,23 +155,13 @@ function doDelete() {
         </template>
       </PageHeader>
 
-      <PageStates :is-empty="doctors.length === 0">
-        <template #empty>
-          <div class="text-text-secondary p-6">لا يوجد أطباء بعد.</div>
-        </template>
-        <DataTable :columns="columns" :rows="rows">
-          <template #cell-is_bookable="{ row }">
-            {{ row.is_bookable ? 'نعم' : 'لا' }}
-          </template>
-          <template #cell-actions="{ row }">
-            <div class="flex justify-end gap-2">
-              <Button variant="outline" size="sm" @click="openSchedule(row)">الجدول</Button>
-              <Button variant="outline" size="sm" @click="openEdit(row)">تعديل</Button>
-              <Button variant="outline" size="sm" class="text-danger" @click="askDelete(row)">حذف</Button>
-            </div>
-          </template>
-        </DataTable>
-      </PageStates>
+      <AdminDataTable
+        :columns="columns"
+        :data="rows"
+        filter-column="doctor_name"
+        filter-placeholder="ابحث بالاسم…"
+        empty-text="لا يوجد أطباء بعد."
+      />
     </div>
 
     <Modal :open="showModal" :title="editingId ? 'تعديل الطبيب' : 'إضافة طبيب'" @update:open="showModal = $event">

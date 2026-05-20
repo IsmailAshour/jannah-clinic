@@ -1,38 +1,39 @@
 <script setup>
-import { ref } from 'vue'
-import { Link, router, useForm, usePage } from '@inertiajs/vue3'
-import { Eye, UserPlus } from 'lucide-vue-next'
+import { ref, h } from 'vue'
+import { router, useForm, usePage } from '@inertiajs/vue3'
+import { UserPlus } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
-  DataTable,
-  PageStates,
+  AdminDataTable,
+  AdminDataTableColumnHeader,
+  AdminDataTableRowActions,
   StatusBadge,
   Modal,
   FormGroup,
 } from '@/Components/foundation'
+import { DropdownMenuItem } from '@/Components/ui/dropdown-menu'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
 const props = defineProps({
-  customers: { type: Object, default: () => ({ data: [], links: [] }) },
+  customers: { type: Object, default: () => ({ data: [] }) },
   filters: { type: Object, default: () => ({}) },
 })
 
-// Role check: only managers can create — server is authoritative; this hides
-// the UI affordance for non-managers (matches the route-level `role:manager` guard).
 const page = usePage()
 const isManager = (() => page.props?.auth?.user?.role === 'manager')()
 
 const q = ref(props.filters.q ?? '')
 const status = ref(props.filters.status ?? '')
 
-function applyFilters() {
+function applyFilters(extraQuery = {}) {
   router.get(
     '/admin/customers',
     {
       q: q.value || undefined,
       status: status.value || undefined,
+      ...extraQuery,
     },
     { preserveScroll: true, replace: true }
   )
@@ -44,17 +45,10 @@ function resetFilters() {
   applyFilters()
 }
 
-const columns = [
-  { key: 'name', label: 'الاسم' },
-  { key: 'phone', label: 'الهاتف' },
-  { key: 'email', label: 'البريد' },
-  { key: 'status', label: 'الحالة' },
-  { key: 'actions', label: 'إجراءات', align: 'end' },
-]
+function goToPage(p) {
+  applyFilters({ page: p })
+}
 
-// Create modal: form mirrors the Show edit form's editable fields except
-// `is_active` (new customers default active) and password (auto-generated server-side
-// via Str::password(16); shown ONCE via flash on the redirected Show page).
 const showCreate = ref(false)
 const form = useForm({
   name: '',
@@ -72,12 +66,47 @@ function openCreate() {
 }
 
 function submitCreate() {
-  form.post('/admin/customers', {
-    // The controller redirects to the new customer's Show page on success,
-    // so the modal is unmounted by navigation — no explicit close needed.
-    preserveScroll: false,
-  })
+  form.post('/admin/customers', { preserveScroll: false })
 }
+
+const columns = [
+  {
+    accessorKey: 'name',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الاسم' }),
+    meta: { label: 'الاسم' },
+  },
+  {
+    accessorKey: 'phone',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الهاتف' }),
+    cell: ({ row }) => h('span', { dir: 'ltr' }, row.original.phone || '—'),
+    meta: { label: 'الهاتف' },
+  },
+  {
+    accessorKey: 'email',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'البريد' }),
+    cell: ({ row }) => h('span', { dir: 'ltr' }, row.original.email || '—'),
+    meta: { label: 'البريد' },
+  },
+  {
+    accessorKey: 'is_active',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الحالة' }),
+    cell: ({ row }) => h(StatusBadge, {
+      type: row.original.is_active ? 'success' : 'danger',
+      label: row.original.is_active ? 'نشط' : 'غير نشط',
+    }),
+    meta: { label: 'الحالة' },
+  },
+  {
+    id: 'actions',
+    enableHiding: false,
+    header: () => '',
+    cell: ({ row }) => h(AdminDataTableRowActions, null, {
+      default: () => h(DropdownMenuItem, {
+        onClick: () => router.visit(`/admin/customers/${row.original.id}`),
+      }, 'عرض'),
+    }),
+  },
+]
 </script>
 
 <template>
@@ -92,8 +121,7 @@ function submitCreate() {
         </template>
       </PageHeader>
 
-      <!-- Filter bar -->
-      <form class="mb-6 flex flex-wrap gap-3 items-end" @submit.prevent="applyFilters">
+      <form class="mb-6 flex flex-wrap gap-3 items-end" @submit.prevent="applyFilters()">
         <div class="flex flex-col gap-1">
           <label for="q" class="text-xs font-medium text-text-secondary">بحث (الاسم، البريد، الهاتف)</label>
           <Input id="q" v-model="q" name="q" placeholder="ابحث..." class="w-64" />
@@ -115,47 +143,15 @@ function submitCreate() {
         <Button type="button" variant="outline" @click="resetFilters">تفريغ</Button>
       </form>
 
-      <PageStates :is-empty="customers.data.length === 0">
-        <template #empty>
-          <div class="text-text-secondary p-6">لا يوجد عملاء.</div>
-        </template>
-
-        <DataTable :columns="columns" :rows="customers.data">
-          <template #cell-name="{ row }">{{ row.name }}</template>
-          <template #cell-phone="{ row }">{{ row.phone || '—' }}</template>
-          <template #cell-email="{ row }">{{ row.email || '—' }}</template>
-          <template #cell-status="{ row }">
-            <StatusBadge
-              :type="row.is_active ? 'success' : 'danger'"
-              :label="row.is_active ? 'نشط' : 'غير نشط'"
-            />
-          </template>
-          <template #cell-actions="{ row }">
-            <div class="flex justify-end gap-2">
-              <Link :href="`/admin/customers/${row.id}`" class="inline-flex items-center gap-1 text-sm text-brand hover:underline">
-                <Eye class="h-4 w-4" aria-hidden="true" />
-                <span>عرض</span>
-              </Link>
-            </div>
-          </template>
-        </DataTable>
-
-        <!-- Pagination links -->
-        <div v-if="customers.links && customers.links.length > 3" class="mt-4 flex gap-1 justify-center">
-          <template v-for="link in customers.links" :key="link.label">
-            <component
-              :is="link.url ? 'a' : 'span'"
-              :href="link.url ?? undefined"
-              class="px-3 py-1 text-sm rounded-md border border-border-default"
-              :class="link.active ? 'bg-brand text-white' : 'bg-surface-card text-text-secondary hover:bg-surface-sunken'"
-              v-html="link.label"
-            />
-          </template>
-        </div>
-      </PageStates>
+      <AdminDataTable
+        :columns="columns"
+        :data="customers.data"
+        :server-meta="customers"
+        :on-page-change="goToPage"
+        empty-text="لا يوجد عملاء."
+      />
     </div>
 
-    <!-- Create-customer modal (manager only) -->
     <Modal :open="showCreate" title="إضافة عميل" @update:open="showCreate = $event">
       <form class="space-y-4" @submit.prevent="submitCreate">
         <FormGroup label="الاسم" name="name" :error="form.errors.name" required>

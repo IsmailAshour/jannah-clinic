@@ -3,6 +3,16 @@
 All notable changes to jannahclinic are documented here. Per Definition of Done Q.9,
 every PR adds an entry. Format: Keep a Changelog; project uses phase tags (P0–P5).
 
+## [R-DataTable Migration] — 2026-05-20
+
+**Followed P3.** Migrated all 7 legacy admin list pages from the slim hand-rolled `<DataTable>` to the new `AdminDataTable` family — fulfilling the binding rule that every admin list surface uses shadcn-vue Data Table with row actions, pagination, sorting, filtering, column visibility, and row selection. Legacy `<DataTable>` and its Vitest spec deleted; `foundation/index.js` no longer exports it.
+
+- **Migrated pages:** `Admin/Catalog/Services.vue`, `Admin/Catalog/Categories.vue`, `Admin/Coverage/Index.vue`, `Admin/Doctors/Index.vue` (array data, client-side sort/filter), `Admin/Customers/Index.vue`, `Admin/Customers/Show.vue` (appointments sub-list), `Admin/Payments/Index.vue`, `Admin/Appointments/Index.vue` (paginated server-side; server-side filter UI preserved above the table; pagination wired via `server-meta` + `on-page-change` to Inertia `router.get`).
+- **Row-action UX shift:** inline button strips replaced by `<AdminDataTableRowActions>` dropdown menus (`<DropdownMenuItem>` children). For `Appointments/Index.vue`, status-dependent actions (تأكيد / رفض / إكمال / لم يحضر / إلغاء بسبب…) collapse into the per-row dropdown.
+- **Exempt:** `Admin/Doctors/Schedule.vue` — it is a weekly slot-grid (toggle buttons per weekday × time), not a list page.
+- **DataTable.vue + DataTable.spec.js deleted** — no remaining consumers; `foundation/index.js` export removed.
+- 22 Vitest / 238 Pest still green.
+
 ## [P3] Medical Records (encrypted + audited) — 2026-05-20
 
 **P3 complete:** doctors can write per-appointment medical records (diagnosis + internal notes + structured prescriptions) and chronic-conditions/allergies on the customer profile; every PHI field is encrypted at rest via Laravel's `encrypted` cast; every CREATE/UPDATE/VIEW of those fields appends to an immutable `medical_audit_logs` table. Customers see only `visible_summary` + prescriptions on the portal — `staff_notes` is never serialized to the customer response. **ADR-003 supersedes ADR-002**, lifting the production block on real patient data. New shadcn-vue `AdminDataTable` family delivers row actions / pagination / sorting / filtering / column visibility / row selection for new admin list surfaces; 8 legacy admin pages are recorded as `R-DataTable` migration debt in ARCHITECTURE.md.

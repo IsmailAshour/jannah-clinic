@@ -33,7 +33,7 @@ class ServiceController extends Controller
             'icon_key' => 'nullable|string|max:64',
             'is_active' => 'boolean',
             'display_order' => 'nullable|integer|min:0',
-            'loyalty_enabled' => ['sometimes', 'boolean'],
+            'loyalty_enabled' => ['required', 'boolean'],
             'loyalty_redemption_points' => ['nullable', 'integer', 'min:1'],
         ]);
 
@@ -54,7 +54,7 @@ class ServiceController extends Controller
             'icon_key' => 'nullable|string|max:64',
             'is_active' => 'boolean',
             'display_order' => 'nullable|integer|min:0',
-            'loyalty_enabled' => ['sometimes', 'boolean'],
+            'loyalty_enabled' => ['required', 'boolean'],
             'loyalty_redemption_points' => ['nullable', 'integer', 'min:1'],
         ]);
 

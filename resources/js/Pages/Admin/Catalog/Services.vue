@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, h } from 'vue'
+import { ref, computed, h, watch } from 'vue'
 import { useForm, usePage } from '@inertiajs/vue3'
 import { Search } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
@@ -86,6 +86,10 @@ const form = useForm({
   loyalty_redemption_points: '',
 })
 
+watch(() => form.loyalty_enabled, (v) => {
+  if (!v) form.loyalty_redemption_points = ''
+})
+
 function openCreate() {
   editingId.value = null
   form.reset()
@@ -112,6 +116,11 @@ function openEdit(row) {
 }
 
 function submitForm() {
+  form.transform((data) => ({
+    ...data,
+    loyalty_enabled: !!data.loyalty_enabled,
+    loyalty_redemption_points: data.loyalty_enabled ? (data.loyalty_redemption_points || null) : null,
+  }))
   if (editingId.value) {
     form.put(`/admin/catalog/services/${editingId.value}`, {
       onSuccess: () => { showModal.value = false },
@@ -327,7 +336,6 @@ const columns = [
             </template>
           </FormGroup>
           <FormGroup
-            v-if="form.loyalty_enabled"
             label="نقاط الاستبدال"
             name="loyalty_redemption_points"
             :error="form.errors.loyalty_redemption_points"
@@ -341,6 +349,7 @@ const columns = [
                 min="1"
                 name="loyalty_redemption_points"
                 dir="ltr"
+                :disabled="!form.loyalty_enabled"
                 :aria-describedby="describedby"
               />
             </template>

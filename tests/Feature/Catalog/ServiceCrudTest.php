@@ -10,7 +10,7 @@ it('creates a service under a category', function () {
     $cat = ServiceCategory::create(['name' => 'تدليك', 'slug' => 'massage', 'color_variant' => 'brand']);
     $this->actingAs($m)->post('/admin/catalog/services', [
         'category_id' => $cat->id, 'name' => 'تدليك علاجي', 'base_price' => 150, 'duration_minutes' => 30,
-        'home_service_enabled' => true,
+        'home_service_enabled' => true, 'loyalty_enabled' => true,
     ])->assertRedirect();
     $s = Service::first();
     expect($s->base_price)->toBe('150.00');

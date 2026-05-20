@@ -69,3 +69,40 @@ it('manager updates service loyalty fields', function () {
     expect($svc->fresh()->loyalty_enabled)->toBeTrue()
         ->and($svc->fresh()->loyalty_redemption_points)->toBe(100);
 });
+
+it('manager can create a service with loyalty DISABLED', function () {
+    $this->actingAs($this->manager)->post('/admin/catalog/services', [
+        'category_id' => $this->cat->id,
+        'name' => 'NoLoyalty',
+        'base_price' => '50.00',
+        'duration_minutes' => 30,
+        'home_service_enabled' => false,
+        'loyalty_enabled' => false,
+        'loyalty_redemption_points' => null,
+    ])->assertRedirect();
+
+    $s = Service::firstWhere('name', 'NoLoyalty');
+    expect($s->loyalty_enabled)->toBeFalse()
+        ->and($s->loyalty_redemption_points)->toBeNull();
+});
+
+it('manager toggling loyalty OFF on update clears redemption points', function () {
+    $svc = Service::create([
+        'category_id' => $this->cat->id, 'name' => 'WasLoyal',
+        'base_price' => '50.00', 'duration_minutes' => 30, 'home_service_enabled' => false,
+        'loyalty_enabled' => true, 'loyalty_redemption_points' => 500,
+    ]);
+
+    $this->actingAs($this->manager)->put("/admin/catalog/services/{$svc->id}", [
+        'category_id' => $this->cat->id,
+        'name' => 'WasLoyal',
+        'base_price' => '50.00',
+        'duration_minutes' => 30,
+        'home_service_enabled' => false,
+        'loyalty_enabled' => false,
+        'loyalty_redemption_points' => null,
+    ])->assertRedirect();
+
+    expect($svc->fresh()->loyalty_enabled)->toBeFalse()
+        ->and($svc->fresh()->loyalty_redemption_points)->toBeNull();
+});

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { FormGroup, FormSection, PageStates, MonthCalendar } from '@/Components/foundation'
+import { FormGroup, FormSection, PageStates, MonthCalendar, PaymentMethodPicker } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
@@ -12,6 +12,7 @@ const props = defineProps({
   homeSurchargePct: { type: [String, Number], default: 0 },
   customerPicker: { type: Boolean, default: false },
   customers: { type: Array, default: () => [] },
+  loyaltyBalance: { type: Number, default: 0 },
   errors: { type: Object, default: () => ({}) },
 })
 
@@ -56,6 +57,7 @@ watch(doctorId, () => { serviceId.value = null })
 watch(deliveryMode, () => { serviceId.value = null })
 
 // Step 3: date + slot
+const paymentMethod = ref('cash')
 const selectedDate = ref('')
 const slots = ref([])
 const slotsLoading = ref(false)
@@ -209,6 +211,7 @@ function handleSubmit() {
     service: serviceId.value,
     start: selectedStart.value,
     delivery_mode: deliveryMode.value,
+    payment_method: paymentMethod.value,
   }
 
   if (deliveryMode.value === 'home') {
@@ -497,6 +500,13 @@ function handleSubmit() {
         <p class="font-semibold text-text-primary">الإجمالي: {{ previewPrice.total }} ₪</p>
         <p class="text-xs text-text-tertiary">* هذا سعر تقديري. السعر النهائي يحتسبه الخادم عند تأكيد الحجز.</p>
       </div>
+
+      <PaymentMethodPicker
+        v-model="paymentMethod"
+        :loyalty-enabled="selectedService?.loyalty_enabled ?? false"
+        :loyalty-redemption-points="selectedService?.loyalty_redemption_points ?? 0"
+        :loyalty-balance="loyaltyBalance"
+      />
     </FormSection>
 
     <!-- Navigation buttons -->

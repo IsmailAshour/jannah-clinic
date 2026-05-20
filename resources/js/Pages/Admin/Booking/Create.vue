@@ -21,6 +21,7 @@ const form = useForm({
   location_note: null,
   customer_id: null,
   new_customer: null,
+  payment_method: 'cash',
 })
 
 function handleSubmit(payload) {
@@ -33,6 +34,7 @@ function handleSubmit(payload) {
   form.location_note = payload.location_note ?? null
   form.customer_id = payload.customer_id ?? null
   form.new_customer = payload.new_customer ?? null
+  form.payment_method = payload.payment_method ?? 'cash'
 
   form.post(route('admin.booking.store'))
 }

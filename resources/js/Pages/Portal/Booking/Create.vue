@@ -8,6 +8,7 @@ const props = defineProps({
   doctors: { type: Array, default: () => [] },
   coverageAreas: { type: Array, default: () => [] },
   homeSurchargePct: { type: [String, Number], default: 0 },
+  loyaltyBalance: { type: Number, default: 0 },
 })
 
 const form = useForm({
@@ -18,6 +19,7 @@ const form = useForm({
   coverage_area_id: null,
   address_text: null,
   location_note: null,
+  payment_method: 'cash',
 })
 
 function handleSubmit(payload) {
@@ -28,6 +30,7 @@ function handleSubmit(payload) {
   form.coverage_area_id = payload.coverage_area_id ?? null
   form.address_text = payload.address_text ?? null
   form.location_note = payload.location_note ?? null
+  form.payment_method = payload.payment_method ?? 'cash'
 
   form.post(route('portal.booking.store'))
 }
@@ -49,6 +52,7 @@ function handleSubmit(payload) {
         :availability-days-url="'/portal/availability/days'"
         :home-surcharge-pct="homeSurchargePct"
         :customer-picker="false"
+        :loyalty-balance="loyaltyBalance"
         :errors="form.errors"
         @submit="handleSubmit"
       />

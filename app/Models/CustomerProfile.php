@@ -6,10 +6,16 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'date_of_birth', 'gender', 'notes', 'avatar_path', 'profile_completed_at'])]
+#[Fillable(['user_id', 'date_of_birth', 'gender', 'notes', 'avatar_path', 'profile_completed_at', 'chronic_conditions', 'allergies'])]
 class CustomerProfile extends Model
 {
-    protected $casts = ['date_of_birth' => 'date', 'profile_completed_at' => 'datetime'];
+    protected $casts = [
+        'date_of_birth' => 'date',
+        'profile_completed_at' => 'datetime',
+        'notes' => 'encrypted',
+        'chronic_conditions' => 'encrypted',
+        'allergies' => 'encrypted',
+    ];
 
     public function user(): BelongsTo
     {

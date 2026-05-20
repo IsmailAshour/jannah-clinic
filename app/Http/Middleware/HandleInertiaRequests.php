@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -42,6 +43,12 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'temp_password' => fn () => $request->session()->get('temp_password'),
             ],
+            // Staff-only counters for sidebar badges (P2). Closure is evaluated
+            // lazily only when the prop is read; query is gated to staff to
+            // avoid leaking COUNTs to guests/customers.
+            'adminCounts' => fn () => $request->user()?->isStaff()
+                ? ['submitted_payments' => Payment::query()->where('status', 'submitted')->count()]
+                : null,
         ];
     }
 }

@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   MapPin,
   Package,
+  Receipt,
   Settings,
   Stethoscope,
   Tags,
@@ -68,6 +69,7 @@ const nav = [
       { label: 'العملاء', href: '/admin/customers', icon: Contact2 },
       { label: 'الأطباء', href: '/admin/doctors', icon: Users },
       { label: 'المواعيد', href: '/admin/appointments', icon: CalendarDays },
+      { label: 'المدفوعات', href: '/admin/payments', icon: Receipt, badgeKey: 'submitted_payments' },
       { label: 'حجز موعد  لعميل', href: '/admin/booking', icon: CalendarPlus },
     ],
   },
@@ -210,6 +212,15 @@ const NavLink = defineComponent({
                             <NavLink :href="c.href" :label="c.label" :active="isActive(c.href)">
                               <component :is="c.icon" class="h-4 w-4 shrink-0" aria-hidden="true" />
                               <span>{{ c.label }}</span>
+                              <!--
+                                Sidebar badge: shows a numeric pill (e.g. count of submitted payments
+                                awaiting review) for staff only. Source: HandleInertiaRequests shares
+                                adminCounts gated to isStaff(); customers/guests never see the count.
+                              -->
+                              <span
+                                v-if="c.badgeKey && page.props?.adminCounts?.[c.badgeKey] > 0"
+                                class="ms-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] font-bold text-white"
+                              >{{ page.props.adminCounts[c.badgeKey] }}</span>
                             </NavLink>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>

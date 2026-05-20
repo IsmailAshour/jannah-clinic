@@ -4,7 +4,7 @@
 > Scope: domain
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-19 (P1 Task 10 — Appointment::rescheduledFrom() self-relation documented; lifecycle note + InvalidTransitionException added)
+> Last updated: 2026-05-20 (P2 — Payment + PaymentReceipt entities, PaymentStatus enum, AppointmentObserver auto-refund; hybrid lifecycle, AppointmentStatus unchanged)
 > P0 entities fully documented; P1 Task 2 entities (ServiceCategory, Service), P1 Task 3 entities (DoctorProfile, doctor_service pivot), P1 schedule slot-grid (DoctorScheduleSlot, ScheduleException, ScheduleExceptionSlot — redesign), P1 Task 5 entities (HomeServiceCoverageArea), and P1 Task 6 entities (Appointment, ServiceAddress) added below.
 
 **R6 obligation:** this file MUST be updated in the same change set as any model,
@@ -560,13 +560,93 @@ appointments (0..1) ─────── (*) appointments          [rescheduled
 
 ---
 
-## P2+ Entities (OUT OF SCOPE — YAGNI)
+## P2 Entities — Payments (bank-transfer receipt model)
 
-The following entities are explicitly deferred to P2–P5. They MUST NOT be
+Spec: `docs/superpowers/specs/2026-05-20-jannahclinic-p2-payments-design.md`.
+The Appointment ↔ Payment relation is 1:1 (UNIQUE FK on `appointment_id` cascadeOnDelete);
+Payment ↔ PaymentReceipt is 1:N (each upload attempt = one row; current = latest non-rejected).
+
+### `Payment`
+
+Table: `payments`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK |
+| `appointment_id` | bigint unsigned | NOT NULL, FK → `appointments.id` CASCADE DELETE, **UNIQUE** |
+| `amount` | decimal(10,2) | NOT NULL |
+| `status` | varchar(16) | NOT NULL, default `pending` |
+| `verified_at` | timestamp | nullable |
+| `verified_by` | bigint unsigned | nullable, FK → `users.id`, nullOnDelete |
+| `refunded_at` | timestamp | nullable |
+| `refunded_by` | bigint unsigned | nullable, FK → `users.id`, nullOnDelete |
+| `refund_reference` | varchar(255) | nullable |
+| `rejection_reason` | text | nullable |
+| `notes` | text | nullable |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Postgres CHECK:** `status IN ('pending','submitted','paid','rejected','refund_pending','refunded')`, `amount >= 0`.
+**Index:** `(status, created_at)` — supports the admin payments index "submitted first" filter.
+**Fillable:** all of the above except `id`/timestamps.
+**Casts:** `amount → decimal:2`, `status → PaymentStatus`, `verified_at`/`refunded_at` → `datetime`.
+**Relations:** `appointment(): BelongsTo` → `Appointment`; `verifier(): BelongsTo` → `User`; `refunder(): BelongsTo` → `User`; `receipts(): HasMany` → `PaymentReceipt` (orderByDesc id).
+**Model path:** `app/Models/Payment.php`.
+
+### `PaymentReceipt`
+
+Table: `payment_receipts`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | bigint unsigned | PK |
+| `payment_id` | bigint unsigned | NOT NULL, FK → `payments.id` CASCADE DELETE |
+| `uploaded_by` | bigint unsigned | NOT NULL, FK → `users.id`, restrictOnDelete |
+| `file_path` | varchar(255) | NOT NULL (relative to `storage/app/receipts/`, **never** under `storage/app/public/`) |
+| `file_size` | unsigned int | NOT NULL (bytes) |
+| `mime_type` | varchar(64) | NOT NULL |
+| `status` | varchar(16) | NOT NULL, default `uploaded` |
+| `rejection_reason` | text | nullable |
+| `rejected_at` | timestamp | nullable |
+| `rejected_by` | bigint unsigned | nullable, FK → `users.id`, nullOnDelete |
+| `created_at` / `updated_at` | timestamp | nullable |
+
+**Postgres CHECK:** `status IN ('uploaded','rejected')`, `file_size > 0`.
+**Index:** `(payment_id, id)` — supports `latest receipt` lookups.
+**Fillable:** `payment_id`, `uploaded_by`, `file_path`, `file_size`, `mime_type`, `status`, `rejection_reason`, `rejected_at`, `rejected_by`.
+**Casts:** `rejected_at → datetime`.
+**Relations:** `payment()` / `uploader()` / `rejector()`.
+**Model path:** `app/Models/PaymentReceipt.php`.
+
+### `PaymentStatus` (PHP Enum)
+
+`App\Enums\PaymentStatus` — string-backed enum with 6 cases:
+
+| Case | Value | Notes |
+|------|-------|-------|
+| `Pending` | `pending` | Payment row exists, no receipt yet |
+| `Submitted` | `submitted` | Receipt uploaded, manager hasn't acted |
+| `Paid` | `paid` | Manager verified the receipt |
+| `Rejected` | `rejected` | Manager rejected (reason on payment + latest receipt); customer can re-upload → back to submitted |
+| `RefundPending` | `refund_pending` | Auto (Appointment Cancelled/Rejected while paid) OR manual (Rescheduled / staff decision) |
+| `Refunded` | `refunded` | Terminal. Manager recorded the reverse-transfer execution |
+
+Helpers: `isTerminal(): bool` (true only for `Refunded`), `isPaid(): bool`.
+**Enum path:** `app/Enums/PaymentStatus.php`.
+
+### Hybrid lifecycle + auto-refund listener
+
+`AppointmentStatus` (P1) is **unchanged**. The hybrid integration lives in `App\Observers\AppointmentObserver::updated()`: when an Appointment's status transitions to `Cancelled` or `Rejected` AND its Payment is in state `paid`, the observer calls `PaymentService::markRefundPending()` so the refund queue picks it up. Other terminal transitions (`Completed`, `NoShow`, `Rescheduled`) deliberately do NOT auto-trigger — see spec §3 rationale.
+
+Registered in `AppServiceProvider::boot` via `Appointment::observe(AppointmentObserver::class)`.
+
+---
+
+## P3+ Entities (OUT OF SCOPE — YAGNI)
+
+The following entities are explicitly deferred to P3–P5. They MUST NOT be
 modelled, migrated, or referenced until their phase begins:
 
-> Payment, Receipt, MedicalRecord, MedicalEntry,
-> Prescription, MembershipPlan, UserMembership, LoyaltyTransaction, Notification
+> MedicalRecord, MedicalEntry, Prescription, MembershipPlan, UserMembership, LoyaltyTransaction, Notification
 
 Roadmap: `docs/superpowers/specs/2026-05-19-jannahclinic-p0-foundation-design.md` §2
 and the `clinic` reference feature inventory.

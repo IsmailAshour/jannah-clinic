@@ -4,7 +4,7 @@
 > Scope: architecture
 > Owner: Engineering
 > Canonical Registry Ref: docs/CANONICAL-DECISION-REGISTRY.md
-> Last updated: 2026-05-20 (post-P1 polish: Customer admin page Polish-D — list/search/show/update/toggle-active; `users.is_active` + login guard)
+> Last updated: 2026-05-20 (P2 Payments: bank-transfer receipt model — Payment/PaymentReceipt entities, PaymentService, AppointmentObserver auto-refund, 9 routes, R12 bank settings, hybrid lifecycle)
 
 **R6 obligation:** this file MUST be updated in the same change set as any change
 to models, routes, middleware, design tokens, or CI configuration.
@@ -435,6 +435,43 @@ P2–P5 roadmap is in
 - **Vue `isTerminal` JS array duplicates PHP `AppointmentStatus::isTerminal()` (T10 acceptable MVP):** both must be updated together if the lifecycle grows — revisit with a generated TS enum or endpoint if a status is added.
 - **Phone-only quick-created customers cannot self-authenticate to portal (T9 MVP):** staff-quick-created customers have no known password; needs password-reset or phone-OTP flow before portal self-login is required.
 - **RTL CI check scoping:** RTL CI grep is scoped to authored dirs; vendored `shadcn-vue Components/ui/` excluded by design.
+
+---
+
+## P2 — Payments (bank-transfer receipt model)
+
+Spec: `docs/superpowers/specs/2026-05-20-jannahclinic-p2-payments-design.md`.
+Implementation plan: `docs/superpowers/plans/2026-05-20-jannahclinic-p2-payments.md`.
+
+**Hybrid lifecycle:** `Payment` is **decoupled** from `AppointmentStatus`. No states added to the appointment state machine. Staff can confirm appointments without payment (trusted customers, pay-in-clinic). UI surfaces "awaiting payment" prompts in both surfaces but never blocks lifecycle transitions.
+
+**Domain entities:**
+- `App\Models\Payment` — 1:1 with `Appointment` (cascadeOnDelete unique FK), `amount` decimal:2, `status` enum (6 cases: pending → submitted → paid/rejected; paid → refund_pending → refunded), verified/refunded audit fields. pgsql CHECK constraints on status + amount>=0.
+- `App\Models\PaymentReceipt` — N:1 with `Payment`; `file_path` (private `local` disk), `mime_type`, `file_size`, `status` (uploaded|rejected), uploader + rejector audit. CHECK on status + size>0.
+- `App\Enums\PaymentStatus` — 6-case backed enum + `isTerminal()` + `isPaid()` helpers.
+- `App\Domain\Payment\Services\PaymentService` (R7) — `uploadReceipt`/`verify`/`reject`/`markRefundPending`/`markRefunded` with state-source guards throwing `InvalidPaymentTransitionException`.
+- `App\Observers\AppointmentObserver` — auto-marks `paid` Payment as `refund_pending` when its Appointment transitions to `Cancelled` or `Rejected`. Registered in AppServiceProvider.
+
+**File storage:** receipts stored under `storage/app/receipts/{payment_id}/{uuid}.{ext}` on the private `local` disk — NEVER on `public`. Served only through `admin.payments.receipt-file` (ownership check + Storage::disk('local')->response()). Customers also view their own uploaded receipt via the portal payment page.
+
+**P2 routes (10 new — locked by `tests/Feature/RouteNamesTest.php`):**
+
+| Method | Path | Name | Auth |
+|---|---|---|---|
+| GET  | `/portal/appointments/{appointment}/payment` | `portal.appointments.payment` | customer (owner) |
+| POST | `/portal/appointments/{appointment}/payment/upload` | `portal.appointments.payment.upload` | customer (owner) |
+| GET  | `/admin/payments` | `admin.payments.index` | all staff |
+| GET  | `/admin/payments/{payment}` | `admin.payments.show` | all staff |
+| GET  | `/admin/payments/{payment}/receipts/{receipt}/file` | `admin.payments.receipt-file` | all staff |
+| POST | `/admin/payments/{payment}/verify` | `admin.payments.verify` | manager only |
+| POST | `/admin/payments/{payment}/reject` | `admin.payments.reject` | manager only |
+| POST | `/admin/payments/{payment}/mark-refund-pending` | `admin.payments.mark-refund-pending` | manager only |
+| POST | `/admin/payments/{payment}/mark-refunded` | `admin.payments.mark-refunded` | manager only |
+| PUT  | `/admin/settings/bank` | `admin.settings.bank` | manager only |
+
+**Bank-account info (R12):** 4 keys in `config/clinic.php` (`bank_name`, `bank_account_holder`, `bank_iban`, `bank_account_number`) with `env()` empty defaults; runtime values via `SettingService` (DB-backed override). Managed from `/admin/settings` ("بيانات الحساب البنكي" section); shown to customers on the portal payment page.
+
+**Inertia shared prop `adminCounts.submitted_payments`:** lazy closure in `HandleInertiaRequests::share` — short-circuits to `null` for non-staff so the COUNT(*) query never runs for guests/customers. The `AdminShell` sidebar leaf "المدفوعات" renders a numeric badge when the count > 0.
 
 ---
 

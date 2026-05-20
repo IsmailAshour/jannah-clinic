@@ -103,6 +103,36 @@ it('doctor author can update own entry', function () {
     expect($entry->fresh()->visible_summary)->toBe('updated diagnosis');
 });
 
+it('GET create does NOT persist a stub entry', function () {
+    $this->actingAs($this->doctorUser)
+        ->get("/admin/appointments/{$this->appt->id}/medical-entry/create")
+        ->assertOk();
+
+    expect(MedicalEntry::where('appointment_id', $this->appt->id)->exists())->toBeFalse();
+});
+
+it('GET create renders Edit page in "new" mode', function () {
+    $resp = $this->actingAs($this->doctorUser)
+        ->get("/admin/appointments/{$this->appt->id}/medical-entry/create")
+        ->assertOk();
+
+    $props = $resp->viewData('page')['props'];
+    expect($props['entry'])->toBeNull()
+        ->and($props['appointment']['id'])->toBe($this->appt->id);
+});
+
+it('GET create redirects to edit when entry already exists', function () {
+    $entry = MedicalEntry::create([
+        'appointment_id' => $this->appt->id,
+        'author_id' => $this->doctorUser->id,
+        'visible_summary' => 'existing',
+    ]);
+
+    $this->actingAs($this->doctorUser)
+        ->get("/admin/appointments/{$this->appt->id}/medical-entry/create")
+        ->assertRedirect("/admin/medical-entries/{$entry->id}/edit");
+});
+
 it('different doctor cannot update entry', function () {
     $entry = MedicalEntry::create([
         'appointment_id' => $this->appt->id,

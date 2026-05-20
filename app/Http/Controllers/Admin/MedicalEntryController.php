@@ -43,16 +43,31 @@ class MedicalEntryController extends Controller
             ->with('success', 'تم حفظ السجل الطبي.');
     }
 
-    public function create(Appointment $appointment, Request $request): RedirectResponse
+    public function create(Appointment $appointment): Response|RedirectResponse
     {
         Gate::authorize('create', [MedicalEntry::class, $appointment]);
 
-        $entry = MedicalEntry::firstOrCreate(
-            ['appointment_id' => $appointment->id],
-            ['author_id' => $request->user()->id, 'visible_summary' => '—'],
-        );
+        $appointment->load('customer', 'medicalEntry.prescriptions');
 
-        return redirect()->route('admin.medical-entries.edit', $entry);
+        // If an entry already exists for this appointment, redirect to its edit
+        // page (the unique FK constraint forbids a second). Otherwise render the
+        // form in "new" mode — no DB write happens until the doctor submits.
+        if ($appointment->medicalEntry) {
+            return redirect()->route('admin.medical-entries.edit', $appointment->medicalEntry);
+        }
+
+        return Inertia::render('Admin/MedicalEntries/Edit', [
+            'entry' => null,
+            'prescriptions' => [],
+            'appointment' => [
+                'id' => $appointment->id,
+                'start_at' => $appointment->start_at->toIso8601String(),
+            ],
+            'customer' => [
+                'id' => $appointment->customer->id,
+                'name' => $appointment->customer->name,
+            ],
+        ]);
     }
 
     public function edit(MedicalEntry $entry, AuditLogger $audit): Response

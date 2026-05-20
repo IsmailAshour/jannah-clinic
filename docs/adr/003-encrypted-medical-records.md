@@ -60,9 +60,11 @@ Adopt a Strict security posture for PHI free-text fields:
   hardening (key rotation, HSM-backed keys) is deferred.
 
 **Operational obligations:**
-- `APP_KEY` rotation: quarterly, via the runbook documented in P3's
-  follow-on operations notes. Rotation requires a re-encrypt artisan command
-  (deferred to a later phase; manual rotation steps are documented).
+- `APP_KEY` rotation: quarterly, via `docs/runbooks/app-key-rotation.md`.
+  The runbook uses Laravel's `APP_PREVIOUS_KEYS` two-key window so the app
+  stays up during re-encryption. A dedicated `medical:rotate-encryption`
+  artisan command is deferred; the manual `tinker` loop in the runbook
+  covers the current data volume.
 - The append-only invariant is enforced both in code (`MedicalAuditLog`
   rejects `save` after `exists` and rejects `delete`) and by a CI grep gate
   that fails on any code path attempting `MedicalAuditLog::*->update()` or

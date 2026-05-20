@@ -7,15 +7,17 @@ import { Input } from '@/Components/ui/input'
 import { Trash2, Plus } from 'lucide-vue-next'
 
 const props = defineProps({
-  entry: { type: Object, required: true },
+  entry: { type: Object, default: null },
   prescriptions: { type: Array, default: () => [] },
   appointment: { type: Object, required: true },
   customer: { type: Object, required: true },
 })
 
+const isNew = !props.entry?.id
+
 const form = useForm({
-  visible_summary: props.entry.visible_summary === '—' ? '' : (props.entry.visible_summary ?? ''),
-  staff_notes: props.entry.staff_notes ?? '',
+  visible_summary: props.entry?.visible_summary ?? '',
+  staff_notes: props.entry?.staff_notes ?? '',
   prescriptions: props.prescriptions.map((p) => ({ ...p })),
 })
 
@@ -28,7 +30,11 @@ function removePrescription(i) {
 }
 
 function save() {
-  form.put(`/admin/medical-entries/${props.entry.id}`, { preserveScroll: true })
+  if (isNew) {
+    form.post(`/admin/appointments/${props.appointment.id}/medical-entry`, { preserveScroll: true })
+  } else {
+    form.put(`/admin/medical-entries/${props.entry.id}`, { preserveScroll: true })
+  }
 }
 
 function formatDate(dt) {

@@ -1,19 +1,18 @@
 <script setup>
 import { ref, h } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
+import { Ban, Check, CheckCircle2, Eye, UserX, X } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
   AdminDataTable,
   AdminDataTableColumnHeader,
-  AdminDataTableRowActions,
   AdminDataTableViewOptions,
   Modal,
   ConfirmModal,
   StatusBadge,
   FormGroup,
 } from '@/Components/foundation'
-import { DropdownMenuItem, DropdownMenuSeparator } from '@/Components/ui/dropdown-menu'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
@@ -192,24 +191,39 @@ const columns = [
     header: () => '',
     cell: ({ row }) => {
       const r = row.original
-      const items = [
-        h(DropdownMenuItem, { onClick: () => router.visit(`/admin/appointments/${r.id}`) }, 'فتح صفحة الموعد'),
+      // Reusable icon-button factory — same shape for every action so the
+      // row reads as a coherent toolbar instead of a heterogeneous mix.
+      const iconBtn = (icon, label, onClick, tone = 'default') => {
+        const toneClasses = {
+          default: 'text-text-secondary hover:text-brand hover:bg-brand/10',
+          success: 'text-success hover:bg-success/10',
+          danger:  'text-danger  hover:bg-danger/10',
+          warning: 'text-warning hover:bg-warning/10',
+        }
+        return h('button', {
+          type: 'button',
+          title: label,
+          'aria-label': label,
+          onClick,
+          class: `inline-flex items-center justify-center w-8 h-8 rounded-md transition ${toneClasses[tone]}`,
+        }, h(icon, { class: 'w-4 h-4', 'aria-hidden': 'true' }))
+      }
+
+      const buttons = [
+        iconBtn(Eye, 'فتح صفحة الموعد', () => router.visit(`/admin/appointments/${r.id}`)),
       ]
-      if (isTerminal(r.status)) {
-        return h(AdminDataTableRowActions, null, { default: () => items })
+      if (!isTerminal(r.status)) {
+        if (r.status === 'requested') {
+          buttons.push(iconBtn(Check, 'تأكيد', () => requestTransition(r, 'confirmed'), 'success'))
+          buttons.push(iconBtn(X, 'رفض', () => requestTransition(r, 'rejected'), 'danger'))
+        }
+        if (r.status === 'confirmed') {
+          buttons.push(iconBtn(CheckCircle2, 'إكمال', () => requestTransition(r, 'completed'), 'success'))
+          buttons.push(iconBtn(UserX, 'لم يحضر', () => requestTransition(r, 'no_show'), 'warning'))
+        }
+        buttons.push(iconBtn(Ban, 'إلغاء بسبب…', () => openCancelModal(r), 'danger'))
       }
-      items.push(h(DropdownMenuSeparator))
-      if (r.status === 'requested') {
-        items.push(h(DropdownMenuItem, { onClick: () => requestTransition(r, 'confirmed') }, 'تأكيد'))
-        items.push(h(DropdownMenuItem, { class: 'text-danger', onClick: () => requestTransition(r, 'rejected') }, 'رفض'))
-      }
-      if (r.status === 'confirmed') {
-        items.push(h(DropdownMenuItem, { onClick: () => requestTransition(r, 'completed') }, 'إكمال'))
-        items.push(h(DropdownMenuItem, { class: 'text-warning', onClick: () => requestTransition(r, 'no_show') }, 'لم يحضر'))
-      }
-      items.push(h(DropdownMenuSeparator))
-      items.push(h(DropdownMenuItem, { class: 'text-danger', onClick: () => openCancelModal(r) }, 'إلغاء بسبب…'))
-      return h(AdminDataTableRowActions, null, { default: () => items })
+      return h('div', { class: 'flex items-center gap-1 justify-end' }, buttons)
     },
   },
 ]

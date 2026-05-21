@@ -29,10 +29,7 @@
         <meta name="twitter:description" content="{{ $seoDescription }}">
         <meta name="twitter:image" content="{{ $seoImageUrl }}">
 
-        <!-- JSON-LD structured data (MedicalBusiness). The JSON-LD spec uses
-             keys that start with '@' (@context, @type). Laravel 11+ added a
-             Blade @context directive that would consume them, so each key is
-             escaped with @@ which Blade renders as a single literal @. -->
+        {{-- JSON-LD MedicalBusiness — keys are escaped with @@ because Blade 11+ owns the @context directive. --}}
         <script type="application/ld+json">
         {
             "@@context": "https://schema.org",

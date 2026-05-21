@@ -8,10 +8,13 @@ use App\Domain\Settings\Services\SettingService;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Payment;
+use App\Models\PaymentReceipt;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PaymentController extends Controller
 {
@@ -53,5 +56,24 @@ class PaymentController extends Controller
         }
 
         return back()->with('success', 'تم رفع الإيصال — بانتظار التحقّق.');
+    }
+
+    /**
+     * Stream a receipt file that belongs to the authenticated customer's own
+     * appointment. Customers may only download their own receipts; staff use
+     * the admin route. Three ownership boundaries are checked here:
+     *   1. appointment.customer_id === current user (route group already
+     *      restricts to role:customer, this catches forged appointment IDs)
+     *   2. receipt.payment_id === the appointment's payment.id (prevents
+     *      mixing receipts from another appointment via URL manipulation)
+     */
+    public function receiptFile(Request $request, Appointment $appointment, PaymentReceipt $receipt): StreamedResponse
+    {
+        abort_unless($appointment->customer_id === $request->user()->id, 403);
+        /** @var Payment $payment */
+        $payment = $appointment->payment()->firstOrFail();
+        abort_unless($receipt->payment_id === $payment->id, 404);
+
+        return Storage::disk('local')->response($receipt->file_path);
     }
 }

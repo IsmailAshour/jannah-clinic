@@ -39,9 +39,11 @@ Route::middleware(['auth', 'role:customer'])
         Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
         Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
 
-        // Payment (per-appointment) — view + upload receipt
+        // Payment (per-appointment) — view + upload receipt + download own receipt file
         Route::get('appointments/{appointment}/payment', [PaymentController::class, 'show'])->name('appointments.payment');
         Route::post('appointments/{appointment}/payment/upload', [PaymentController::class, 'upload'])->name('appointments.payment.upload');
+        Route::get('appointments/{appointment}/payment/receipt/{receipt}/file', [PaymentController::class, 'receiptFile'])
+            ->name('appointments.payment.receipt-file');
 
         // P3 — Medical Record (customer view of own record)
         Route::get('medical-record', [MedicalRecordController::class, 'index'])->name('medical-record.index');

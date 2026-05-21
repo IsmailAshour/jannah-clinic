@@ -8,36 +8,8 @@ use App\Enums\LoyaltyReason;
 use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use App\Models\Appointment;
-use App\Models\CustomerProfile;
-use App\Models\DoctorProfile;
 use App\Models\LoyaltyLedger;
 use App\Models\Payment;
-use App\Models\Service;
-use App\Models\ServiceCategory;
-use App\Models\User;
-use Carbon\Carbon;
-use Carbon\CarbonImmutable;
-
-function mkRedeemFixtures(int $balance): array
-{
-    $customer = User::factory()->create(['role' => UserRole::Customer]);
-    CustomerProfile::create(['user_id' => $customer->id, 'loyalty_balance' => $balance]);
-    $doctorUser = User::factory()->create(['role' => UserRole::Doctor]);
-    $doctor = DoctorProfile::factory()->create(['user_id' => $doctorUser->id]);
-    $cat = ServiceCategory::create(['name' => 'c'.uniqid(), 'slug' => 'c'.uniqid(), 'color_variant' => 'brand']);
-    $service = Service::create([
-        'category_id' => $cat->id, 'name' => 's',
-        'base_price' => '100.00', 'duration_minutes' => 30, 'home_service_enabled' => false,
-        'loyalty_enabled' => true, 'loyalty_redemption_points' => 500,
-    ]);
-    $doctor->services()->attach($service->id);
-
-    // Build a valid bookable slot for next Monday 10:00 (single 30-min grid slot)
-    $start = CarbonImmutable::now()->next(Carbon::MONDAY)->setTime(10, 0);
-    enableDoctorSlots($doctor, 1, slotRange('10:00', 4));
-
-    return compact('customer', 'doctor', 'service', 'start');
-}
 
 it('booking with payment_method=loyalty_points creates appointment WITHOUT a Payment row', function () {
     $f = mkRedeemFixtures(balance: 1000);

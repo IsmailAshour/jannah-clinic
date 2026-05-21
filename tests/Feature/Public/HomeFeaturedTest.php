@@ -10,27 +10,34 @@ use App\Models\ServiceCategory;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 
-it('home includes up to 4 featured services', function () {
-    $cat = ServiceCategory::create(['name' => 'c', 'slug' => 's', 'color_variant' => 'brand']);
-    Service::create(['category_id' => $cat->id, 'name' => 's1', 'base_price' => '10.00', 'duration_minutes' => 30, 'home_service_enabled' => false, 'display_order' => 1, 'is_active' => true]);
-    Service::create(['category_id' => $cat->id, 'name' => 's2', 'base_price' => '20.00', 'duration_minutes' => 30, 'home_service_enabled' => false, 'display_order' => 2, 'is_active' => true]);
-    Service::create(['category_id' => $cat->id, 'name' => 's3', 'base_price' => '30.00', 'duration_minutes' => 30, 'home_service_enabled' => false, 'display_order' => 3, 'is_active' => true]);
-    Service::create(['category_id' => $cat->id, 'name' => 's4', 'base_price' => '40.00', 'duration_minutes' => 30, 'home_service_enabled' => false, 'display_order' => 4, 'is_active' => true]);
-    Service::create(['category_id' => $cat->id, 'name' => 's5', 'base_price' => '50.00', 'duration_minutes' => 30, 'home_service_enabled' => false, 'display_order' => 5, 'is_active' => true]);
+it('home includes up to 6 categories ordered by display_order', function () {
+    for ($i = 1; $i <= 7; $i++) {
+        ServiceCategory::create([
+            'name' => "cat-{$i}",
+            'slug' => "slug-{$i}",
+            'color_variant' => 'brand',
+            'display_order' => $i,
+            'is_active' => true,
+        ]);
+    }
 
     $resp = $this->get('/');
-    $featured = $resp->viewData('page')['props']['featuredServices'];
-    expect(count($featured))->toBe(4);
+    $categories = $resp->viewData('page')['props']['categories'];
+    expect(count($categories))->toBe(6);
 });
 
-it('home includes a featured doctor by highest rating', function () {
+it('home includes up to 4 doctors ordered by rating', function () {
     $u1 = User::factory()->create(['role' => UserRole::Doctor]);
     $u2 = User::factory()->create(['role' => UserRole::Doctor]);
+    $u3 = User::factory()->create(['role' => UserRole::Doctor]);
     DoctorProfile::factory()->create(['user_id' => $u1->id, 'rating_average' => '4.0', 'is_bookable' => true]);
-    $top = DoctorProfile::factory()->create(['user_id' => $u2->id, 'rating_average' => '5.0', 'is_bookable' => true]);
+    DoctorProfile::factory()->create(['user_id' => $u2->id, 'rating_average' => '5.0', 'is_bookable' => true]);
+    DoctorProfile::factory()->create(['user_id' => $u3->id, 'rating_average' => '3.5', 'is_bookable' => true]);
 
     $resp = $this->get('/');
-    expect($resp->viewData('page')['props']['featuredDoctor']['id'])->toBe($top->id);
+    $doctors = $resp->viewData('page')['props']['doctors'];
+    expect(count($doctors))->toBe(3)
+        ->and((float) $doctors[0]['rating_average'])->toBe(5.0);
 });
 
 it('home includes a tip from config', function () {
@@ -46,7 +53,7 @@ it('home tip is null when no tips configured', function () {
     expect($resp->viewData('page')['props']['tip'])->toBeNull();
 });
 
-it('authed customer sees personalized greeting + nextAppointment', function () {
+it('authed customer sees personalized greeting + upcoming appointments', function () {
     $customer = User::factory()->create(['role' => UserRole::Customer, 'name' => 'أحمد']);
     $doctorUser = User::factory()->create(['role' => UserRole::Doctor]);
     $doctor = DoctorProfile::factory()->create(['user_id' => $doctorUser->id]);
@@ -62,6 +69,15 @@ it('authed customer sees personalized greeting + nextAppointment', function () {
     ]);
 
     $resp = $this->actingAs($customer)->get('/');
-    expect($resp->viewData('page')['props']['greetingName'])->toBe('أحمد')
-        ->and($resp->viewData('page')['props']['nextAppointment'])->not->toBeNull();
+    $props = $resp->viewData('page')['props'];
+    expect($props['greetingName'])->toBe('أحمد')
+        ->and(count($props['upcomingAppointments']))->toBe(1);
+});
+
+it('guest gets empty upcoming appointments and zero loyalty balance', function () {
+    $resp = $this->get('/');
+    $props = $resp->viewData('page')['props'];
+    expect($props['greetingName'])->toBeNull()
+        ->and($props['upcomingAppointments'])->toBe([])
+        ->and($props['loyaltyBalance'])->toBe(0);
 });

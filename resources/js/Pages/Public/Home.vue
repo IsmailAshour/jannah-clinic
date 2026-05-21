@@ -27,8 +27,17 @@ const props = defineProps({
 
 const page = usePage()
 const clinicName = computed(() => page.props?.clinic?.name ?? 'عيادة جنّة')
+const clinicLogoUrl = computed(() => {
+  const p = page.props?.clinic?.logo_path
+  return p ? `/storage/${p}` : null
+})
+const clinicInitial = computed(() => {
+  const n = (clinicName.value ?? '').trim()
+  return n ? Array.from(n)[0] : 'ج'
+})
 const isAuthed = computed(() => !!page.props?.auth?.user)
 const unreadCount = computed(() => page.props?.notifications?.unread_count ?? 0)
+const notificationsHref = computed(() => isAuthed.value ? '/portal/notifications' : '/login?intent=notifications')
 
 const statusLabel = {
   requested: 'بانتظار التأكيد',
@@ -56,14 +65,48 @@ const tipText = computed(() => {
 
 <template>
   <ClientShell>
-    <div class="px-5 pt-6 pb-10 space-y-6">
-      <!-- Greeting -->
-      <header class="space-y-1.5">
-        <h1 class="text-3xl font-extrabold text-brand">
+    <!-- Hero header — brand badge + bell over radial gradient, then big greeting.
+         Mirrors the reference clinic's top section: a focal "welcome surface" that
+         frames the rest of the home feed. -->
+    <section
+      class="relative px-5 pt-6 pb-8"
+      :style="{ background: 'radial-gradient(120% 60% at 50% 0%, color-mix(in oklab, var(--color-brand) 18%, transparent) 0%, color-mix(in oklab, var(--color-warning) 10%, transparent) 45%, transparent 85%)' }"
+    >
+      <div class="flex items-center justify-between">
+        <!-- Brand badge (logo or initial) -->
+        <div class="w-14 h-14 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm overflow-hidden grid place-items-center text-brand text-lg font-extrabold">
+          <img
+            v-if="clinicLogoUrl"
+            :src="clinicLogoUrl"
+            :alt="clinicName"
+            class="w-full h-full object-cover"
+          />
+          <span v-else>{{ clinicInitial }}</span>
+        </div>
+
+        <!-- Notification bell -->
+        <Link
+          :href="notificationsHref"
+          :aria-label="`الإشعارات${unreadCount > 0 ? ` (${unreadCount} غير مقروءة)` : ''}`"
+          class="relative w-12 h-12 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm grid place-items-center text-brand hover:bg-brand/5 transition"
+        >
+          <Bell class="w-5 h-5" aria-hidden="true" />
+          <span
+            v-if="unreadCount > 0"
+            class="absolute -top-1 -end-1 min-w-5 h-5 px-1 rounded-full bg-danger text-white text-[10px] font-bold grid place-items-center ring-2 ring-surface-card"
+          >{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+        </Link>
+      </div>
+
+      <header class="mt-5 space-y-1.5">
+        <h1 class="text-3xl leading-tight font-extrabold text-brand">
           أهلًا{{ greetingName ? `، ${greetingName}` : ' بك' }}!
         </h1>
         <p class="text-sm text-text-secondary">أهلًا بك في {{ clinicName }} — اعتنِ بصحّتك وجمالك.</p>
       </header>
+    </section>
+
+    <div class="px-5 pt-2 pb-10 space-y-6">
 
       <!-- Upcoming appointments (authed only) -->
       <section v-if="isAuthed">

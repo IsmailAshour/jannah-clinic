@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AppointmentController;
+use App\Http\Controllers\Admin\AppointmentPhotoController;
 use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\ClinicSettingController;
 use App\Http\Controllers\Admin\ContactMessageController;
@@ -38,6 +39,12 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
 
         // Doctor schedule view – readable by all staff
         Route::get('doctors/{doctor}/schedule', [DoctorScheduleController::class, 'editSchedule'])->name('doctors.schedule');
+        // Doctor day-view (timeline) – readable by all staff
+        Route::get('doctors/{doctor}/day', [DoctorScheduleController::class, 'day'])->name('doctors.day');
+
+        // Before/after photo streaming — read by any staff; uploads/deletes gated below
+        Route::get('appointments/{appointment}/photos/{photo}/file', [AppointmentPhotoController::class, 'file'])
+            ->name('appointments.photos.file');
 
         // Coverage areas – readable by all staff
         Route::get('coverage', [CoverageAreaController::class, 'index'])->name('coverage.index');
@@ -155,5 +162,11 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::middleware('role:manager,doctor')->group(function () {
             Route::put('customers/{customer}/profile/medical', [CustomerController::class, 'updateMedicalProfile'])
                 ->name('customers.profile.medical.update');
+
+            // Before/after session photos
+            Route::post('appointments/{appointment}/photos', [AppointmentPhotoController::class, 'store'])
+                ->name('appointments.photos.store');
+            Route::delete('appointments/{appointment}/photos/{photo}', [AppointmentPhotoController::class, 'destroy'])
+                ->name('appointments.photos.destroy');
         });
     });

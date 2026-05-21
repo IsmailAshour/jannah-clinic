@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Booking\Slots\SlotGrid;
+use App\Enums\AppointmentStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Appointment;
+use App\Models\AppointmentPhoto;
 use App\Models\DoctorProfile;
 use App\Models\DoctorScheduleSlot;
 use App\Models\ScheduleException;
@@ -167,5 +170,86 @@ class DoctorScheduleController extends Controller
         $exception->delete();
 
         return back()->with('success', 'تم حذف الاستثناء');
+    }
+
+    /**
+     * Day-view for a single doctor — timeline of every appointment on the
+     * given date (default: today). Used by the doctor to plan their day and
+     * by managers to monitor capacity.
+     */
+    public function day(Request $request, DoctorProfile $doctor): Response
+    {
+        $dateInput = (string) $request->input('date', '');
+        $date = $dateInput !== ''
+            ? CarbonImmutable::parse($dateInput)
+            : CarbonImmutable::today();
+
+        $doctor->load('user:id,name');
+
+        $appointments = Appointment::query()
+            ->where('doctor_profile_id', $doctor->id)
+            ->whereBetween('start_at', [$date->startOfDay(), $date->endOfDay()])
+            ->with([
+                'customer:id,name,phone,email',
+                'service:id,name,duration_minutes',
+                'photos' => fn ($q) => $q->orderBy('id'),
+                'photos.uploader:id,name',
+            ])
+            ->orderBy('start_at')
+            ->get();
+
+        // Reshape for the page — keep payload small + predictable in TS shape.
+        $items = [];
+        foreach ($appointments as $a) {
+            /** @var Appointment $a */
+            $photos = [];
+            foreach ($a->photos as $p) {
+                /** @var AppointmentPhoto $p */
+                /** @var User|null $uploader */
+                $uploader = $p->uploader;
+                $photos[] = [
+                    'id' => $p->id,
+                    'kind' => $p->kind->value,
+                    'caption' => $p->caption,
+                    'mime_type' => $p->mime_type,
+                    'file_url' => route('admin.appointments.photos.file', ['appointment' => $a->id, 'photo' => $p->id]),
+                    'created_at' => $p->created_at->toIso8601String(),
+                    'uploaded_by_name' => $uploader?->name,
+                ];
+            }
+            $items[] = [
+                'id' => $a->id,
+                'start_at' => $a->start_at->toIso8601String(),
+                'end_at' => $a->end_at->toIso8601String(),
+                'time' => $a->start_at->format('H:i'),
+                'status' => $a->status->value,
+                'delivery_mode' => $a->delivery_mode->value,
+                'price_at_booking' => $a->price_at_booking,
+                'customer' => [
+                    'id' => $a->customer->id,
+                    'name' => $a->customer->name,
+                    'phone' => $a->customer->phone,
+                    'email' => $a->customer->email,
+                ],
+                'service' => [
+                    'name' => $a->service->name,
+                    'duration_minutes' => $a->service->duration_minutes,
+                ],
+                'photos' => $photos,
+            ];
+        }
+
+        return Inertia::render('Admin/Doctors/Day', [
+            'doctor' => [
+                'id' => $doctor->id,
+                'name' => $doctor->user->name,
+                'specialty' => $doctor->specialty,
+            ],
+            'date' => $date->toDateString(),
+            'prev_date' => $date->subDay()->toDateString(),
+            'next_date' => $date->addDay()->toDateString(),
+            'today' => CarbonImmutable::today()->toDateString(),
+            'appointments' => $items,
+        ]);
     }
 }

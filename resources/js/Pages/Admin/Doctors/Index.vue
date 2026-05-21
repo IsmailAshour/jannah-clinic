@@ -171,6 +171,9 @@ const deleteError = ref(null)
 function openSchedule(row) {
   router.visit(`/admin/doctors/${row.id}/schedule`)
 }
+function openDayView(row) {
+  router.visit(`/admin/doctors/${row.id}/day`)
+}
 
 function askDelete(row) {
   deleteTarget.value = row
@@ -259,7 +262,8 @@ const columns = [
     header: () => '',
     cell: ({ row }) => h(AdminDataTableRowActions, null, {
       default: () => [
-        h(DropdownMenuItem, { onClick: () => openSchedule(row.original) }, 'الجدول'),
+        h(DropdownMenuItem, { onClick: () => openDayView(row.original) }, 'جدول اليوم'),
+        h(DropdownMenuItem, { onClick: () => openSchedule(row.original) }, 'الجدول الأسبوعي'),
         h(DropdownMenuItem, { onClick: () => openEdit(row.original) }, 'تعديل'),
         h(DropdownMenuItem, { class: 'text-danger', onClick: () => askDelete(row.original) }, 'حذف'),
       ],

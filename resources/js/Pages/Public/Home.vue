@@ -64,62 +64,17 @@ const tipText = computed(() => {
 </script>
 
 <template>
-  <ClientShell :show-top-bar="false" full-bleed>
-    <!-- Whole-page radial gradient surface — fills under the bottom-nav too because
-         ClientShell.fullBleed drops the bg-surface-page so this wrapper paints
-         everything. Brand 18% from top-centre fading through warning 8% to white. -->
-    <div
-      class="min-h-[calc(100vh-4rem)]"
-      :style="{ background: 'radial-gradient(120% 50% at 50% 0%, color-mix(in oklab, var(--color-brand) 18%, white) 0%, color-mix(in oklab, var(--color-warning) 10%, white) 45%, white 90%)' }"
-    >
-      <!-- Hero header — brand badge + bell + greeting (replaces ClientShell's top bar on this page). -->
-      <section class="px-5 pt-6 pb-4">
-        <div class="flex items-center justify-between">
-          <!-- Brand: bare logo image + clinic name beside it -->
-          <Link href="/" class="flex items-center gap-2 min-w-0">
-            <img
-              v-if="clinicLogoUrl"
-              :src="clinicLogoUrl"
-              :alt="clinicName"
-              class="h-12 w-auto max-w-12 object-contain shrink-0"
-            />
-            <span v-else class="h-12 w-12 grid place-items-center text-brand text-xl font-extrabold shrink-0">{{ clinicInitial }}</span>
-            <span class="text-base font-extrabold text-brand truncate">{{ clinicName }}</span>
-          </Link>
+  <ClientShell>
+    <!-- Greeting heading — ClientShell now provides the unified header (logo + bell + profile),
+         and the page sits on a viewport-wide gradient painted by ClientShell. -->
+    <header class="px-5 pt-4 pb-2 space-y-1.5">
+      <h1 class="text-3xl leading-tight font-extrabold text-brand">
+        أهلًا{{ greetingName ? `، ${greetingName}` : ' بك' }}!
+      </h1>
+      <p class="text-sm text-text-secondary">أهلًا بك في {{ clinicName }} — اعتنِ بصحّتك وجمالك.</p>
+    </header>
 
-          <!-- Notification bell (authed) OR Login icon (guest) -->
-          <Link
-            v-if="isAuthed"
-            :href="notificationsHref"
-            :aria-label="`الإشعارات${unreadCount > 0 ? ` (${unreadCount} غير مقروءة)` : ''}`"
-            class="relative w-12 h-12 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm grid place-items-center text-brand hover:bg-brand/5 transition"
-          >
-            <Bell class="w-5 h-5" aria-hidden="true" />
-            <span
-              v-if="unreadCount > 0"
-              class="absolute -top-1 -end-1 min-w-5 h-5 px-1 rounded-full bg-danger text-white text-[10px] font-bold grid place-items-center ring-2 ring-surface-card"
-            >{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-          </Link>
-          <Link
-            v-else
-            href="/login"
-            aria-label="تسجيل الدخول أو إنشاء حساب"
-            title="تسجيل الدخول أو إنشاء حساب"
-            class="w-12 h-12 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm grid place-items-center text-brand hover:bg-brand/5 transition"
-          >
-            <LogIn class="w-5 h-5 rtl:rotate-180" aria-hidden="true" />
-          </Link>
-        </div>
-
-        <header class="mt-5 space-y-1.5">
-          <h1 class="text-3xl leading-tight font-extrabold text-brand">
-            أهلًا{{ greetingName ? `، ${greetingName}` : ' بك' }}!
-          </h1>
-          <p class="text-sm text-text-secondary">أهلًا بك في {{ clinicName }} — اعتنِ بصحّتك وجمالك.</p>
-        </header>
-      </section>
-
-      <div class="px-5 pt-2 pb-10 space-y-6">
+    <div class="px-5 pt-4 pb-10 space-y-6">
 
       <!-- Upcoming appointments (authed only) -->
       <section v-if="isAuthed">
@@ -168,10 +123,10 @@ const tipText = computed(() => {
         class="block relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ring-2 ring-warning/60"
         :style="{ background: 'linear-gradient(135deg, color-mix(in oklab, var(--color-brand) 100%, black 10%) 0%, var(--color-brand) 60%, color-mix(in oklab, var(--color-brand) 80%, white 15%) 100%)' }"
       >
-        <!-- Decorative translucent orbs (inline-start side, decorative only) -->
-        <span aria-hidden="true" class="pointer-events-none absolute -top-4 start-6 w-20 h-20 rounded-full bg-white/10" />
-        <span aria-hidden="true" class="pointer-events-none absolute top-12 start-0 w-16 h-16 rounded-full bg-white/8" />
-        <span aria-hidden="true" class="pointer-events-none absolute -bottom-6 start-16 w-24 h-24 rounded-full bg-white/5" />
+        <!-- Decorative translucent orbs (inline-end side = left in RTL — matches reference) -->
+        <span aria-hidden="true" class="pointer-events-none absolute -top-4 end-6 w-20 h-20 rounded-full bg-white/10" />
+        <span aria-hidden="true" class="pointer-events-none absolute top-12 end-0 w-16 h-16 rounded-full bg-white/8" />
+        <span aria-hidden="true" class="pointer-events-none absolute -bottom-6 end-16 w-24 h-24 rounded-full bg-white/5" />
 
         <div class="relative">
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning text-brand text-xs font-extrabold">
@@ -251,14 +206,14 @@ const tipText = computed(() => {
         class="relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ring-2 ring-warning/40"
         :style="{ background: 'linear-gradient(120deg, color-mix(in oklab, var(--color-brand) 100%, black 18%) 0%, var(--color-brand) 55%, color-mix(in oklab, var(--color-brand) 70%, var(--color-warning) 40%) 100%)' }"
       >
-        <!-- Decorative star — outline only, inline-start side, large and translucent -->
+        <!-- Decorative star — inline-end side (left in RTL) so it sits opposite the text -->
         <Star
           aria-hidden="true"
-          class="pointer-events-none absolute -bottom-4 start-2 w-32 h-32 text-white/10 fill-current"
+          class="pointer-events-none absolute -bottom-4 end-2 w-32 h-32 text-white/10 fill-current"
           stroke-width="1"
         />
 
-        <div class="relative flex flex-col items-end text-end">
+        <div class="relative flex flex-col items-start text-start">
           <p class="text-xs font-bold text-white/85">نقاط الولاء</p>
           <p class="mt-1 text-4xl font-extrabold tracking-tight">
             {{ loyaltyBalance.toLocaleString('ar') }}
@@ -327,7 +282,6 @@ const tipText = computed(() => {
           الدعم والتواصل <ArrowLeft class="w-3.5 h-3.5 rtl:rotate-180" aria-hidden="true" />
         </Link>
       </section>
-      </div>
     </div>
   </ClientShell>
 </template>

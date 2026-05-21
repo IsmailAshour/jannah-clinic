@@ -1,13 +1,16 @@
 <script setup>
-import { defineComponent, h } from 'vue'
+import { computed, defineComponent, h } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import {
   Briefcase,
   CalendarDays,
   CalendarPlus,
   ChevronRight,
+  ChevronsUpDown,
   Contact2,
+  Globe,
   LayoutDashboard,
+  LogOut,
   MailOpen,
   MapPin,
   Package,
@@ -15,11 +18,21 @@ import {
   Settings,
   Stethoscope,
   Tags,
+  User as UserIcon,
   Users,
 } from 'lucide-vue-next'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu'
+import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -91,6 +104,23 @@ function isActive(href) {
 function groupHasActiveChild(group) {
   return group.children?.some((c) => isActive(c.href)) ?? false
 }
+
+// Auth context for the footer card (name + email + initial avatar). The
+// dropdown lives in the SidebarFooter so it sits at the bottom of the rail —
+// shadcn's sidebar-07 'user nav' pattern.
+const authedUser = computed(() => page.props?.auth?.user ?? null)
+const userInitial = computed(() => {
+  const n = (authedUser.value?.name ?? '').trim()
+  return n ? Array.from(n)[0] : 'م'
+})
+const userRoleLabel = computed(() => {
+  switch (authedUser.value?.role) {
+    case 'manager':      return 'مدير'
+    case 'doctor':       return 'طبيب'
+    case 'receptionist': return 'استقبال'
+    default:             return ''
+  }
+})
 
 // Inertia <Link> that also closes the mobile sheet on click. Uses the
 // sidebar context provided by <SidebarProvider> below. Defined inline so the
@@ -236,6 +266,83 @@ const NavLink = defineComponent({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <!-- User nav footer (sidebar-07 pattern): a 'visit site' shortcut and
+           an avatar + name dropdown for settings/logout. In icon-collapsed
+           mode only the icons show; meta text + chevron are hidden via
+           group-data variant. -->
+      <SidebarFooter>
+        <SidebarMenu>
+          <!-- Visit public site (admin → /) -->
+          <SidebarMenuItem>
+            <SidebarMenuButton as-child tooltip="زيارة الموقع">
+              <a href="/" class="flex w-full items-center gap-2">
+                <Globe class="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>زيارة الموقع</span>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <SidebarMenuButton
+                  size="lg"
+                  class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
+                  <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand text-white font-extrabold text-sm shrink-0">
+                    {{ userInitial }}
+                  </span>
+                  <div class="grid flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden min-w-0">
+                    <span class="truncate font-bold">{{ authedUser?.name }}</span>
+                    <span class="truncate text-xs text-text-tertiary">
+                      {{ userRoleLabel }}<span v-if="authedUser?.email"> · {{ authedUser.email }}</span>
+                    </span>
+                  </div>
+                  <ChevronsUpDown class="ms-auto h-4 w-4 group-data-[collapsible=icon]:hidden" aria-hidden="true" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align="end"
+                :side-offset="4"
+                class="min-w-56 rounded-lg"
+              >
+                <DropdownMenuLabel class="p-0">
+                  <div class="flex items-center gap-2.5 px-2 py-2.5 text-start">
+                    <span class="grid place-items-center w-9 h-9 rounded-lg bg-brand text-white font-extrabold shrink-0">
+                      {{ userInitial }}
+                    </span>
+                    <div class="grid flex-1 leading-tight min-w-0">
+                      <span class="truncate text-sm font-bold">{{ authedUser?.name }}</span>
+                      <span v-if="authedUser?.email" class="truncate text-xs text-text-tertiary" dir="ltr">{{ authedUser.email }}</span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem as-child>
+                  <Link href="/admin/settings" class="flex items-center gap-2 w-full cursor-pointer">
+                    <Settings class="h-4 w-4 text-text-secondary" aria-hidden="true" />
+                    <span>الإعدادات</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem as-child>
+                  <Link
+                    href="/logout"
+                    method="post"
+                    as="button"
+                    class="flex items-center gap-2 w-full cursor-pointer text-danger"
+                  >
+                    <LogOut class="h-4 w-4" aria-hidden="true" />
+                    <span>تسجيل الخروج</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+
       <!--
         Rail: thin edge handle that toggles collapse on click. Part of the
         sidebar-07 pattern; positions itself via data-side/data-collapsible
@@ -260,8 +367,7 @@ const NavLink = defineComponent({
           the inline-start (visually right, adjacent to the sidebar).
         -->
         <SidebarTrigger class="-ms-2 me-auto" aria-label="القائمة" />
-        <NotificationBell href="/admin/notifications" class="me-2" />
-        <Link href="/logout" method="post" as="button" class="text-sm text-text-secondary hover:text-text-primary">تسجيل الخروج</Link>
+        <NotificationBell href="/admin/notifications" />
       </header>
       <div class="flex-1"><slot /></div>
     </SidebarInset>

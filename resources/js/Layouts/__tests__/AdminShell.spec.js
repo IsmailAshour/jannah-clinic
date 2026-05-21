@@ -123,14 +123,18 @@ describe('AdminShell (sidebar-07 icon-collapsible)', () => {
     w.unmount()
   })
 
-  it('renders the header logout link and a single sidebar trigger with Arabic aria-label', () => {
+  it('renders the visit-site link, sidebar trigger, and the user-nav footer', () => {
     const w = mountShell()
     const trigger = w.get('button[data-sidebar="trigger"]')
     expect(trigger.attributes('aria-label')).toBe('القائمة')
-    // Logout is an Inertia Link (mocked → <a>) with method=post via attrs.
-    const logout = w.find('a[href="/logout"]')
-    expect(logout.exists()).toBe(true)
-    expect(logout.text()).toBe('تسجيل الخروج')
+    // Visit-site shortcut in the SidebarFooter
+    const visitSite = w.find('a[href="/"]')
+    expect(visitSite.exists()).toBe(true)
+    expect(w.text()).toContain('زيارة الموقع')
+    // User-nav footer (sidebar-07 pattern): the trigger button renders before
+    // its dropdown content is opened. We just assert it exists; logout lives
+    // inside DropdownMenuContent which only mounts when opened.
+    expect(w.find('[data-sidebar="footer"]').exists()).toBe(true)
     w.unmount()
   })
 

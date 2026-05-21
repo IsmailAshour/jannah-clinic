@@ -166,19 +166,23 @@ function submitReschedule() {
               <StatusBadge :type="statusVariant(appt.status)" :label="statusLabel(appt.status)" />
             </div>
 
-            <!-- Payment row — shown whenever a Payment exists. Always visible (including for terminal appointments)
-                 so the customer can still see the receipt history / refund status. -->
-            <div v-if="paymentAction(appt)" class="flex items-center justify-between gap-2 pt-1 border-t border-border-default mt-2">
-              <p class="text-xs text-text-tertiary">{{ paymentAction(appt).subtext }}</p>
-              <Link :href="`/portal/appointments/${appt.id}/payment`">
+            <!-- Action row — payment first, then reschedule, then cancel. All in one row.
+                 Payment is always visible if a Payment row exists (even after the appointment is terminal,
+                 so the customer can still see the receipt / refund). Reschedule + cancel are gated on non-terminal status. -->
+            <div
+              v-if="paymentAction(appt) || !isTerminal(appt.status)"
+              class="flex flex-wrap items-center gap-2 pt-2 border-t border-border-default mt-2"
+            >
+              <Link v-if="paymentAction(appt)" :href="`/portal/appointments/${appt.id}/payment`">
                 <Button :variant="paymentAction(appt).variant" size="sm">{{ paymentAction(appt).label }}</Button>
               </Link>
-            </div>
-
-            <!-- Actions for non-terminal appointments -->
-            <div v-if="!isTerminal(appt.status)" class="flex gap-2 pt-1">
-              <Button variant="outline" size="sm" @click="openRescheduleModal(appt)">إعادة جدولة</Button>
-              <Button variant="outline" size="sm" class="text-danger" @click="openCancelModal(appt)">إلغاء</Button>
+              <template v-if="!isTerminal(appt.status)">
+                <Button variant="outline" size="sm" @click="openRescheduleModal(appt)">إعادة جدولة</Button>
+                <Button variant="outline" size="sm" class="text-danger" @click="openCancelModal(appt)">إلغاء</Button>
+              </template>
+              <p v-if="paymentAction(appt)" class="text-xs text-text-tertiary ms-auto">
+                {{ paymentAction(appt).subtext }}
+              </p>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
-import { ArrowLeft, Bell, Sparkles, Star, User as UserIcon } from 'lucide-vue-next'
+import { ArrowLeft, Bell, LogIn, Sparkles, Star, User as UserIcon } from 'lucide-vue-next'
 
 const TEAM_ROLE_LABEL = {
   doctor: 'طبيب',
@@ -64,49 +64,61 @@ const tipText = computed(() => {
 </script>
 
 <template>
-  <ClientShell>
-    <!-- Hero header — brand badge + bell over radial gradient, then big greeting.
-         Mirrors the reference clinic's top section: a focal "welcome surface" that
-         frames the rest of the home feed. -->
-    <section
-      class="relative px-5 pt-6 pb-8"
-      :style="{ background: 'radial-gradient(120% 60% at 50% 0%, color-mix(in oklab, var(--color-brand) 18%, transparent) 0%, color-mix(in oklab, var(--color-warning) 10%, transparent) 45%, transparent 85%)' }"
+  <ClientShell :show-top-bar="false" full-bleed>
+    <!-- Whole-page radial gradient surface — fills under the bottom-nav too because
+         ClientShell.fullBleed drops the bg-surface-page so this wrapper paints
+         everything. Brand 18% from top-centre fading through warning 8% to white. -->
+    <div
+      class="min-h-[calc(100vh-4rem)]"
+      :style="{ background: 'radial-gradient(120% 50% at 50% 0%, color-mix(in oklab, var(--color-brand) 18%, white) 0%, color-mix(in oklab, var(--color-warning) 10%, white) 45%, white 90%)' }"
     >
-      <div class="flex items-center justify-between">
-        <!-- Brand badge (logo or initial) -->
-        <div class="w-14 h-14 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm overflow-hidden grid place-items-center text-brand text-lg font-extrabold">
-          <img
-            v-if="clinicLogoUrl"
-            :src="clinicLogoUrl"
-            :alt="clinicName"
-            class="w-full h-full object-cover"
-          />
-          <span v-else>{{ clinicInitial }}</span>
+      <!-- Hero header — brand badge + bell + greeting (replaces ClientShell's top bar on this page). -->
+      <section class="px-5 pt-6 pb-4">
+        <div class="flex items-center justify-between">
+          <!-- Brand badge (logo or initial) -->
+          <Link href="/" class="w-14 h-14 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm overflow-hidden grid place-items-center text-brand text-lg font-extrabold">
+            <img
+              v-if="clinicLogoUrl"
+              :src="clinicLogoUrl"
+              :alt="clinicName"
+              class="w-full h-full object-cover"
+            />
+            <span v-else>{{ clinicInitial }}</span>
+          </Link>
+
+          <!-- Notification bell (authed) OR Login icon (guest) -->
+          <Link
+            v-if="isAuthed"
+            :href="notificationsHref"
+            :aria-label="`الإشعارات${unreadCount > 0 ? ` (${unreadCount} غير مقروءة)` : ''}`"
+            class="relative w-12 h-12 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm grid place-items-center text-brand hover:bg-brand/5 transition"
+          >
+            <Bell class="w-5 h-5" aria-hidden="true" />
+            <span
+              v-if="unreadCount > 0"
+              class="absolute -top-1 -end-1 min-w-5 h-5 px-1 rounded-full bg-danger text-white text-[10px] font-bold grid place-items-center ring-2 ring-surface-card"
+            >{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </Link>
+          <Link
+            v-else
+            href="/login"
+            aria-label="تسجيل الدخول أو إنشاء حساب"
+            title="تسجيل الدخول أو إنشاء حساب"
+            class="w-12 h-12 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm grid place-items-center text-brand hover:bg-brand/5 transition"
+          >
+            <LogIn class="w-5 h-5 rtl:rotate-180" aria-hidden="true" />
+          </Link>
         </div>
 
-        <!-- Notification bell -->
-        <Link
-          :href="notificationsHref"
-          :aria-label="`الإشعارات${unreadCount > 0 ? ` (${unreadCount} غير مقروءة)` : ''}`"
-          class="relative w-12 h-12 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm grid place-items-center text-brand hover:bg-brand/5 transition"
-        >
-          <Bell class="w-5 h-5" aria-hidden="true" />
-          <span
-            v-if="unreadCount > 0"
-            class="absolute -top-1 -end-1 min-w-5 h-5 px-1 rounded-full bg-danger text-white text-[10px] font-bold grid place-items-center ring-2 ring-surface-card"
-          >{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-        </Link>
-      </div>
+        <header class="mt-5 space-y-1.5">
+          <h1 class="text-3xl leading-tight font-extrabold text-brand">
+            أهلًا{{ greetingName ? `، ${greetingName}` : ' بك' }}!
+          </h1>
+          <p class="text-sm text-text-secondary">أهلًا بك في {{ clinicName }} — اعتنِ بصحّتك وجمالك.</p>
+        </header>
+      </section>
 
-      <header class="mt-5 space-y-1.5">
-        <h1 class="text-3xl leading-tight font-extrabold text-brand">
-          أهلًا{{ greetingName ? `، ${greetingName}` : ' بك' }}!
-        </h1>
-        <p class="text-sm text-text-secondary">أهلًا بك في {{ clinicName }} — اعتنِ بصحّتك وجمالك.</p>
-      </header>
-    </section>
-
-    <div class="px-5 pt-2 pb-10 space-y-6">
+      <div class="px-5 pt-2 pb-10 space-y-6">
 
       <!-- Upcoming appointments (authed only) -->
       <section v-if="isAuthed">
@@ -314,6 +326,7 @@ const tipText = computed(() => {
           الدعم والتواصل <ArrowLeft class="w-3.5 h-3.5 rtl:rotate-180" aria-hidden="true" />
         </Link>
       </section>
+      </div>
     </div>
   </ClientShell>
 </template>

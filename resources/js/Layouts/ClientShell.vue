@@ -15,6 +15,15 @@ import {
 } from 'lucide-vue-next'
 import { NotificationBell, AuthGuardLink } from '@/Components/foundation'
 
+defineProps({
+  // Pages that render their own brand/auth/notification controls at the top
+  // (e.g. Home's hero) set this false to avoid duplicating logo + bell + auth.
+  showTopBar: { type: Boolean, default: true },
+  // Lets the page bleed a gradient/coloured background all the way to the
+  // viewport edges instead of the default flat surface-page colour.
+  fullBleed: { type: Boolean, default: false },
+})
+
 const page = usePage()
 const authedUser = computed(() => page.props?.auth?.user ?? null)
 const isAuthed = computed(() => authedUser.value !== null)
@@ -52,8 +61,8 @@ function isActive(href) {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-surface-page">
-    <header class="h-14 flex items-center px-4 border-b border-border-default bg-surface-card gap-2 max-w-3xl w-full mx-auto">
+  <div :class="['min-h-screen flex flex-col', fullBleed ? '' : 'bg-surface-page']">
+    <header v-if="showTopBar" class="h-14 flex items-center px-4 border-b border-border-default bg-surface-card gap-2 max-w-3xl w-full mx-auto">
       <Link href="/" class="flex items-center gap-1.5">
         <img
           v-if="clinicLogoUrl"

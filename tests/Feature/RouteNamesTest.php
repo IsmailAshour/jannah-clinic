@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 it('exposes canonical single-prefixed P1 route names', function () {
     $names = [
-        'admin.dashboard', 'admin.dashboard.calendar', 'portal.home', 'portal.profile.avatar',
+        'admin.dashboard', 'admin.dashboard.calendar', 'admin.reports.index', 'portal.home', 'portal.profile.avatar',
         'admin.catalog.categories', 'admin.catalog.categories.store', 'admin.catalog.categories.update', 'admin.catalog.categories.destroy',
         'admin.catalog.services', 'admin.catalog.services.store', 'admin.catalog.services.update', 'admin.catalog.services.destroy',
         'admin.doctors.index', 'admin.doctors.store', 'admin.doctors.update', 'admin.doctors.destroy',

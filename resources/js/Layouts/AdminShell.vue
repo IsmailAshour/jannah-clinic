@@ -2,6 +2,7 @@
 import { computed, defineComponent, h } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import {
+  BarChart3,
   Briefcase,
   CalendarDays,
   CalendarPlus,
@@ -89,6 +90,7 @@ const nav = [
     ],
   },
   { type: 'leaf', label: 'الرسائل', href: '/admin/messages', icon: MailOpen },
+  { type: 'leaf', label: 'التقارير', href: '/admin/reports', icon: BarChart3 },
   { type: 'leaf', label: 'مناطق التغطية', href: '/admin/coverage', icon: MapPin },
   { type: 'leaf', label: 'الإعدادات', href: '/admin/settings', icon: Settings },
 ]

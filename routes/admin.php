@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\DoctorScheduleController;
 use App\Http\Controllers\Admin\MedicalEntryController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Booking\AvailabilityController;
@@ -25,6 +26,8 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::get('/', fn () => Inertia::render('Admin/Dashboard'))->name('dashboard');
         // JSON feed for the dashboard calendar (per-month appointment list).
         Route::get('dashboard/calendar', [DashboardController::class, 'calendar'])->name('dashboard.calendar');
+        // Analytics & reports
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
 
         // Catalog index – readable by all staff
         Route::get('catalog/categories', [ServiceCategoryController::class, 'index'])->name('catalog.categories');

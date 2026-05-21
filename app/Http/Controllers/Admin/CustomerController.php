@@ -17,6 +17,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -256,6 +257,18 @@ class CustomerController extends Controller
             'success',
             $customer->is_active ? 'تم تفعيل العميل.' : 'تم تعطيل العميل.'
         );
+    }
+
+    public function resetPassword(User $customer): RedirectResponse
+    {
+        abort_unless($customer->role === UserRole::Customer, 404);
+
+        $tempPassword = Str::password(16);
+        $customer->update(['password' => Hash::make($tempPassword)]);
+
+        return back()
+            ->with('success', 'تمت إعادة ضبط كلمة المرور — شارِكها مع العميل الآن.')
+            ->with('temp_password', $tempPassword);
     }
 
     public function updateMedicalProfile(

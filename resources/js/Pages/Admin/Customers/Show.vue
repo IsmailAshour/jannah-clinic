@@ -11,6 +11,7 @@ import {
   AdminDataTableRowActions,
   FormGroup,
   Modal,
+  ConfirmModal,
   FormSection,
   StatCard,
   StatusBadge,
@@ -106,6 +107,16 @@ function genderLabel(g) {
 // Toggle active — POST to the toggle-active route
 function toggleActive() {
   router.post(`/admin/customers/${props.customer.id}/toggle-active`, {}, { preserveScroll: true })
+}
+
+// Password reset — generates a fresh temp password, flashed once via session
+const showResetConfirm = ref(false)
+function openResetConfirm() { showResetConfirm.value = true }
+function confirmResetPassword() {
+  router.post(`/admin/customers/${props.customer.id}/reset-password`, {}, {
+    preserveScroll: true,
+    onSuccess: () => { showResetConfirm.value = false },
+  })
 }
 
 // Edit modal
@@ -292,6 +303,7 @@ const entryColumns = [
       <PageHeader :title="customer.name">
         <template #action>
           <div class="flex gap-2">
+            <Button v-if="isManager" variant="outline" @click="openResetConfirm">إعادة ضبط كلمة المرور</Button>
             <Button v-if="isManager" variant="outline" @click="toggleActive">
               {{ customer.is_active ? 'تعطيل' : 'تفعيل' }}
             </Button>
@@ -593,5 +605,15 @@ const entryColumns = [
         <Button variant="outline" @click="showAddEntryModal = false">إغلاق</Button>
       </template>
     </Modal>
+
+    <ConfirmModal
+      :open="showResetConfirm"
+      title="إعادة ضبط كلمة المرور"
+      :message="`سيتم توليد كلمة مرور جديدة للعميل «${customer.name}» — كلمة المرور الحاليّة ستُلغى فورًا، وستُعرض الجديدة مرّة واحدة في هذه الصفحة. شارِكها مع العميل مباشرة.`"
+      confirm-text="إعادة الضبط"
+      cancel-text="إلغاء"
+      @update:open="showResetConfirm = $event"
+      @confirm="confirmResetPassword"
+    />
   </AdminShell>
 </template>

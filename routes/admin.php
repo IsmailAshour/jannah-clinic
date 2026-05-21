@@ -112,6 +112,7 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
             Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
             Route::post('customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
+            Route::post('customers/{customer}/reset-password', [CustomerController::class, 'resetPassword'])->name('customers.reset-password');
 
             // P4a — manager only adjust
             Route::post('customers/{customer}/loyalty/adjust', [CustomerLoyaltyController::class, 'adjust'])

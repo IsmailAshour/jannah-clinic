@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { FormGroup, FormSection, PageStates, MonthCalendar, PaymentMethodPicker } from '@/Components/foundation'
+import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Home, MapPin, Stethoscope, User as UserIcon } from 'lucide-vue-next'
+import { FormGroup, PageStates, MonthCalendar, PaymentMethodPicker } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
 
@@ -205,6 +206,46 @@ function prevStep() {
   step.value--
 }
 
+// --- Stepper presentation ---
+const stepConfig = computed(() => {
+  const arr = []
+  if (props.customerPicker) {
+    arr.push({ id: 0, label: 'العميل', icon: UserIcon, desc: 'اختر العميل أو سجّل جديدًا.' })
+  }
+  arr.push(
+    { id: 1, label: 'طريقة الخدمة', icon: Home, desc: 'في العيادة أم زيارة منزلية؟' },
+    { id: 2, label: 'الطبيب والخدمة', icon: Stethoscope, desc: 'اختر مقدّم الرعاية والخدمة.' },
+    { id: 3, label: 'الموعد', icon: CalendarDays, desc: 'حدّد اليوم والوقت المناسب.' },
+  )
+  return arr
+})
+
+const selectedCustomerLabel = computed(() => {
+  if (customerMode.value === 'new') return newCustomerName.value || 'عميل جديد'
+  const c = props.customers.find(c => c.id === selectedCustomerId.value)
+  return c ? c.name : null
+})
+
+const selectedCoverageArea = computed(() => props.coverageAreas.find(a => a.id === coverageAreaId.value) ?? null)
+
+function deliveryLabel(m) {
+  return m === 'home' ? 'زيارة منزلية' : 'في العيادة'
+}
+
+function formatSelectedDate(d) {
+  if (!d) return ''
+  try {
+    return new Date(d).toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long' })
+  } catch (_) { return d }
+}
+
+function formatSelectedTime(iso) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+  } catch (_) { return iso }
+}
+
 function handleSubmit() {
   const payload = {
     doctor: doctorId.value,
@@ -237,19 +278,55 @@ function handleSubmit() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Step indicator -->
-    <div class="flex items-center gap-2 text-sm text-text-secondary">
-      <span
-        v-if="customerPicker"
-        :class="step === 0 ? 'text-brand font-semibold' : 'text-text-tertiary'"
-      >العميل</span>
-      <span v-if="customerPicker" class="text-text-tertiary">·</span>
-      <span :class="step === 1 ? 'text-brand font-semibold' : 'text-text-tertiary'">طريقة الخدمة</span>
-      <span class="text-text-tertiary">·</span>
-      <span :class="step === 2 ? 'text-brand font-semibold' : 'text-text-tertiary'">الطبيب والخدمة</span>
-      <span class="text-text-tertiary">·</span>
-      <span :class="step === 3 ? 'text-brand font-semibold' : 'text-text-tertiary'">الموعد</span>
+  <div class="space-y-5">
+    <!-- Stepper: numbered circles with connector lines, active + done states -->
+    <ol class="flex items-start gap-1 sm:gap-2 overflow-x-auto px-1 pb-1" aria-label="خطوات الحجز">
+      <li
+        v-for="(s, i) in stepConfig"
+        :key="s.id"
+        class="flex-1 min-w-0 flex items-start"
+        :aria-current="step === s.id ? 'step' : undefined"
+      >
+        <div class="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+          <div class="flex items-center w-full">
+            <!-- Connector before (hidden for first) -->
+            <span
+              v-if="i > 0"
+              :class="['flex-1 h-0.5 transition-colors', step > stepConfig[i - 1].id ? 'bg-brand' : 'bg-border-default']"
+              aria-hidden="true"
+            />
+            <!-- Step circle -->
+            <span
+              :class="[
+                'shrink-0 grid place-items-center w-9 h-9 rounded-full border-2 font-extrabold text-sm transition-all',
+                step > s.id
+                  ? 'bg-brand border-brand text-white shadow-sm'
+                  : step === s.id
+                    ? 'bg-brand/10 border-brand text-brand ring-4 ring-brand/15'
+                    : 'bg-surface-card border-border-default text-text-tertiary',
+              ]"
+            >
+              <Check v-if="step > s.id" class="w-4 h-4" aria-hidden="true" />
+              <component v-else :is="s.icon" class="w-4 h-4" aria-hidden="true" />
+            </span>
+            <!-- Connector after (hidden for last) -->
+            <span
+              v-if="i < stepConfig.length - 1"
+              :class="['flex-1 h-0.5 transition-colors', step > s.id ? 'bg-brand' : 'bg-border-default']"
+              aria-hidden="true"
+            />
+          </div>
+          <span :class="['text-[11px] sm:text-xs font-bold text-center truncate w-full', step >= s.id ? 'text-brand' : 'text-text-tertiary']">
+            {{ s.label }}
+          </span>
+        </div>
+      </li>
+    </ol>
+
+    <!-- Active step descriptor -->
+    <div class="bg-brand/5 border-2 border-brand/15 rounded-2xl p-4">
+      <p class="text-xs font-bold text-brand">الخطوة {{ stepConfig.findIndex(s => s.id === step) + 1 }} من {{ stepConfig.length }}</p>
+      <p class="mt-0.5 text-sm text-text-primary">{{ stepConfig.find(s => s.id === step)?.desc }}</p>
     </div>
 
     <!-- Server booking error -->
@@ -258,7 +335,7 @@ function handleSubmit() {
     </div>
 
     <!-- Step 0: Customer picker (admin only) -->
-    <FormSection v-if="customerPicker && step === 0" title="العميل">
+    <section v-if="customerPicker && step === 0" class="bg-surface-card rounded-2xl border border-border-default p-5 space-y-4 shadow-sm">
       <div class="flex gap-4 mb-4">
         <label class="flex items-center gap-2 cursor-pointer">
           <input v-model="customerMode" type="radio" value="existing" class="h-4 w-4 accent-brand" />
@@ -327,22 +404,41 @@ function handleSubmit() {
         </FormGroup>
         <p class="text-xs text-text-tertiary">يجب توفير بريد إلكتروني أو رقم هاتف على الأقل.</p>
       </div>
-    </FormSection>
+    </section>
 
     <!-- Step 1: Delivery mode -->
-    <FormSection v-if="step === 1" title="طريقة الخدمة">
-      <div class="flex gap-6">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input v-model="deliveryMode" type="radio" value="center" class="h-4 w-4 accent-brand" />
-          <span class="text-sm font-medium">في العيادة</span>
+    <section v-if="step === 1" class="bg-surface-card rounded-2xl border border-border-default p-5 space-y-4 shadow-sm">
+      <div class="grid grid-cols-2 gap-3">
+        <label
+          :class="[
+            'cursor-pointer rounded-2xl border-2 p-4 text-center transition',
+            deliveryMode === 'center' ? 'border-brand bg-brand/5 ring-2 ring-brand/20' : 'border-border-default hover:border-brand/40',
+          ]"
+        >
+          <input v-model="deliveryMode" type="radio" value="center" class="sr-only" />
+          <div class="mx-auto w-12 h-12 rounded-full bg-brand/10 text-brand grid place-items-center mb-2">
+            <MapPin class="w-6 h-6" aria-hidden="true" />
+          </div>
+          <p class="text-sm font-bold text-text-primary">في العيادة</p>
+          <p class="text-xs text-text-tertiary mt-0.5">زر فرعنا الرئيسي</p>
         </label>
-        <label class="flex items-center gap-2 cursor-pointer" data-testid="home-radio">
-          <input v-model="deliveryMode" type="radio" value="home" class="h-4 w-4 accent-brand" />
-          <span class="text-sm font-medium">زيارة منزلية</span>
+        <label
+          data-testid="home-radio"
+          :class="[
+            'cursor-pointer rounded-2xl border-2 p-4 text-center transition',
+            deliveryMode === 'home' ? 'border-brand bg-brand/5 ring-2 ring-brand/20' : 'border-border-default hover:border-brand/40',
+          ]"
+        >
+          <input v-model="deliveryMode" type="radio" value="home" class="sr-only" />
+          <div class="mx-auto w-12 h-12 rounded-full bg-brand/10 text-brand grid place-items-center mb-2">
+            <Home class="w-6 h-6" aria-hidden="true" />
+          </div>
+          <p class="text-sm font-bold text-text-primary">زيارة منزلية</p>
+          <p class="text-xs text-text-tertiary mt-0.5">نأتي إليك</p>
         </label>
       </div>
 
-      <div v-if="deliveryMode === 'home'" class="space-y-4 mt-4" data-testid="home-fields">
+      <div v-if="deliveryMode === 'home'" class="space-y-4 pt-2 border-t border-border-default" data-testid="home-fields">
         <FormGroup label="منطقة التغطية" name="coverage_area_id" required>
           <template #default="{ describedby }">
             <select
@@ -384,10 +480,10 @@ function handleSubmit() {
           </template>
         </FormGroup>
       </div>
-    </FormSection>
+    </section>
 
     <!-- Step 2: Doctor and service -->
-    <FormSection v-if="step === 2" title="الطبيب والخدمة">
+    <section v-if="step === 2" class="bg-surface-card rounded-2xl border border-border-default p-5 space-y-4 shadow-sm">
       <FormGroup label="الطبيب" name="doctor" required>
         <template #default="{ describedby }">
           <select
@@ -421,13 +517,13 @@ function handleSubmit() {
         </template>
       </FormGroup>
 
-      <div v-if="filteredServices.length === 0 && doctorId && deliveryMode === 'home'" class="text-sm text-text-secondary">
-        لا توجد خدمات منزلية متاحة لهذا الطبيب.
+      <div v-if="filteredServices.length === 0 && doctorId && deliveryMode === 'home'" class="rounded-md bg-warning/5 border border-warning/30 px-3 py-2 text-sm text-warning">
+        لا توجد خدمات منزلية متاحة لهذا الطبيب. اختر طبيبًا آخر أو ارجع للخطوة السابقة لاختيار "في العيادة".
       </div>
-    </FormSection>
+    </section>
 
     <!-- Step 3: Date and time slot -->
-    <FormSection v-if="step === 3" title="التاريخ والموعد">
+    <section v-if="step === 3" class="bg-surface-card rounded-2xl border border-border-default p-5 space-y-4 shadow-sm">
       <FormGroup label="تاريخ الموعد" name="booking_date" required>
         <template #default>
           <div
@@ -453,9 +549,12 @@ function handleSubmit() {
       </FormGroup>
 
       <div v-if="selectedDate">
-        <p class="text-sm font-medium text-text-primary mb-3">الفترات المتاحة</p>
+        <p class="text-sm font-bold text-text-primary mb-2 inline-flex items-center gap-1.5">
+          <Clock class="w-4 h-4 text-brand" aria-hidden="true" />
+          الفترات المتاحة في {{ formatSelectedDate(selectedDate) }}
+        </p>
 
-        <div v-if="slotsLoading" class="text-sm text-text-secondary">
+        <div v-if="slotsLoading" class="text-sm text-text-secondary py-3">
           جارٍ تحميل الفترات...
         </div>
 
@@ -469,19 +568,20 @@ function handleSubmit() {
 
         <PageStates v-else :is-empty="slotsEmpty">
           <template #empty>
-            <div class="text-sm text-text-secondary py-4">لا فترات متاحة</div>
+            <div class="text-sm text-text-secondary py-4 text-center">لا فترات متاحة في هذا اليوم — جرّب يومًا آخر.</div>
           </template>
-          <div class="flex flex-wrap gap-2">
+          <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
             <button
               v-for="slot in slots"
               :key="slot.start"
               type="button"
               :class="[
-                'rounded-md border px-4 py-2 text-sm transition-colors',
+                'rounded-xl border-2 px-3 py-2.5 text-sm font-bold transition',
                 selectedStart === slot.start
-                  ? 'border-brand bg-brand text-white'
+                  ? 'border-brand bg-brand text-white shadow-sm'
                   : 'border-border-default bg-surface-card text-text-primary hover:border-brand hover:text-brand',
               ]"
+              :dir="'ltr'"
               @click="selectedStart = slot.start"
             >
               {{ slot.label }}
@@ -491,14 +591,21 @@ function handleSubmit() {
       </div>
 
       <!-- Price preview -->
-      <div v-if="previewPrice" class="mt-4 rounded-md bg-surface-sunken p-4 text-sm space-y-1">
-        <p class="font-medium text-text-primary">معاينة السعر (تقديرية)</p>
-        <p class="text-text-secondary">السعر الأساسي: {{ previewPrice.base }} ₪</p>
-        <p v-if="previewPrice.surcharge > 0" class="text-text-secondary">
-          رسوم الزيارة المنزلية: {{ previewPrice.surcharge }} ₪
-        </p>
-        <p class="font-semibold text-text-primary">الإجمالي: {{ previewPrice.total }} ₪</p>
-        <p class="text-xs text-text-tertiary">* هذا سعر تقديري. السعر النهائي يحتسبه الخادم عند تأكيد الحجز.</p>
+      <div v-if="previewPrice" class="rounded-xl bg-brand/5 ring-1 ring-brand/15 p-4 text-sm space-y-1">
+        <p class="font-bold text-brand">معاينة السعر</p>
+        <div class="flex items-center justify-between">
+          <span class="text-text-secondary">السعر الأساسي</span>
+          <span class="font-bold text-text-primary">{{ previewPrice.base }} ₪</span>
+        </div>
+        <div v-if="previewPrice.surcharge > 0" class="flex items-center justify-between">
+          <span class="text-text-secondary">رسوم الزيارة المنزلية</span>
+          <span class="font-bold text-text-primary">{{ previewPrice.surcharge }} ₪</span>
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-brand/20">
+          <span class="font-bold text-text-primary">الإجمالي</span>
+          <span class="text-lg font-extrabold text-brand">{{ previewPrice.total }} ₪</span>
+        </div>
+        <p class="text-[11px] text-text-tertiary pt-1">* السعر النهائي يحتسبه النظام عند تأكيد الحجز.</p>
       </div>
 
       <PaymentMethodPicker
@@ -507,42 +614,84 @@ function handleSubmit() {
         :loyalty-redemption-points="selectedService?.loyalty_redemption_points ?? 0"
         :loyalty-balance="loyaltyBalance"
       />
-    </FormSection>
+    </section>
+
+    <!-- Live summary card — visible across steps once selections start landing -->
+    <aside
+      v-if="step > (customerPicker ? 0 : 1) && (selectedCustomerLabel || deliveryMode || selectedDoctor || selectedService || selectedStart)"
+      class="bg-surface-card rounded-2xl border-2 border-brand/15 p-4 space-y-2 text-sm shadow-sm"
+    >
+      <p class="text-xs font-bold text-brand">ملخّص الحجز حتى الآن</p>
+      <dl class="grid grid-cols-2 gap-y-1.5 gap-x-3">
+        <template v-if="customerPicker && selectedCustomerLabel">
+          <dt class="text-text-tertiary">العميل</dt>
+          <dd class="text-text-primary font-medium text-end">{{ selectedCustomerLabel }}</dd>
+        </template>
+        <dt class="text-text-tertiary">طريقة الخدمة</dt>
+        <dd class="text-text-primary font-medium text-end">{{ deliveryLabel(deliveryMode) }}</dd>
+        <template v-if="selectedCoverageArea">
+          <dt class="text-text-tertiary">المنطقة</dt>
+          <dd class="text-text-primary font-medium text-end">{{ selectedCoverageArea.name }}</dd>
+        </template>
+        <template v-if="selectedDoctor">
+          <dt class="text-text-tertiary">الطبيب</dt>
+          <dd class="text-text-primary font-medium text-end">{{ selectedDoctor.name }}</dd>
+        </template>
+        <template v-if="selectedService">
+          <dt class="text-text-tertiary">الخدمة</dt>
+          <dd class="text-text-primary font-medium text-end">{{ selectedService.name }}</dd>
+        </template>
+        <template v-if="selectedStart">
+          <dt class="text-text-tertiary">الموعد</dt>
+          <dd class="text-text-primary font-medium text-end" dir="ltr">
+            {{ formatSelectedDate(selectedStart) }} · {{ formatSelectedTime(selectedStart) }}
+          </dd>
+        </template>
+        <template v-if="previewPrice">
+          <dt class="text-text-tertiary">الإجمالي</dt>
+          <dd class="text-brand font-extrabold text-end">{{ previewPrice.total }} ₪</dd>
+        </template>
+      </dl>
+    </aside>
 
     <!-- Navigation buttons -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-3">
       <Button
         v-if="step > (customerPicker ? 0 : 1)"
         type="button"
         variant="outline"
+        class="gap-1.5"
         @click="prevStep"
       >
-        السابق
+        <ArrowRight class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
+        <span>السابق</span>
       </Button>
       <div v-else />
 
-      <div class="flex gap-3">
-        <Button
-          v-if="step < 3"
-          type="button"
-          :disabled="
-            (step === 0 && !canAdvanceStep0()) ||
-            (step === 1 && !canAdvanceStep1()) ||
-            (step === 2 && !canAdvanceStep2())
-          "
-          @click="nextStep"
-        >
-          التالي
-        </Button>
-        <Button
-          v-else
-          type="button"
-          :disabled="!canAdvanceStep3()"
-          @click="handleSubmit"
-        >
-          تأكيد الحجز
-        </Button>
-      </div>
+      <Button
+        v-if="step < 3"
+        type="button"
+        class="gap-1.5"
+        :disabled="
+          (step === 0 && !canAdvanceStep0()) ||
+          (step === 1 && !canAdvanceStep1()) ||
+          (step === 2 && !canAdvanceStep2())
+        "
+        @click="nextStep"
+      >
+        <span>التالي</span>
+        <ArrowLeft class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
+      </Button>
+      <Button
+        v-else
+        type="button"
+        class="gap-1.5"
+        :disabled="!canAdvanceStep3()"
+        @click="handleSubmit"
+      >
+        <Check class="w-4 h-4" aria-hidden="true" />
+        <span>تأكيد الحجز</span>
+      </Button>
     </div>
   </div>
 </template>

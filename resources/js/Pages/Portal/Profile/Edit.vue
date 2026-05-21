@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Link, useForm, usePage } from '@inertiajs/vue3'
-import { Calendar, CheckCircle2, KeyRound, Mail, Phone, Save, User as UserIcon, X } from 'lucide-vue-next'
+import { Calendar, KeyRound, Mail, Phone, Save, User as UserIcon, X } from 'lucide-vue-next'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import { Input } from '@/Components/ui/input'
 import { Button } from '@/Components/ui/button'
@@ -23,8 +23,6 @@ function submit() {
 }
 
 const page = usePage()
-const flashSuccess = computed(() => page.props?.flash?.success ?? null)
-
 const clinicName = computed(() => page.props?.clinic?.name ?? 'عيادة جنّة')
 
 const initial = computed(() => {
@@ -56,13 +54,7 @@ const hasEmailOrPhone = computed(() => (form.email ?? '').trim() !== '' || (form
         </div>
       </section>
 
-      <!-- Success flash -->
-      <div v-if="flashSuccess" role="status" class="rounded-md border border-success/30 bg-success/5 px-3 py-2.5 text-sm text-success inline-flex items-start gap-2">
-        <CheckCircle2 class="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
-        <span>{{ flashSuccess }}</span>
-      </div>
-
-      <!-- Personal info form (Register-inspired styling) -->
+<!-- Personal info form (Register-inspired styling) -->
       <section class="bg-surface-card rounded-2xl shadow-md ring-1 ring-border-default p-6 sm:p-7">
         <header class="mb-5">
           <h2 class="text-base font-bold text-text-primary inline-flex items-center gap-2">

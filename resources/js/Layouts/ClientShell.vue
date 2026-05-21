@@ -14,7 +14,7 @@ import {
   LogIn,
   LogOut,
 } from 'lucide-vue-next'
-import { AuthGuardLink } from '@/Components/foundation'
+import { AuthGuardLink, FlashToast } from '@/Components/foundation'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -160,6 +160,9 @@ function isActive(href) {
     </header>
 
     <main class="flex-1 pb-24 max-w-3xl w-full mx-auto"><slot /></main>
+
+    <!-- Global success-flash toast — floating, animated, auto-dismiss. -->
+    <FlashToast />
 
     <nav class="z-shell fixed bottom-0 inset-inline-0 w-full bg-surface-card border-t border-border-default">
       <div class="relative max-w-3xl mx-auto">

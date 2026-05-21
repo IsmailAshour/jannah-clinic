@@ -11,6 +11,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }))
 vi.mock('@/Components/foundation', () => ({
   AuthGuardLink: { template: '<a data-testid="fab"><slot /></a>' },
+  FlashToast: { template: '<div data-testid="flash-toast"></div>' },
 }))
 // shadcn-vue's DropdownMenu teleports content into body only when open. Stub it
 // so the menu items render inline and assertions can see them without simulating clicks.

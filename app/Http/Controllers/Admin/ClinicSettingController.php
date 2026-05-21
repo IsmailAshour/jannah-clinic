@@ -17,6 +17,7 @@ class ClinicSettingController extends Controller
 
         return Inertia::render('Admin/Settings/Index', [
             'clinic_name' => $settings->get('clinic_name', config('clinic.name', 'عيادة جنّة')),
+            'clinic_address' => $settings->get('clinic_address', (string) config('clinic.contact.address', '')),
             'clinic_logo_path' => $settings->get('clinic_logo_path'),
             'home_surcharge_pct' => $settings->get('home_surcharge_pct', config('clinic.home_surcharge_pct')),
             'bank' => [
@@ -32,10 +33,13 @@ class ClinicSettingController extends Controller
     {
         $data = $request->validate([
             'clinic_name' => ['required', 'string', 'max:120'],
+            'clinic_address' => ['nullable', 'string', 'max:500'],
         ]);
-        app(SettingService::class)->set('clinic_name', $data['clinic_name']);
+        $settings = app(SettingService::class);
+        $settings->set('clinic_name', $data['clinic_name']);
+        $settings->set('clinic_address', (string) ($data['clinic_address'] ?? ''));
 
-        return back()->with('success', 'تم حفظ اسم العيادة.');
+        return back()->with('success', 'تم حفظ بيانات العيادة.');
     }
 
     public function uploadLogo(Request $request): RedirectResponse

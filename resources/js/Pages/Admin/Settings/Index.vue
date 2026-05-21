@@ -12,6 +12,7 @@ import { Input } from '@/Components/ui/input'
 
 const props = defineProps({
   clinic_name: { type: String, default: 'عيادة جنّة' },
+  clinic_address: { type: String, default: '' },
   clinic_logo_path: { type: String, default: null },
   home_surcharge_pct: { type: [String, Number], default: 30 },
   bank: {
@@ -22,6 +23,7 @@ const props = defineProps({
 
 const clinicForm = useForm({
   clinic_name: props.clinic_name,
+  clinic_address: props.clinic_address,
 })
 
 function saveClinic() {
@@ -93,7 +95,7 @@ function saveBank() {
     <div class="p-6 space-y-8">
       <PageHeader title="إعدادات العيادة" />
 
-      <FormSection title="هويّة العيادة" description="الاسم الذي يظهر للعميل في الترويسة وأعلى كل صفحة.">
+      <FormSection title="هويّة العيادة" description="الاسم والعنوان يظهران للعميل في الترويسة، صفحة الدعم، وعند اختيار 'في المركز' عند الحجز.">
         <form class="space-y-4" @submit.prevent="saveClinic">
           <FormGroup label="اسم العيادة" name="clinic_name" :error="clinicForm.errors.clinic_name" required>
             <template #default="{ describedby }">
@@ -107,10 +109,30 @@ function saveBank() {
               />
             </template>
           </FormGroup>
+
+          <FormGroup
+            label="عنوان المركز"
+            name="clinic_address"
+            :error="clinicForm.errors.clinic_address"
+            hint="يظهر في خيار 'في المركز' في صفحة الحجز، وأسفل بطاقة العيادة في الصفحة الرئيسيّة."
+          >
+            <template #default="{ describedby }">
+              <textarea
+                id="clinic_address"
+                v-model="clinicForm.clinic_address"
+                name="clinic_address"
+                rows="2"
+                maxlength="500"
+                :aria-describedby="describedby"
+                placeholder="مثال: مدينة غزّة — الشاطئ، مفترق غبن، طابق 2"
+                class="w-full max-w-md rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+              />
+            </template>
+          </FormGroup>
         </form>
 
         <div class="flex justify-end">
-          <Button :disabled="clinicForm.processing" @click="saveClinic">حفظ الاسم</Button>
+          <Button :disabled="clinicForm.processing" @click="saveClinic">حفظ البيانات</Button>
         </div>
 
         <div class="border-t border-border-default pt-4 space-y-3">

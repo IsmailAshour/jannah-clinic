@@ -233,38 +233,25 @@ const currentStepHint = computed(() => {
         </div>
       </section>
 
-      <!-- Step 2: Capture / pick receipt image (only when action is needed) -->
-      <section v-if="canUpload" class="bg-surface-card rounded-2xl shadow-sm border border-border-default p-5 space-y-3">
+      <!-- Step 2 (merged): Capture + Upload — single section so the customer
+           takes a photo and submits it without crossing card boundaries. -->
+      <section v-if="canUpload" class="bg-surface-card rounded-2xl shadow-sm border border-border-default p-5 space-y-4">
         <div class="flex items-center gap-3">
           <span class="w-8 h-8 rounded-full bg-brand text-white grid place-items-center font-extrabold text-sm">٢</span>
           <div class="flex-1">
             <h2 class="text-base font-bold text-text-primary inline-flex items-center gap-2">
-              <FileImage class="w-4 h-4 text-brand" aria-hidden="true" />
-              التقط صورة لإيصال التحويل
-            </h2>
-            <p class="text-xs text-text-secondary">استعن بتطبيق البنك (شاشة "نجاح التحويل") أو صوّر الإيصال الورقي.</p>
-          </div>
-        </div>
-
-        <ul class="text-xs text-text-secondary list-disc list-inside space-y-1 ps-2">
-          <li>الصورة واضحة وكامل التفاصيل ظاهرة (المبلغ، التاريخ، رقم الحساب).</li>
-          <li>الصيغة: JPG أو PNG أو PDF.</li>
-          <li>الحجم الأقصى: 5 ميغابايت.</li>
-        </ul>
-      </section>
-
-      <!-- Step 3: Upload -->
-      <section v-if="canUpload" class="bg-surface-card rounded-2xl shadow-sm border border-border-default p-5 space-y-3">
-        <div class="flex items-center gap-3">
-          <span class="w-8 h-8 rounded-full bg-brand text-white grid place-items-center font-extrabold text-sm">٣</span>
-          <div class="flex-1">
-            <h2 class="text-base font-bold text-text-primary inline-flex items-center gap-2">
               <Upload class="w-4 h-4 text-brand" aria-hidden="true" />
-              {{ isRejected ? 'أعد رفع الإيصال' : 'ارفع الإيصال' }}
+              {{ isRejected ? 'أعد رفع صورة الإيصال' : 'صوّر الإيصال وارفعه' }}
             </h2>
-            <p class="text-xs text-text-secondary">يتمّ التحقّق عادة خلال يوم عمل.</p>
+            <p class="text-xs text-text-secondary">استعن بتطبيق البنك (شاشة "نجاح التحويل") أو صوّر الإيصال الورقي — التحقّق عادة خلال يوم عمل.</p>
           </div>
         </div>
+
+        <!-- Guidance bullets folded into the same card -->
+        <ul class="text-xs text-text-secondary list-disc list-inside space-y-1 ps-2 bg-info/5 border border-info/20 rounded-md p-3">
+          <li>الصورة واضحة وكامل التفاصيل ظاهرة (المبلغ، التاريخ، رقم الحساب).</li>
+          <li>الصيغة: JPG أو PNG أو PDF — الحجم الأقصى 5 ميغابايت.</li>
+        </ul>
 
         <!-- Drop zone -->
         <label

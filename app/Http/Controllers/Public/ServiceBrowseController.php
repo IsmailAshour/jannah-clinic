@@ -26,4 +26,30 @@ class ServiceBrowseController extends Controller
             'filters' => ['category' => $request->input('category')],
         ]);
     }
+
+    public function show(Service $service): Response
+    {
+        abort_unless($service->is_active, 404);
+
+        $service->load([
+            'category:id,name,slug,color_variant,icon_key',
+            'doctors' => fn ($q) => $q->where('is_bookable', true)
+                ->with('user:id,name')
+                ->orderByDesc('rating_average'),
+        ]);
+
+        $related = Service::query()
+            ->where('is_active', true)
+            ->where('category_id', $service->category_id)
+            ->where('id', '!=', $service->id)
+            ->with('category:id,name,slug,color_variant,icon_key')
+            ->orderBy('display_order')
+            ->limit(4)
+            ->get(['id', 'category_id', 'name', 'description', 'base_price', 'duration_minutes', 'image_path']);
+
+        return Inertia::render('Public/ServiceShow', [
+            'service' => $service,
+            'related' => $related,
+        ]);
+    }
 }

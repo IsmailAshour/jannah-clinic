@@ -76,6 +76,7 @@ const form = useForm({
   category_id: '',
   name: '',
   description: '',
+  content: '',
   base_price: 0,
   duration_minutes: 30,
   home_service_enabled: false,
@@ -84,11 +85,46 @@ const form = useForm({
   display_order: 0,
   loyalty_enabled: true,
   loyalty_redemption_points: '',
+  image: null,
+  remove_image: false,
+  _method: 'POST',
 })
 
 watch(() => form.loyalty_enabled, (v) => {
   if (!v) form.loyalty_redemption_points = ''
 })
+
+const currentImagePath = ref(null)
+const imagePreview = ref(null)
+const imageInputEl = ref(null)
+
+function clearImagePreview() {
+  imagePreview.value = null
+  if (imageInputEl.value) imageInputEl.value.value = ''
+}
+
+function onImageChange(e) {
+  const file = e.target.files?.[0] ?? null
+  form.image = file
+  if (file) {
+    const reader = new FileReader()
+    reader.onload = (ev) => { imagePreview.value = ev.target.result }
+    reader.readAsDataURL(file)
+    form.remove_image = false
+  } else {
+    imagePreview.value = null
+  }
+}
+
+function clearImageSelection() {
+  form.image = null
+  clearImagePreview()
+}
+
+function markRemoveCurrentImage() {
+  form.remove_image = true
+  currentImagePath.value = null
+}
 
 function openCreate() {
   editingId.value = null
@@ -96,6 +132,9 @@ function openCreate() {
   form.is_active = true
   form.display_order = 0
   form.duration_minutes = 30
+  form.remove_image = false
+  currentImagePath.value = null
+  clearImagePreview()
   showModal.value = true
 }
 
@@ -104,6 +143,7 @@ function openEdit(row) {
   form.category_id = row.category_id
   form.name = row.name
   form.description = row.description ?? ''
+  form.content = row.content ?? ''
   form.base_price = row.base_price
   form.duration_minutes = row.duration_minutes
   form.home_service_enabled = row.home_service_enabled
@@ -112,6 +152,10 @@ function openEdit(row) {
   form.display_order = row.display_order
   form.loyalty_enabled = row.loyalty_enabled
   form.loyalty_redemption_points = row.loyalty_redemption_points ?? ''
+  form.image = null
+  form.remove_image = false
+  currentImagePath.value = row.image_path ?? null
+  clearImagePreview()
   showModal.value = true
 }
 
@@ -120,14 +164,22 @@ function submitForm() {
     ...data,
     loyalty_enabled: !!data.loyalty_enabled,
     loyalty_redemption_points: data.loyalty_enabled ? (data.loyalty_redemption_points || null) : null,
+    home_service_enabled: !!data.home_service_enabled,
+    is_active: !!data.is_active,
+    remove_image: !!data.remove_image,
   }))
+  const onSuccess = () => { showModal.value = false }
   if (editingId.value) {
-    form.put(`/admin/catalog/services/${editingId.value}`, {
-      onSuccess: () => { showModal.value = false },
+    form._method = 'PUT'
+    form.post(`/admin/catalog/services/${editingId.value}`, {
+      forceFormData: true,
+      onSuccess,
     })
   } else {
+    form._method = 'POST'
     form.post('/admin/catalog/services', {
-      onSuccess: () => { showModal.value = false },
+      forceFormData: true,
+      onSuccess,
     })
   }
 }
@@ -273,16 +325,58 @@ const columns = [
           </template>
         </FormGroup>
 
-        <FormGroup label="الوصف" name="description" :error="form.errors.description">
+        <FormGroup label="وصف قصير" name="description" :error="form.errors.description" hint="جملة أو جملتان تظهر في بطاقة الخدمة.">
           <template #default="{ describedby }">
             <textarea
               id="description"
               v-model="form.description"
               name="description"
-              rows="3"
+              rows="2"
+              maxlength="500"
               :aria-describedby="describedby"
               class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
             />
+          </template>
+        </FormGroup>
+
+        <FormGroup label="المحتوى التفصيلي" name="content" :error="form.errors.content" hint="يظهر في صفحة الخدمة العامة — اكتب فقرات تشرح الخدمة، خطواتها، النتائج المتوقّعة، والتحضير اللازم.">
+          <template #default="{ describedby }">
+            <textarea
+              id="content"
+              v-model="form.content"
+              name="content"
+              rows="8"
+              maxlength="10000"
+              :aria-describedby="describedby"
+              class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm leading-relaxed"
+            />
+          </template>
+        </FormGroup>
+
+        <FormGroup label="صورة الخدمة" name="image" :error="form.errors.image" hint="JPG / PNG / WEBP — حتى 4MB. تظهر في صفحة الخدمة وبطاقاتها.">
+          <template #default="{ describedby }">
+            <div class="space-y-2">
+              <!-- Previews: new file > current saved > placeholder -->
+              <div v-if="imagePreview" class="relative inline-block">
+                <img :src="imagePreview" alt="معاينة الصورة الجديدة" class="h-32 w-full sm:w-64 object-cover rounded-md border border-border-default" />
+                <button type="button" class="absolute top-1 end-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-danger text-white shadow" aria-label="إلغاء الصورة الجديدة" @click="clearImageSelection">×</button>
+              </div>
+              <div v-else-if="currentImagePath" class="relative inline-block">
+                <img :src="`/storage/${currentImagePath}`" alt="الصورة الحالية" class="h-32 w-full sm:w-64 object-cover rounded-md border border-border-default" />
+                <button type="button" class="absolute top-1 end-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-danger text-white shadow" aria-label="إزالة الصورة الحالية" @click="markRemoveCurrentImage">×</button>
+              </div>
+
+              <input
+                id="image"
+                ref="imageInputEl"
+                type="file"
+                name="image"
+                accept="image/jpeg,image/png,image/webp"
+                :aria-describedby="describedby"
+                class="block w-full text-sm text-text-secondary file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-brand/10 file:text-brand file:font-medium hover:file:bg-brand/15"
+                @change="onImageChange"
+              />
+            </div>
           </template>
         </FormGroup>
 

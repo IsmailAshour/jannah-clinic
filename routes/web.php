@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 // Public landing — no auth.
 Route::get('/', [HomeController::class, 'index'])->name('public.home');
 Route::get('/services', [ServiceBrowseController::class, 'index'])->name('public.services');
+Route::get('/services/{service}', [ServiceBrowseController::class, 'show'])->name('public.services.show');
 Route::get('/doctors', [DoctorBrowseController::class, 'index'])->name('public.doctors');
 Route::get('/support', [SupportController::class, 'index'])->name('public.support');
 Route::post('/support/contact', [ContactController::class, 'store'])

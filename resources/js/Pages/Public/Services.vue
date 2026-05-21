@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import { PageHeader, AuthGuardLink } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
@@ -61,37 +61,42 @@ const visibleServices = computed(() => {
         <article
           v-for="s in visibleServices"
           :key="s.id"
-          class="bg-surface-card rounded-lg shadow-sm overflow-hidden flex flex-col"
+          class="bg-surface-card rounded-lg shadow-sm overflow-hidden flex flex-col hover:shadow-md transition"
         >
-          <!-- Image or placeholder -->
-          <div
-            v-if="s.image_path"
-            class="w-full aspect-[16/9] bg-surface-page bg-cover bg-center"
-            :style="{ backgroundImage: `url(/storage/${s.image_path})` }"
-          />
-          <div
-            v-else
-            :class="['w-full aspect-[16/9] flex items-center justify-center', colorClassForCategory(s.category)]"
-          >
-            <component :is="iconForCategory(s.category)" class="w-12 h-12 opacity-70" aria-hidden="true" />
-          </div>
+          <!-- Image or placeholder — links to detail page -->
+          <Link :href="`/services/${s.id}`" class="block">
+            <div
+              v-if="s.image_path"
+              class="w-full aspect-[16/9] bg-surface-page bg-cover bg-center"
+              :style="{ backgroundImage: `url(/storage/${s.image_path})` }"
+            />
+            <div
+              v-else
+              :class="['w-full aspect-[16/9] flex items-center justify-center', colorClassForCategory(s.category)]"
+            >
+              <component :is="iconForCategory(s.category)" class="w-12 h-12 opacity-70" aria-hidden="true" />
+            </div>
+          </Link>
 
           <div class="p-4 space-y-2 flex-1 flex flex-col">
             <p class="text-xs text-text-tertiary">{{ s.category?.name }}</p>
-            <h3 class="font-medium text-text-primary">{{ s.name }}</h3>
+            <Link :href="`/services/${s.id}`" class="font-medium text-text-primary hover:text-brand transition">{{ s.name }}</Link>
             <p v-if="s.description" class="text-sm text-text-secondary line-clamp-2">{{ s.description }}</p>
-            <div class="flex items-center justify-between pt-2 mt-auto">
+            <div class="flex items-center justify-between pt-2 mt-auto gap-2">
               <div>
                 <p class="text-sm font-semibold text-brand">{{ s.base_price }} ₪</p>
                 <p class="text-xs text-text-tertiary">{{ s.duration_minutes }} دقيقة</p>
               </div>
-              <AuthGuardLink
-                intent="booking"
-                :authed-href="`/portal/booking?service=${s.id}`"
-                :context="{ service: s.id }"
-              >
-                <Button size="sm">احجز</Button>
-              </AuthGuardLink>
+              <div class="flex items-center gap-2">
+                <Link :href="`/services/${s.id}`" class="text-xs font-bold text-brand hover:underline">التفاصيل</Link>
+                <AuthGuardLink
+                  intent="booking"
+                  :authed-href="`/portal/booking?service=${s.id}`"
+                  :context="{ service: s.id }"
+                >
+                  <Button size="sm">احجز</Button>
+                </AuthGuardLink>
+              </div>
             </div>
           </div>
         </article>

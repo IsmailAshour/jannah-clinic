@@ -62,7 +62,7 @@ it('appointmentConfirmed notifies the customer with the correct payload', functi
     $n = $this->customer->notifications()->latest()->first();
     expect($n)->not->toBeNull()
         ->and($n->data['category'])->toBe(NotificationCategory::Appointment->value)
-        ->and($n->data['action_url'])->toBe("/portal/appointments/{$appt->id}")
+        ->and($n->data['action_url'])->toBe('/portal/appointments')
         ->and($n->data['subject_type'])->toBe(Appointment::class)
         ->and($n->data['subject_id'])->toBe($appt->id)
         ->and($n->data['title'])->toContain('تأكيد')

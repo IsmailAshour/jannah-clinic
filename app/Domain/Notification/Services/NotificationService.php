@@ -55,7 +55,7 @@ class NotificationService
             'category' => NotificationCategory::Appointment->value,
             'title' => 'طلب حجز جديد',
             'body' => "طلب حجز جديد من {$a->customer->name} — بانتظار التأكيد.",
-            'action_url' => "/admin/appointments/{$a->id}",
+            'action_url' => '/admin/appointments',
             'subject_type' => Appointment::class,
             'subject_id' => $a->id,
         ];
@@ -70,7 +70,7 @@ class NotificationService
             'category' => NotificationCategory::Appointment->value,
             'title' => 'تمّ تأكيد موعدك',
             'body' => "تمّ تأكيد موعدك بتاريخ {$a->start_at->isoFormat('D MMM YYYY HH:mm')}.",
-            'action_url' => "/portal/appointments/{$a->id}",
+            'action_url' => '/portal/appointments',
             'subject_type' => Appointment::class,
             'subject_id' => $a->id,
         ]), 'appointmentConfirmed');
@@ -82,7 +82,7 @@ class NotificationService
             'category' => NotificationCategory::Appointment->value,
             'title' => 'نأسف، تعذّر تأكيد موعدك',
             'body' => 'تواصل مع العيادة لإعادة الجدولة.',
-            'action_url' => "/portal/appointments/{$a->id}",
+            'action_url' => '/portal/appointments',
             'subject_type' => Appointment::class,
             'subject_id' => $a->id,
         ]), 'appointmentRejected');
@@ -98,7 +98,7 @@ class NotificationService
             'category' => NotificationCategory::Appointment->value,
             'title' => 'إلغاء موعد من العميل',
             'body' => "ألغى {$a->customer->name} الموعد بتاريخ {$a->start_at->isoFormat('D MMM HH:mm')}.",
-            'action_url' => "/admin/appointments/{$a->id}",
+            'action_url' => '/admin/appointments',
             'subject_type' => Appointment::class,
             'subject_id' => $a->id,
         ];
@@ -116,7 +116,7 @@ class NotificationService
             'category' => NotificationCategory::Appointment->value,
             'title' => 'تمّ إلغاء موعدك',
             'body' => "تمّ إلغاء موعدك بتاريخ {$a->start_at->isoFormat('D MMM HH:mm')}.",
-            'action_url' => "/portal/appointments/{$a->id}",
+            'action_url' => '/portal/appointments',
             'subject_type' => Appointment::class,
             'subject_id' => $a->id,
         ]), 'appointmentCancelledByStaff');
@@ -132,7 +132,7 @@ class NotificationService
             'category' => NotificationCategory::Appointment->value,
             'title' => 'إعادة جدولة من العميل',
             'body' => "غيّر {$newAppt->customer->name} الموعد إلى {$newAppt->start_at->isoFormat('D MMM HH:mm')}.",
-            'action_url' => "/admin/appointments/{$newAppt->id}",
+            'action_url' => '/admin/appointments',
             'subject_type' => Appointment::class,
             'subject_id' => $newAppt->id,
         ];
@@ -150,7 +150,7 @@ class NotificationService
             'category' => NotificationCategory::Appointment->value,
             'title' => 'إعادة جدولة موعد',
             'body' => "تمّ نقل موعدك إلى {$newAppt->start_at->isoFormat('D MMM YYYY HH:mm')}.",
-            'action_url' => "/portal/appointments/{$newAppt->id}",
+            'action_url' => '/portal/appointments',
             'subject_type' => Appointment::class,
             'subject_id' => $newAppt->id,
         ]), 'appointmentRescheduledForCustomer');
@@ -162,7 +162,7 @@ class NotificationService
             'category' => NotificationCategory::Appointment->value,
             'title' => 'اكتمل موعدك',
             'body' => 'يمكنك مراجعة سجلك الطبي لاحقًا.',
-            'action_url' => "/portal/appointments/{$a->id}",
+            'action_url' => '/portal/appointments',
             'subject_type' => Appointment::class,
             'subject_id' => $a->id,
         ]), 'appointmentCompleted');

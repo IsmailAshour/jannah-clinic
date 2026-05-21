@@ -11,8 +11,8 @@
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
-        <meta name="apple-mobile-web-app-title" content="{{ $seoClinicName }}">
-        <link rel="apple-touch-icon" href="{{ $seoImageUrl }}">
+        <meta name="apple-mobile-web-app-title" content="جنة">
+        <link rel="apple-touch-icon" href="/images/jannah_logo-removebg.png">
 
         {{-- Title: per-page Inertia <Head> can override via <title inertia>. --}}
         <title inertia>{{ $seoClinicName }}</title>

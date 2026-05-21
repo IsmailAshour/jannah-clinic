@@ -15,16 +15,19 @@ class PwaManifestController extends Controller
      */
     public function __invoke(SettingService $settings): JsonResponse
     {
-        $name = (string) $settings->get('clinic_name', (string) config('clinic.name', 'عيادة جنّة'));
-        $logoPath = (string) $settings->get('clinic_logo_path', '');
-        $iconUrl = $logoPath !== ''
-            ? url('/storage/'.$logoPath)
-            : url('/images/clinic-logo.jpg');
+        $fullName = (string) $settings->get('clinic_name', (string) config('clinic.name', 'عيادة جنّة'));
+        // Fixed short brand name for the home-screen icon — keeps the launcher
+        // label clean regardless of the longer clinic display name.
+        $shortName = 'جنة';
+        // Dedicated transparent-bg PWA icon (overrides whatever clinic_logo_path
+        // points to — that asset is JPEG with a white background and looks
+        // wrong as a launcher icon, especially in masked / round modes).
+        $iconUrl = url('/images/jannah_logo-removebg.png');
 
         return response()->json([
-            'name' => $name,
-            'short_name' => mb_substr($name, 0, 12),
-            'description' => 'احجز موعدك في '.$name.' بسهولة',
+            'name' => $shortName,
+            'short_name' => $shortName,
+            'description' => 'احجز موعدك في '.$fullName.' بسهولة',
             'start_url' => '/',
             'scope' => '/',
             'display' => 'standalone',

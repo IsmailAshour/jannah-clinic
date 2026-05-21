@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\DoctorBrowseController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\ServiceBrowseController;
@@ -12,6 +13,9 @@ Route::get('/', [HomeController::class, 'index'])->name('public.home');
 Route::get('/services', [ServiceBrowseController::class, 'index'])->name('public.services');
 Route::get('/doctors', [DoctorBrowseController::class, 'index'])->name('public.doctors');
 Route::get('/support', [SupportController::class, 'index'])->name('public.support');
+Route::post('/support/contact', [ContactController::class, 'store'])
+    ->middleware('throttle:6,1')
+    ->name('public.contact.store');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

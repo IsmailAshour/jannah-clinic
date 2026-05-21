@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AppointmentController;
 use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\ClinicSettingController;
+use App\Http\Controllers\Admin\ContactMessageController;
 use App\Http\Controllers\Admin\CoverageAreaController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerLoyaltyController;
@@ -72,6 +73,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
         Route::get('payments/{payment}/receipts/{receipt}/file', [PaymentController::class, 'receiptFile'])->name('payments.receipt-file');
 
+        // Contact messages — read (all staff), mutations gated below
+        Route::get('messages', [ContactMessageController::class, 'index'])->name('messages.index');
+        Route::get('messages/{message}', [ContactMessageController::class, 'show'])->name('messages.show');
+
         // Catalog mutations – manager only
         Route::middleware('role:manager')->group(function () {
             Route::post('catalog/categories', [ServiceCategoryController::class, 'store'])->name('catalog.categories.store');
@@ -117,6 +122,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::post('payments/{payment}/reject', [PaymentController::class, 'reject'])->name('payments.reject');
             Route::post('payments/{payment}/mark-refund-pending', [PaymentController::class, 'markRefundPending'])->name('payments.mark-refund-pending');
             Route::post('payments/{payment}/mark-refunded', [PaymentController::class, 'markRefunded'])->name('payments.mark-refunded');
+
+            // Contact messages — manager only mutations
+            Route::post('messages/{message}/status', [ContactMessageController::class, 'updateStatus'])->name('messages.status');
+            Route::delete('messages/{message}', [ContactMessageController::class, 'destroy'])->name('messages.destroy');
         });
 
         // P3 — Medical record writes (doctor only)

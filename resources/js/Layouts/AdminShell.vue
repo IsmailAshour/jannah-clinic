@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Contact2,
   LayoutDashboard,
+  MailOpen,
   MapPin,
   Package,
   Receipt,
@@ -74,6 +75,7 @@ const nav = [
       { label: 'حجز موعد  لعميل', href: '/admin/booking', icon: CalendarPlus },
     ],
   },
+  { type: 'leaf', label: 'الرسائل', href: '/admin/messages', icon: MailOpen },
   { type: 'leaf', label: 'مناطق التغطية', href: '/admin/coverage', icon: MapPin },
   { type: 'leaf', label: 'الإعدادات', href: '/admin/settings', icon: Settings },
 ]

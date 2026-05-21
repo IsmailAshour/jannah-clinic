@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
-import { ArrowLeft, Bell, Sparkles, User as UserIcon } from 'lucide-vue-next'
+import { ArrowLeft, Bell, Sparkles, Star, User as UserIcon } from 'lucide-vue-next'
 
 const TEAM_ROLE_LABEL = {
   doctor: 'طبيب',
@@ -147,18 +147,34 @@ const tipText = computed(() => {
         </ul>
       </section>
 
-      <!-- Big CTA card — gradient -->
+      <!-- Big CTA card — gradient with decorative orbs (reference parity) -->
       <AuthGuardLink
         intent="booking"
         authed-href="/portal/booking"
         staff-href="/admin/booking"
-        class="block relative overflow-hidden rounded-2xl p-5 text-white shadow-md bg-gradient-to-bl from-brand/95 via-brand to-brand/80"
+        class="block relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ring-2 ring-warning/60"
+        :style="{ background: 'linear-gradient(135deg, color-mix(in oklab, var(--color-brand) 100%, black 10%) 0%, var(--color-brand) 60%, color-mix(in oklab, var(--color-brand) 80%, white 15%) 100%)' }"
       >
-        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning text-white text-xs font-extrabold">
-          <Sparkles class="w-3 h-3" aria-hidden="true" /> ابدأ الآن
-        </span>
-        <h3 class="mt-2 text-lg font-extrabold">احجز موعدك بسهولة</h3>
-        <p class="mt-1 text-sm text-white/85">اختر الخدمة والطبيب والوقت — كل ذلك في دقائق.</p>
+        <!-- Decorative translucent orbs (inline-start side, decorative only) -->
+        <span aria-hidden="true" class="pointer-events-none absolute -top-4 start-6 w-20 h-20 rounded-full bg-white/10" />
+        <span aria-hidden="true" class="pointer-events-none absolute top-12 start-0 w-16 h-16 rounded-full bg-white/8" />
+        <span aria-hidden="true" class="pointer-events-none absolute -bottom-6 start-16 w-24 h-24 rounded-full bg-white/5" />
+
+        <div class="relative">
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning text-brand text-xs font-extrabold">
+            <Sparkles class="w-3 h-3" aria-hidden="true" />
+            عرض خاص
+          </span>
+          <h3 class="mt-3 text-lg font-extrabold leading-snug">احجز موعدك بسهولة</h3>
+          <p class="mt-1 text-sm text-white/85">اختر الخدمة والطبيب والوقت المناسب — كل ذلك في دقائق.</p>
+
+          <div class="mt-4 flex justify-end">
+            <span class="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-white text-brand text-sm font-extrabold shadow-sm hover:bg-warning hover:text-brand transition">
+              احجز الآن
+              <ArrowLeft class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
+            </span>
+          </div>
+        </div>
       </AuthGuardLink>
 
       <!-- Categories (iconic squares) -->
@@ -216,24 +232,39 @@ const tipText = computed(() => {
         </ul>
       </section>
 
-      <!-- Loyalty points card (authed only) — gradient -->
+      <!-- Loyalty points card (authed only) — gradient + decorative star -->
       <section
         v-if="isAuthed"
-        class="rounded-2xl p-5 text-white shadow-md bg-gradient-to-bl from-brand via-brand/90 to-brand/70"
+        class="relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ring-2 ring-warning/40"
+        :style="{ background: 'linear-gradient(120deg, color-mix(in oklab, var(--color-brand) 100%, black 18%) 0%, var(--color-brand) 55%, color-mix(in oklab, var(--color-brand) 70%, var(--color-warning) 40%) 100%)' }"
       >
-        <p class="text-xs font-bold text-white/80">نقاط الولاء</p>
-        <p class="mt-1 text-4xl font-extrabold">
-          {{ loyaltyBalance.toLocaleString('ar') }}
-          <span class="text-base font-bold text-white/85">نقطة</span>
-        </p>
-        <p class="mt-1 text-xs text-white/80">
-          {{ loyaltyBalance >= POINTS_PER_SESSION
-            ? 'يمكنك استبدال جلسة الآن!'
-            : `باقي ${pointsToNextSession.toLocaleString('ar')} نقطة لجلسة مجانيّة` }}
-        </p>
-        <Link href="/portal/loyalty" class="mt-3 inline-flex items-center gap-1 text-xs font-bold text-white/90">
-          إدارة النقاط <ArrowLeft class="w-3.5 h-3.5 rtl:rotate-180" aria-hidden="true" />
-        </Link>
+        <!-- Decorative star — outline only, inline-start side, large and translucent -->
+        <Star
+          aria-hidden="true"
+          class="pointer-events-none absolute -bottom-4 start-2 w-32 h-32 text-white/10 fill-current"
+          stroke-width="1"
+        />
+
+        <div class="relative flex flex-col items-end text-end">
+          <p class="text-xs font-bold text-white/85">نقاط الولاء</p>
+          <p class="mt-1 text-4xl font-extrabold tracking-tight">
+            {{ loyaltyBalance.toLocaleString('ar') }}
+            <span class="text-base font-bold text-warning">نقطة</span>
+          </p>
+          <p class="mt-1 text-xs text-white/85">
+            {{ loyaltyBalance >= POINTS_PER_SESSION
+              ? 'يمكنك استبدال جلسة الآن!'
+              : `باقي ${pointsToNextSession.toLocaleString('ar')} نقطة لجلسة مجانيّة` }}
+          </p>
+
+          <Link
+            href="/portal/loyalty"
+            class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-sm font-extrabold transition ring-1 ring-white/30"
+          >
+            استبدل النقاط
+            <ArrowLeft class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
+          </Link>
+        </div>
       </section>
 
       <!-- Medical team grid -->

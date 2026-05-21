@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Heart,
   CalendarPlus,
+  LogIn,
 } from 'lucide-vue-next'
 import { NotificationBell, AuthGuardLink } from '@/Components/foundation'
 
@@ -71,10 +72,14 @@ function isActive(href) {
       </template>
 
       <template v-else>
-        <div class="ms-auto flex items-center gap-2">
-          <Link href="/login" class="text-xs text-text-secondary hover:text-brand">تسجيل الدخول</Link>
-          <Link href="/register" class="text-xs font-semibold text-brand">إنشاء حساب</Link>
-        </div>
+        <Link
+          href="/login"
+          class="ms-auto inline-flex items-center justify-center w-10 h-10 rounded-full bg-brand/10 text-brand hover:bg-brand/15 transition focus:outline-none focus:ring-2 focus:ring-brand"
+          aria-label="تسجيل الدخول أو إنشاء حساب"
+          title="تسجيل الدخول أو إنشاء حساب"
+        >
+          <LogIn class="w-5 h-5 rtl:rotate-180" aria-hidden="true" />
+        </Link>
       </template>
     </header>
 

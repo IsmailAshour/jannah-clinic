@@ -146,7 +146,11 @@ const columns = [
   {
     accessorKey: 'customer',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'العميل' }),
-    cell: ({ row }) => row.original.customer?.name ?? '—',
+    // Clickable link straight to the unified appointment page.
+    cell: ({ row }) => h('a', {
+      href: `/admin/appointments/${row.original.id}`,
+      class: 'text-brand font-medium hover:underline',
+    }, row.original.customer?.name ?? '—'),
     meta: { label: 'العميل' },
   },
   {
@@ -188,12 +192,13 @@ const columns = [
     header: () => '',
     cell: ({ row }) => {
       const r = row.original
+      const items = [
+        h(DropdownMenuItem, { onClick: () => router.visit(`/admin/appointments/${r.id}`) }, 'فتح صفحة الموعد'),
+      ]
       if (isTerminal(r.status)) {
-        return h(AdminDataTableRowActions, null, {
-          default: () => h(DropdownMenuItem, { disabled: true }, '— لا توجد إجراءات —'),
-        })
+        return h(AdminDataTableRowActions, null, { default: () => items })
       }
-      const items = []
+      items.push(h(DropdownMenuSeparator))
       if (r.status === 'requested') {
         items.push(h(DropdownMenuItem, { onClick: () => requestTransition(r, 'confirmed') }, 'تأكيد'))
         items.push(h(DropdownMenuItem, { class: 'text-danger', onClick: () => requestTransition(r, 'rejected') }, 'رفض'))
@@ -202,9 +207,7 @@ const columns = [
         items.push(h(DropdownMenuItem, { onClick: () => requestTransition(r, 'completed') }, 'إكمال'))
         items.push(h(DropdownMenuItem, { class: 'text-warning', onClick: () => requestTransition(r, 'no_show') }, 'لم يحضر'))
       }
-      if (items.length > 0) {
-        items.push(h(DropdownMenuSeparator))
-      }
+      items.push(h(DropdownMenuSeparator))
       items.push(h(DropdownMenuItem, { class: 'text-danger', onClick: () => openCancelModal(r) }, 'إلغاء بسبب…'))
       return h(AdminDataTableRowActions, null, { default: () => items })
     },

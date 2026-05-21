@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { router, useForm, usePage } from '@inertiajs/vue3'
 import { Pencil } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
@@ -51,15 +51,15 @@ const isManager = (() => {
 })()
 
 // One-shot temporary password from session flash — set by store() after creating
-// a new customer (Str::password(16) hashed server-side, returned ONCE here).
-// The session key is shared via HandleInertiaRequests::share(). Manager must
-// share it with the customer; it is NOT persisted anywhere else.
-const tempPassword = page.props?.flash?.temp_password ?? null
+// a new customer OR by resetPassword(). Reactive computed so the banner re-renders
+// when Inertia updates props after a same-URL back() redirect (component instance
+// is reused across the redirect, so a plain const captured at setup never refreshes).
+const tempPassword = computed(() => page.props?.flash?.temp_password ?? null)
 const passwordCopied = ref(false)
 async function copyPassword() {
-  if (!tempPassword) return
+  if (!tempPassword.value) return
   try {
-    await navigator.clipboard.writeText(tempPassword)
+    await navigator.clipboard.writeText(tempPassword.value)
     passwordCopied.value = true
     setTimeout(() => (passwordCopied.value = false), 2000)
   } catch {

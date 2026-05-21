@@ -168,10 +168,14 @@ const currentStepHint = computed(() => {
         <p class="text-xs text-text-secondary pr-7">انتقل للخطوة 3 وأعد رفع صورة واضحة للإيصال.</p>
       </div>
 
-      <!-- ============ STEPS ============ -->
+      <!-- ============ STEPS ============
+           Steps 1 + 2 (bank info + photo guidance) are only useful while the
+           customer still needs to send a receipt. Once status is submitted /
+           paid / refund-pending / refunded we hide them — the customer's
+           remaining concerns (view receipt, refund status) live below. -->
 
       <!-- Step 1: Transfer (bank info) -->
-      <section class="bg-surface-card rounded-2xl shadow-sm border border-border-default p-5 space-y-3">
+      <section v-if="canUpload" class="bg-surface-card rounded-2xl shadow-sm border border-border-default p-5 space-y-3">
         <div class="flex items-center gap-3">
           <span class="w-8 h-8 rounded-full bg-brand text-white grid place-items-center font-extrabold text-sm">١</span>
           <div class="flex-1">
@@ -229,8 +233,8 @@ const currentStepHint = computed(() => {
         </div>
       </section>
 
-      <!-- Step 2: Capture / pick receipt image -->
-      <section class="bg-surface-card rounded-2xl shadow-sm border border-border-default p-5 space-y-3">
+      <!-- Step 2: Capture / pick receipt image (only when action is needed) -->
+      <section v-if="canUpload" class="bg-surface-card rounded-2xl shadow-sm border border-border-default p-5 space-y-3">
         <div class="flex items-center gap-3">
           <span class="w-8 h-8 rounded-full bg-brand text-white grid place-items-center font-extrabold text-sm">٢</span>
           <div class="flex-1">

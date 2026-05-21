@@ -55,15 +55,6 @@ const flashSuccess = page.props?.flash?.success
         </form>
       </section>
 
-      <section class="bg-surface-card rounded-lg shadow-sm p-4 space-y-2 opacity-60">
-        <p class="text-sm font-semibold text-text-primary">تفضيلات الإشعارات <span class="text-xs text-text-tertiary">— قريبًا</span></p>
-        <p class="text-xs text-text-secondary">سيتيح هذا القسم لاحقًا اختيار فئات الإشعارات.</p>
-      </section>
-
-      <section class="bg-surface-card rounded-lg shadow-sm p-4 space-y-2 opacity-60">
-        <p class="text-sm font-semibold text-text-primary">اللغة <span class="text-xs text-text-tertiary">— العربيّة</span></p>
-        <p class="text-xs text-text-secondary">دعم الإنجليزيّة سيُضاف لاحقًا.</p>
-      </section>
     </div>
   </ClientShell>
 </template>

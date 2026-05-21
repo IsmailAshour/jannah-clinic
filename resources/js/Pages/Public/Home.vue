@@ -75,15 +75,16 @@ const tipText = computed(() => {
       <!-- Hero header — brand badge + bell + greeting (replaces ClientShell's top bar on this page). -->
       <section class="px-5 pt-6 pb-4">
         <div class="flex items-center justify-between">
-          <!-- Brand badge (logo or initial) -->
-          <Link href="/" class="w-14 h-14 rounded-full bg-surface-card ring-2 ring-brand/20 shadow-sm overflow-hidden grid place-items-center text-brand text-lg font-extrabold">
+          <!-- Brand: bare logo image + clinic name beside it -->
+          <Link href="/" class="flex items-center gap-2 min-w-0">
             <img
               v-if="clinicLogoUrl"
               :src="clinicLogoUrl"
               :alt="clinicName"
-              class="w-full h-full object-cover"
+              class="h-12 w-auto max-w-12 object-contain shrink-0"
             />
-            <span v-else>{{ clinicInitial }}</span>
+            <span v-else class="h-12 w-12 grid place-items-center text-brand text-xl font-extrabold shrink-0">{{ clinicInitial }}</span>
+            <span class="text-base font-extrabold text-brand truncate">{{ clinicName }}</span>
           </Link>
 
           <!-- Notification bell (authed) OR Login icon (guest) -->

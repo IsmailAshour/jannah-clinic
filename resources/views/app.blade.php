@@ -5,6 +5,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#0B4F2F">
 
+        {{-- PWA: Chrome's 'Install app' prompt needs a manifest + a service
+             worker. iOS Safari uses the apple-* tags for 'Add to Home Screen'. --}}
+        <link rel="manifest" href="/manifest.webmanifest">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-title" content="{{ $seoClinicName }}">
+        <link rel="apple-touch-icon" href="{{ $seoImageUrl }}">
+
         {{-- Title: per-page Inertia <Head> can override via <title inertia>. --}}
         <title inertia>{{ $seoClinicName }}</title>
 

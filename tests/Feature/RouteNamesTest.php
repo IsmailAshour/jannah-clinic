@@ -30,7 +30,7 @@ it('exposes canonical single-prefixed P1 route names', function () {
         'portal.notifications.index', 'portal.notifications.read', 'portal.notifications.mark-all-read',
         'admin.customers.loyalty.show', 'admin.customers.loyalty.adjust',
         'portal.loyalty.index',
-        'public.home', 'public.services', 'public.services.show', 'public.doctors', 'public.support', 'public.contact.store',
+        'public.home', 'public.services', 'public.services.show', 'public.doctors', 'public.support', 'public.contact.store', 'pwa.manifest',
         'admin.messages.index', 'admin.messages.show', 'admin.messages.status', 'admin.messages.destroy',
         'portal.profile.edit', 'portal.profile.update',
         'portal.settings.index', 'portal.settings.password',

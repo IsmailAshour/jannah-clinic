@@ -1,6 +1,15 @@
 import '../css/app.css';
 import './bootstrap';
 
+// Register the service worker so Chrome surfaces the 'Install app' prompt
+// on mobile. The SW itself is a passthrough; this just makes the page
+// installable. Skipped in dev (Vite HMR + SW caching don't mix well).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* swallowed: PWA install is opt-in */ });
+  });
+}
+
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';

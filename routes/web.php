@@ -6,6 +6,7 @@ use App\Http\Controllers\Public\DoctorBrowseController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\ServiceBrowseController;
 use App\Http\Controllers\Public\SupportController;
+use App\Http\Controllers\PwaManifestController;
 use Illuminate\Support\Facades\Route;
 
 // Public landing — no auth.
@@ -17,6 +18,9 @@ Route::get('/support', [SupportController::class, 'index'])->name('public.suppor
 Route::post('/support/contact', [ContactController::class, 'store'])
     ->middleware('throttle:6,1')
     ->name('public.contact.store');
+
+// PWA — dynamic manifest. /sw.js is a static file under public/.
+Route::get('/manifest.webmanifest', PwaManifestController::class)->name('pwa.manifest');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -32,6 +32,10 @@ Route::middleware(['auth', 'role:customer'])
 
         // My appointments — customer
         Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+        // Legacy notification links generated before 2026-05-21 used /portal/appointments/{id}.
+        // No per-appointment show page exists; redirect to index so old in-DB notifications resolve.
+        Route::get('appointments/{appointment}', fn () => redirect()->route('portal.appointments.index'))
+            ->whereNumber('appointment')->name('appointments.show');
         Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
         Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
 

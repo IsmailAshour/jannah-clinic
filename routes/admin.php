@@ -49,6 +49,9 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
 
         // Appointment management (all staff)
         Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+        // Legacy notification links used /admin/appointments/{id}. No show page exists; redirect to index.
+        Route::get('appointments/{appointment}', fn () => redirect()->route('admin.appointments.index'))
+            ->whereNumber('appointment')->name('appointments.show');
         Route::post('appointments/{appointment}/transition', [AppointmentController::class, 'transition'])->name('appointments.transition');
 
         // Customer admin (Polish-D) — read-only for all staff

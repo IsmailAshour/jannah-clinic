@@ -6,6 +6,7 @@ use App\Enums\AppointmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
+use App\Models\Service;
 use App\Models\ServiceCategory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -29,6 +30,14 @@ class HomeController extends Controller
             ->limit(4)
             ->with('user:id,name')
             ->get(['id', 'user_id', 'specialty', 'rating_average']);
+
+        $featuredServices = Service::query()
+            ->where('is_active', true)
+            ->with('category:id,name,color_variant,icon_key')
+            ->orderByRaw('image_path IS NULL')
+            ->orderBy('display_order')
+            ->limit(4)
+            ->get(['id', 'category_id', 'name', 'description', 'base_price', 'duration_minutes', 'image_path']);
 
         $tips = (array) config('clinic.tips', []);
         $tip = $tips === [] ? null : $tips[array_rand($tips)];
@@ -54,6 +63,7 @@ class HomeController extends Controller
 
         return Inertia::render('Public/Home', [
             'categories' => $categories,
+            'featuredServices' => $featuredServices,
             'doctors' => $doctors,
             'tip' => $tip,
             'greetingName' => $greetingName,

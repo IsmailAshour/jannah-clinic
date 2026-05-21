@@ -8,6 +8,7 @@ import { iconForCategory } from '@/lib/categoryIcons'
 
 const props = defineProps({
   categories: { type: Array, default: () => [] },
+  featuredServices: { type: Array, default: () => [] },
   doctors: { type: Array, default: () => [] },
   tip: { type: [String, Object], default: null },
   greetingName: { type: String, default: null },
@@ -109,7 +110,7 @@ const tipText = computed(() => {
 
       <!-- Categories (iconic squares) -->
       <section v-if="categories.length > 0">
-        <h2 class="text-base font-bold text-text-primary mb-3">خدماتنا</h2>
+        <h2 class="text-base font-bold text-text-primary mb-3">تصفّح حسب الفئة</h2>
         <div class="grid grid-cols-2 gap-3">
           <Link
             v-for="c in categories"
@@ -124,6 +125,42 @@ const tipText = computed(() => {
             <span class="text-[11px] text-text-tertiary">{{ c.services_count }} خدمة</span>
           </Link>
         </div>
+      </section>
+
+      <!-- Featured services (with images) -->
+      <section v-if="featuredServices.length > 0">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-bold text-text-primary">خدمات مميّزة</h2>
+          <Link href="/services" class="text-sm font-bold text-brand inline-flex items-center gap-1">
+            عرض الكل
+            <ArrowLeft class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
+          </Link>
+        </div>
+        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <li v-for="s in featuredServices" :key="s.id">
+            <Link
+              :href="`/services/${s.id}`"
+              class="block bg-surface-card rounded-2xl shadow-sm overflow-hidden border-2 border-brand/10 hover:border-brand/40 hover:shadow-md transition"
+            >
+              <div
+                v-if="s.image_path"
+                class="w-full aspect-[16/9] bg-cover bg-center"
+                :style="{ backgroundImage: `url(/storage/${s.image_path})` }"
+              />
+              <div v-else class="w-full aspect-[16/9] flex items-center justify-center bg-brand/10 text-brand">
+                <component :is="iconForCategory(s.category)" class="w-12 h-12" aria-hidden="true" />
+              </div>
+              <div class="p-3 space-y-1">
+                <p class="text-[11px] text-text-tertiary">{{ s.category?.name }}</p>
+                <h3 class="text-sm font-extrabold text-text-primary truncate">{{ s.name }}</h3>
+                <div class="flex items-center justify-between pt-1">
+                  <p class="text-sm font-bold text-brand">{{ s.base_price }} ₪</p>
+                  <p class="text-[11px] text-text-tertiary">{{ s.duration_minutes }} د</p>
+                </div>
+              </div>
+            </Link>
+          </li>
+        </ul>
       </section>
 
       <!-- Loyalty points card (authed only) — gradient -->

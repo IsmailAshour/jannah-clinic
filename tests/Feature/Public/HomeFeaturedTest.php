@@ -10,6 +10,31 @@ use App\Models\ServiceCategory;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 
+it('home features up to 4 active services, prioritising those with an image', function () {
+    $cat = ServiceCategory::create(['name' => 'cat', 'slug' => 'c'.uniqid(), 'color_variant' => 'brand', 'is_active' => true]);
+    $withImage = Service::create([
+        'category_id' => $cat->id, 'name' => 'with-img', 'base_price' => '100',
+        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true,
+        'image_path' => 'services/foo.jpg', 'display_order' => 9,
+    ]);
+    $noImage = Service::create([
+        'category_id' => $cat->id, 'name' => 'no-img', 'base_price' => '50',
+        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true,
+        'display_order' => 1,
+    ]);
+    Service::create([
+        'category_id' => $cat->id, 'name' => 'inactive', 'base_price' => '10',
+        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => false,
+        'image_path' => 'services/bar.jpg', 'display_order' => 0,
+    ]);
+
+    $resp = $this->get('/');
+    $featured = $resp->viewData('page')['props']['featuredServices'];
+    expect(count($featured))->toBe(2)
+        ->and($featured[0]['id'])->toBe($withImage->id)
+        ->and($featured[1]['id'])->toBe($noImage->id);
+});
+
 it('home includes up to 6 categories ordered by display_order', function () {
     for ($i = 1; $i <= 7; $i++) {
         ServiceCategory::create([

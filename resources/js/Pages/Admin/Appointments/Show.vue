@@ -1,0 +1,485 @@
+<script setup>
+import { computed, ref } from 'vue'
+import { Link, router, useForm, usePage } from '@inertiajs/vue3'
+import {
+  AlertCircle, ArrowLeft, BadgeCheck, BadgeX, Calendar, Check, Clock,
+  CreditCard, Home, ImagePlus, MapPin, Phone, Receipt, RotateCcw,
+  Stethoscope, Trash2, User as UserIcon, X,
+} from 'lucide-vue-next'
+import AdminShell from '@/Layouts/AdminShell.vue'
+import { StatusBadge, Modal, FormGroup, ConfirmModal } from '@/Components/foundation'
+import { Button } from '@/Components/ui/button'
+import { Input } from '@/Components/ui/input'
+
+const props = defineProps({
+  appointment: { type: Object, required: true },
+  payment: { type: Object, default: null },
+  photos: { type: Array, default: () => [] },
+})
+
+const page = usePage()
+const userRole = computed(() => page.props?.auth?.user?.role ?? null)
+const isManager = computed(() => userRole.value === 'manager')
+const canEditPhotos = computed(() => ['manager', 'doctor'].includes(userRole.value))
+
+// ---------- Helpers ----------
+const apptStatusMap = {
+  requested:   { label: 'بانتظار التأكيد', variant: 'warning' },
+  confirmed:   { label: 'مؤكد',            variant: 'success' },
+  completed:   { label: 'مكتمل',           variant: 'info'    },
+  cancelled:   { label: 'ملغى',            variant: 'danger'  },
+  rejected:    { label: 'مرفوض',           variant: 'danger'  },
+  no_show:     { label: 'لم يحضر',         variant: 'warning' },
+  rescheduled: { label: 'أُعيد جدولته',    variant: 'info'    },
+}
+const payStatusMap = {
+  pending:        { label: 'بانتظار الدفع',      variant: 'warning' },
+  submitted:      { label: 'بانتظار التحقّق',     variant: 'info'    },
+  paid:           { label: 'مدفوع',               variant: 'success' },
+  rejected:       { label: 'مرفوض',               variant: 'danger'  },
+  refund_pending: { label: 'بانتظار الاسترداد',   variant: 'warning' },
+  refunded:       { label: 'مُسترَدّ',            variant: 'info'    },
+}
+function formatDateTime(dt) {
+  if (!dt) return ''
+  return new Date(dt).toLocaleString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+function formatTime(dt) {
+  if (!dt) return ''
+  return new Date(dt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+}
+
+// ---------- Appointment transitions ----------
+const allowedTransitions = computed(() => {
+  switch (props.appointment.status) {
+    case 'requested':   return ['confirmed', 'rejected', 'cancelled']
+    case 'confirmed':   return ['completed', 'cancelled', 'no_show']
+    default:            return []
+  }
+})
+const transitionLabels = {
+  confirmed: 'تأكيد الموعد',
+  rejected:  'رفض الموعد',
+  cancelled: 'إلغاء الموعد',
+  completed: 'وسم كمكتمل',
+  no_show:   'لم يحضر',
+}
+const transitionVariants = {
+  confirmed: 'default',
+  completed: 'default',
+  no_show:   'outline',
+  rejected:  'destructive',
+  cancelled: 'destructive',
+}
+
+const cancelModal = ref({ open: false, status: '' })
+const cancelForm = useForm({ status: '', reason: '' })
+function openTransition(status) {
+  if (['cancelled', 'rejected'].includes(status)) {
+    cancelModal.value = { open: true, status }
+    cancelForm.reset()
+    cancelForm.status = status
+    return
+  }
+  router.post(`/admin/appointments/${props.appointment.id}/transition`, { status }, { preserveScroll: true })
+}
+function submitCancel() {
+  cancelForm.post(`/admin/appointments/${props.appointment.id}/transition`, {
+    preserveScroll: true,
+    onSuccess: () => { cancelModal.value.open = false },
+  })
+}
+
+// ---------- Payment actions ----------
+const rejectModalOpen = ref(false)
+const rejectForm = useForm({ rejection_reason: '' })
+function verifyPayment() {
+  if (!props.payment) return
+  router.post(`/admin/payments/${props.payment.id}/verify`, {}, { preserveScroll: true })
+}
+function openRejectModal() {
+  rejectForm.reset()
+  rejectModalOpen.value = true
+}
+function submitReject() {
+  if (!props.payment) return
+  rejectForm.post(`/admin/payments/${props.payment.id}/reject`, {
+    preserveScroll: true,
+    onSuccess: () => { rejectModalOpen.value = false },
+  })
+}
+
+const refundForm = useForm({ refund_reference: '' })
+const refundModalOpen = ref(false)
+function openRefundModal() { refundForm.reset(); refundModalOpen.value = true }
+function markRefundPending() {
+  if (!props.payment) return
+  router.post(`/admin/payments/${props.payment.id}/mark-refund-pending`, {}, { preserveScroll: true })
+}
+function submitRefunded() {
+  if (!props.payment) return
+  refundForm.post(`/admin/payments/${props.payment.id}/mark-refunded`, {
+    preserveScroll: true,
+    onSuccess: () => { refundModalOpen.value = false },
+  })
+}
+
+// ---------- Photo upload ----------
+const photoModalOpen = ref(false)
+const photoForm = useForm({ kind: 'before', photo: null, caption: '' })
+const photoPreview = ref(null)
+const photoSizeError = ref(null)
+function openPhotoModal() {
+  photoForm.reset(); photoForm.kind = 'before'
+  photoPreview.value = null; photoSizeError.value = null
+  photoModalOpen.value = true
+}
+function onPhotoChange(e) {
+  const file = e.target.files?.[0] ?? null
+  photoForm.photo = file
+  photoSizeError.value = null
+  if (file) {
+    if (file.size > 8 * 1024 * 1024) {
+      photoSizeError.value = `الصورة كبيرة (${(file.size / 1024 / 1024).toFixed(1)}MB). الحدّ الأقصى 8MB.`
+      photoForm.photo = null; e.target.value = ''; photoPreview.value = null
+      return
+    }
+    const r = new FileReader()
+    r.onload = (ev) => { photoPreview.value = ev.target.result }
+    r.readAsDataURL(file)
+  } else { photoPreview.value = null }
+}
+function submitPhoto() {
+  if (!photoForm.photo) return
+  photoForm.post(`/admin/appointments/${props.appointment.id}/photos`, {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => { photoModalOpen.value = false; photoPreview.value = null },
+  })
+}
+const confirmDelete = ref(false)
+const deleteTargetId = ref(null)
+function askDeletePhoto(id) { deleteTargetId.value = id; confirmDelete.value = true }
+function doDeletePhoto() {
+  if (!deleteTargetId.value) return
+  router.delete(`/admin/appointments/${props.appointment.id}/photos/${deleteTargetId.value}`, {
+    preserveScroll: true,
+    onSuccess: () => { confirmDelete.value = false; deleteTargetId.value = null },
+  })
+}
+
+const beforePhotos = computed(() => props.photos.filter(p => p.kind === 'before'))
+const afterPhotos = computed(() => props.photos.filter(p => p.kind === 'after'))
+
+const latestReceipt = computed(() => props.payment?.receipts?.[0] ?? null)
+const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value.mime_type.startsWith('image/'))
+</script>
+
+<template>
+  <AdminShell>
+    <div class="p-4 sm:p-6 space-y-5 max-w-5xl mx-auto">
+      <!-- Top breadcrumb -->
+      <Link href="/admin/appointments" class="text-sm text-text-secondary hover:text-text-primary inline-flex items-center gap-1">
+        <ArrowLeft class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
+        <span>كل المواعيد</span>
+      </Link>
+
+      <!-- Appointment hero -->
+      <section class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5 sm:p-6 space-y-4">
+        <div class="flex items-start justify-between gap-3 flex-wrap">
+          <div class="min-w-0">
+            <p class="text-xs font-bold text-brand">موعد رقم #{{ appointment.id }}</p>
+            <h1 class="text-2xl font-extrabold text-text-primary truncate">{{ appointment.service.name }}</h1>
+            <p class="text-sm text-text-secondary mt-0.5">{{ appointment.service.duration_minutes }} دقيقة</p>
+          </div>
+          <StatusBadge :type="apptStatusMap[appointment.status]?.variant ?? 'info'" :label="apptStatusMap[appointment.status]?.label ?? appointment.status" />
+        </div>
+
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border-default text-sm">
+          <div>
+            <dt class="text-xs text-text-tertiary inline-flex items-center gap-1.5"><Calendar class="w-3 h-3" aria-hidden="true" />الموعد</dt>
+            <dd class="text-text-primary font-bold mt-0.5">{{ formatDateTime(appointment.start_at) }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-text-tertiary inline-flex items-center gap-1.5"><UserIcon class="w-3 h-3" aria-hidden="true" />العميل</dt>
+            <dd class="text-text-primary font-bold mt-0.5">
+              <Link :href="`/admin/customers/${appointment.customer.id}`" class="text-brand hover:underline">{{ appointment.customer.name }}</Link>
+            </dd>
+            <dd v-if="appointment.customer.phone" class="text-xs text-text-secondary" dir="ltr">
+              <a :href="`tel:${appointment.customer.phone}`" class="text-brand">{{ appointment.customer.phone }}</a>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-text-tertiary inline-flex items-center gap-1.5"><Stethoscope class="w-3 h-3" aria-hidden="true" />مقدّم الخدمة</dt>
+            <dd class="text-text-primary font-bold mt-0.5">{{ appointment.doctor.name }}</dd>
+            <dd v-if="appointment.doctor.specialty" class="text-xs text-text-secondary">{{ appointment.doctor.specialty }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-text-tertiary inline-flex items-center gap-1.5">
+              <component :is="appointment.delivery_mode === 'home' ? Home : MapPin" class="w-3 h-3" aria-hidden="true" />
+              طريقة الخدمة
+            </dt>
+            <dd class="text-text-primary font-bold mt-0.5">
+              {{ appointment.delivery_mode === 'home' ? 'منزليّة' : 'في المركز' }}
+              · <span class="text-brand">{{ appointment.price_at_booking }} ₪</span>
+            </dd>
+            <dd v-if="appointment.service_address" class="text-xs text-text-secondary mt-0.5">{{ appointment.service_address.address_text }}</dd>
+          </div>
+        </dl>
+
+        <p v-if="appointment.cancellation_reason" class="rounded-md bg-danger/10 border border-danger/30 px-3 py-2 text-sm text-danger">
+          <span class="font-bold">سبب الإلغاء:</span> {{ appointment.cancellation_reason }}
+        </p>
+
+        <!-- Status transition buttons -->
+        <div v-if="allowedTransitions.length > 0" class="flex flex-wrap gap-2 pt-3 border-t border-border-default">
+          <Button
+            v-for="s in allowedTransitions"
+            :key="s"
+            :variant="transitionVariants[s] ?? 'default'"
+            size="sm"
+            class="gap-1.5"
+            @click="openTransition(s)"
+          >
+            <BadgeCheck v-if="s === 'confirmed' || s === 'completed'" class="w-3.5 h-3.5" aria-hidden="true" />
+            <BadgeX v-else-if="s === 'rejected' || s === 'cancelled'" class="w-3.5 h-3.5" aria-hidden="true" />
+            <span>{{ transitionLabels[s] }}</span>
+          </Button>
+        </div>
+      </section>
+
+      <!-- Payment receipt + actions -->
+      <section v-if="payment" class="bg-surface-card rounded-2xl ring-1 ring-border-default overflow-hidden">
+        <header class="px-5 py-3 border-b border-border-default flex items-center justify-between gap-2 bg-surface-page/40">
+          <h2 class="text-base font-bold text-text-primary inline-flex items-center gap-2">
+            <CreditCard class="w-4 h-4 text-brand" aria-hidden="true" />
+            الدفع
+          </h2>
+          <StatusBadge :type="payStatusMap[payment.status]?.variant ?? 'info'" :label="payStatusMap[payment.status]?.label ?? payment.status" />
+        </header>
+
+        <div class="p-5 grid gap-5 lg:grid-cols-3">
+          <!-- Receipt preview (2/3) -->
+          <div class="lg:col-span-2 space-y-3">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-bold text-text-primary inline-flex items-center gap-1.5">
+                <Receipt class="w-4 h-4 text-brand" aria-hidden="true" />
+                إيصال التحويل
+              </p>
+              <p class="text-2xl font-extrabold text-brand">{{ payment.amount }} ₪</p>
+            </div>
+
+            <div v-if="latestReceipt">
+              <a v-if="receiptIsImage" :href="latestReceipt.file_url" target="_blank" rel="noopener" class="block rounded-lg overflow-hidden ring-1 ring-border-default hover:ring-brand transition">
+                <img :src="latestReceipt.file_url" alt="إيصال التحويل" class="w-full max-h-96 object-contain bg-surface-page" />
+              </a>
+              <a v-else :href="latestReceipt.file_url" target="_blank" rel="noopener" class="block rounded-lg border-2 border-dashed border-border-default p-6 text-center hover:border-brand transition">
+                <p class="text-sm font-bold text-text-primary">تنزيل الإيصال (PDF)</p>
+                <p class="text-xs text-text-tertiary mt-1">{{ latestReceipt.mime_type }}</p>
+              </a>
+              <p class="mt-2 text-xs text-text-tertiary">رُفع: {{ formatDateTime(latestReceipt.created_at) }}</p>
+            </div>
+            <div v-else class="rounded-lg border-2 border-dashed border-border-default p-8 text-center text-sm text-text-secondary">
+              لم يرفع العميل إيصال التحويل بعد.
+            </div>
+
+            <p v-if="payment.rejection_reason" class="rounded-md bg-danger/10 border border-danger/30 px-3 py-2 text-xs text-danger">
+              <span class="font-bold">سبب الرفض:</span> {{ payment.rejection_reason }}
+            </p>
+            <p v-if="payment.verified_at" class="text-xs text-success font-medium inline-flex items-center gap-1">
+              <Check class="w-3.5 h-3.5" aria-hidden="true" /> تم التحقّق {{ formatDateTime(payment.verified_at) }}
+            </p>
+            <p v-if="payment.refund_reference" class="text-xs text-text-secondary">
+              مرجع الاسترداد: <span dir="ltr" class="font-mono">{{ payment.refund_reference }}</span>
+            </p>
+          </div>
+
+          <!-- Payment actions (1/3) -->
+          <div class="space-y-2">
+            <p class="text-sm font-bold text-text-primary mb-1">الإجراءات</p>
+
+            <template v-if="payment.status === 'submitted' && isManager">
+              <Button class="w-full gap-1.5" @click="verifyPayment">
+                <BadgeCheck class="w-4 h-4" aria-hidden="true" />
+                <span>الموافقة على الإيصال</span>
+              </Button>
+              <Button variant="destructive" class="w-full gap-1.5" @click="openRejectModal">
+                <BadgeX class="w-4 h-4" aria-hidden="true" />
+                <span>رفض الإيصال</span>
+              </Button>
+            </template>
+
+            <template v-else-if="payment.status === 'paid' && isManager">
+              <Button variant="outline" class="w-full gap-1.5" @click="markRefundPending">
+                <RotateCcw class="w-4 h-4" aria-hidden="true" />
+                <span>بدء الاسترداد</span>
+              </Button>
+            </template>
+
+            <template v-else-if="payment.status === 'refund_pending' && isManager">
+              <Button class="w-full gap-1.5" @click="openRefundModal">
+                <Check class="w-4 h-4" aria-hidden="true" />
+                <span>وسم كمُسترَدّ</span>
+              </Button>
+            </template>
+
+            <p v-else class="text-xs text-text-secondary">
+              {{ payment.status === 'pending' ? 'بانتظار رفع الإيصال من العميل.' :
+                 payment.status === 'rejected' ? 'الإيصال مرفوض — العميل يحتاج إعادة الرفع.' :
+                 payment.status === 'paid' ? 'الدفع مكتمل.' :
+                 payment.status === 'refunded' ? 'تم الاسترداد.' :
+                 'لا إجراءات متاحة الآن.' }}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section v-else class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5">
+        <p class="text-sm text-text-secondary">لا توجد دفعة مرتبطة بهذا الموعد (مدفوع نقدًا أو بنقاط الولاء).</p>
+      </section>
+
+      <!-- Before/After photos -->
+      <section class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5 space-y-4">
+        <header class="flex items-center justify-between">
+          <h2 class="text-base font-bold text-text-primary">صور قبل/بعد الجلسة</h2>
+          <Button v-if="canEditPhotos" size="sm" variant="outline" class="gap-1.5" @click="openPhotoModal">
+            <ImagePlus class="w-3.5 h-3.5" aria-hidden="true" />
+            <span>إضافة صورة</span>
+          </Button>
+        </header>
+
+        <div v-if="photos.length === 0" class="text-sm text-text-tertiary text-center py-4">لا صور مرفوعة بعد.</div>
+
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs font-bold text-text-secondary mb-2 inline-flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-warning" aria-hidden="true" /> قبل ({{ beforePhotos.length }})
+            </p>
+            <ul v-if="beforePhotos.length > 0" class="grid grid-cols-3 gap-2">
+              <li v-for="p in beforePhotos" :key="p.id" class="relative group">
+                <a :href="p.file_url" target="_blank" rel="noopener" class="block aspect-square rounded-md overflow-hidden ring-1 ring-border-default">
+                  <img :src="p.file_url" :alt="p.caption || 'قبل'" class="w-full h-full object-cover" loading="lazy" />
+                </a>
+                <button v-if="canEditPhotos" type="button" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-danger text-white grid place-items-center shadow opacity-0 group-hover:opacity-100 transition" aria-label="حذف" @click.prevent="askDeletePhoto(p.id)">
+                  <Trash2 class="w-3 h-3" aria-hidden="true" />
+                </button>
+              </li>
+            </ul>
+            <p v-else class="text-[11px] text-text-tertiary">لا صور قبل.</p>
+          </div>
+
+          <div>
+            <p class="text-xs font-bold text-text-secondary mb-2 inline-flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-success" aria-hidden="true" /> بعد ({{ afterPhotos.length }})
+            </p>
+            <ul v-if="afterPhotos.length > 0" class="grid grid-cols-3 gap-2">
+              <li v-for="p in afterPhotos" :key="p.id" class="relative group">
+                <a :href="p.file_url" target="_blank" rel="noopener" class="block aspect-square rounded-md overflow-hidden ring-1 ring-border-default">
+                  <img :src="p.file_url" :alt="p.caption || 'بعد'" class="w-full h-full object-cover" loading="lazy" />
+                </a>
+                <button v-if="canEditPhotos" type="button" class="absolute -top-1.5 -end-1.5 w-6 h-6 rounded-full bg-danger text-white grid place-items-center shadow opacity-0 group-hover:opacity-100 transition" aria-label="حذف" @click.prevent="askDeletePhoto(p.id)">
+                  <Trash2 class="w-3 h-3" aria-hidden="true" />
+                </button>
+              </li>
+            </ul>
+            <p v-else class="text-[11px] text-text-tertiary">لا صور بعد.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Cancel / reject modal -->
+    <Modal :open="cancelModal.open" :title="cancelModal.status === 'cancelled' ? 'إلغاء الموعد' : 'رفض الموعد'" @update:open="cancelModal.open = $event">
+      <form class="space-y-4" @submit.prevent="submitCancel">
+        <FormGroup label="السبب" name="reason" :error="cancelForm.errors.reason" required>
+          <template #default>
+            <textarea v-model="cancelForm.reason" rows="3" maxlength="500" class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="اذكر السبب…" />
+          </template>
+        </FormGroup>
+        <p v-if="cancelForm.errors.appointment" class="text-xs text-danger">{{ cancelForm.errors.appointment }}</p>
+      </form>
+      <template #footer>
+        <Button variant="outline" @click="cancelModal.open = false">تراجع</Button>
+        <Button variant="destructive" :disabled="cancelForm.processing || !cancelForm.reason.trim()" @click="submitCancel">تأكيد</Button>
+      </template>
+    </Modal>
+
+    <!-- Receipt reject modal -->
+    <Modal :open="rejectModalOpen" title="رفض الإيصال" @update:open="rejectModalOpen = $event">
+      <form class="space-y-4" @submit.prevent="submitReject">
+        <FormGroup label="سبب الرفض" name="rejection_reason" :error="rejectForm.errors.rejection_reason" required>
+          <template #default>
+            <textarea v-model="rejectForm.rejection_reason" rows="3" maxlength="500" class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" placeholder="مثال: المبلغ غير مطابق / الصورة غير واضحة" />
+          </template>
+        </FormGroup>
+      </form>
+      <template #footer>
+        <Button variant="outline" @click="rejectModalOpen = false">تراجع</Button>
+        <Button variant="destructive" :disabled="rejectForm.processing || !rejectForm.rejection_reason.trim()" @click="submitReject">رفض</Button>
+      </template>
+    </Modal>
+
+    <!-- Refund reference modal -->
+    <Modal :open="refundModalOpen" title="تأكيد الاسترداد" @update:open="refundModalOpen = $event">
+      <form class="space-y-4" @submit.prevent="submitRefunded">
+        <FormGroup label="مرجع الاسترداد" name="refund_reference" :error="refundForm.errors.refund_reference">
+          <template #default>
+            <Input v-model="refundForm.refund_reference" placeholder="رقم العمليّة / مرجع البنك" dir="ltr" />
+          </template>
+        </FormGroup>
+      </form>
+      <template #footer>
+        <Button variant="outline" @click="refundModalOpen = false">تراجع</Button>
+        <Button :disabled="refundForm.processing" @click="submitRefunded">تأكيد</Button>
+      </template>
+    </Modal>
+
+    <!-- Upload photo modal -->
+    <Modal :open="photoModalOpen" title="إضافة صورة" @update:open="photoModalOpen = $event">
+      <form class="space-y-4" @submit.prevent="submitPhoto">
+        <FormGroup label="النوع" name="kind" :error="photoForm.errors.kind" required>
+          <template #default>
+            <div class="flex gap-2">
+              <label class="flex-1 cursor-pointer rounded-md border-2 px-3 py-2 text-center text-sm font-bold transition" :class="photoForm.kind === 'before' ? 'border-warning bg-warning/5' : 'border-border-default'">
+                <input v-model="photoForm.kind" type="radio" value="before" class="sr-only" />
+                قبل الجلسة
+              </label>
+              <label class="flex-1 cursor-pointer rounded-md border-2 px-3 py-2 text-center text-sm font-bold transition" :class="photoForm.kind === 'after' ? 'border-success bg-success/5' : 'border-border-default'">
+                <input v-model="photoForm.kind" type="radio" value="after" class="sr-only" />
+                بعد الجلسة
+              </label>
+            </div>
+          </template>
+        </FormGroup>
+        <FormGroup label="الصورة" name="photo" :error="photoForm.errors.photo" required hint="JPG / PNG / WEBP — حتى 8MB.">
+          <template #default>
+            <div class="space-y-2">
+              <img v-if="photoPreview" :src="photoPreview" alt="معاينة" class="max-h-48 rounded-md object-contain ring-1 ring-border-default" />
+              <input type="file" accept="image/jpeg,image/png,image/webp" @change="onPhotoChange" class="block w-full text-sm text-text-secondary file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-brand/10 file:text-brand file:font-medium hover:file:bg-brand/15" />
+              <p v-if="photoSizeError" class="text-xs text-danger font-medium">{{ photoSizeError }}</p>
+            </div>
+          </template>
+        </FormGroup>
+        <FormGroup label="ملاحظة (اختياري)" name="caption" :error="photoForm.errors.caption">
+          <template #default>
+            <textarea v-model="photoForm.caption" rows="2" maxlength="500" class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm" />
+          </template>
+        </FormGroup>
+      </form>
+      <template #footer>
+        <Button variant="outline" @click="photoModalOpen = false">إلغاء</Button>
+        <Button :disabled="!photoForm.photo || photoForm.processing" @click="submitPhoto">{{ photoForm.processing ? 'جاري الرفع…' : 'رفع' }}</Button>
+      </template>
+    </Modal>
+
+    <ConfirmModal
+      :open="confirmDelete"
+      title="حذف الصورة"
+      message="هل أنت متأكد من حذف هذه الصورة نهائيًا؟"
+      confirm-text="حذف"
+      cancel-text="إلغاء"
+      @update:open="confirmDelete = $event"
+      @confirm="doDeletePhoto"
+    />
+  </AdminShell>
+</template>

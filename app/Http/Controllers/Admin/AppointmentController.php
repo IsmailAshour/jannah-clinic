@@ -63,6 +63,112 @@ class AppointmentController extends Controller
         ]);
     }
 
+    /**
+     * Unified per-appointment detail page: customer + doctor + service + status
+     * controls + Payment receipt inline + before/after photos. Lets staff
+     * approve a receipt AND confirm/cancel/complete the appointment from one
+     * surface instead of bouncing between /admin/payments and /admin/appointments.
+     */
+    public function show(Appointment $appointment): Response
+    {
+        $appointment->load([
+            'customer:id,name,email,phone',
+            'doctor:id,user_id,specialty',
+            'doctor.user:id,name',
+            'service:id,name,duration_minutes',
+            'serviceAddress',
+            'payment.receipts' => fn ($q) => $q->orderByDesc('id'),
+            'photos.uploader:id,name',
+        ]);
+
+        $photos = [];
+        foreach ($appointment->photos as $p) {
+            /** @var \App\Models\AppointmentPhoto $p */
+            /** @var User|null $uploader */
+            $uploader = $p->uploader;
+            $photos[] = [
+                'id' => $p->id,
+                'kind' => $p->kind->value,
+                'caption' => $p->caption,
+                'mime_type' => $p->mime_type,
+                'file_url' => route('admin.appointments.photos.file', ['appointment' => $appointment->id, 'photo' => $p->id]),
+                'created_at' => $p->created_at->toIso8601String(),
+                'uploaded_by_name' => $uploader?->name,
+            ];
+        }
+
+        $receipts = [];
+        if ($appointment->payment) {
+            foreach ($appointment->payment->receipts as $r) {
+                /** @var \App\Models\PaymentReceipt $r */
+                $receipts[] = [
+                    'id' => $r->id,
+                    'mime_type' => $r->mime_type,
+                    'file_size' => $r->file_size,
+                    'created_at' => $r->created_at->toIso8601String(),
+                    'file_url' => route('admin.payments.receipt-file', ['payment' => $appointment->payment->id, 'receipt' => $r->id]),
+                ];
+            }
+        }
+
+        return Inertia::render('Admin/Appointments/Show', [
+            'appointment' => [
+                'id' => $appointment->id,
+                'start_at' => $appointment->start_at->toIso8601String(),
+                'end_at' => $appointment->end_at->toIso8601String(),
+                'status' => $appointment->status->value,
+                'delivery_mode' => $appointment->delivery_mode->value,
+                'price_at_booking' => $appointment->price_at_booking,
+                'home_surcharge_amount' => $appointment->home_surcharge_amount,
+                'cancellation_reason' => $appointment->cancellation_reason,
+                'customer' => [
+                    'id' => $appointment->customer->id,
+                    'name' => $appointment->customer->name,
+                    'email' => $appointment->customer->email,
+                    'phone' => $appointment->customer->phone,
+                ],
+                'doctor' => [
+                    'id' => $appointment->doctor->id,
+                    'name' => $appointment->doctor->user->name,
+                    'specialty' => $appointment->doctor->specialty,
+                ],
+                'service' => [
+                    'id' => $appointment->service->id,
+                    'name' => $appointment->service->name,
+                    'duration_minutes' => $appointment->service->duration_minutes,
+                ],
+                'service_address' => $this->serializeAddress($appointment),
+            ],
+            'payment' => $appointment->payment ? [
+                'id' => $appointment->payment->id,
+                'amount' => $appointment->payment->amount,
+                'status' => $appointment->payment->status->value,
+                'rejection_reason' => $appointment->payment->rejection_reason,
+                'verified_at' => $appointment->payment->verified_at?->toIso8601String(),
+                'refund_reference' => $appointment->payment->refund_reference,
+                'receipts' => $receipts,
+            ] : null,
+            'photos' => $photos,
+        ]);
+    }
+
+    /**
+     * @return array{address_text: string, location_note: string|null}|null
+     */
+    private function serializeAddress(Appointment $appointment): ?array
+    {
+        /** @var \App\Models\ServiceAddress|null $addr */
+        $addr = $appointment->serviceAddress;
+        if ($addr === null) {
+            return null;
+        }
+
+        return [
+            'address_text' => $addr->address_text,
+            'location_note' => $addr->location_note,
+        ];
+    }
+
     public function transition(Request $request, Appointment $appointment): RedirectResponse
     {
         Gate::authorize('manage', $appointment);

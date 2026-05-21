@@ -1,13 +1,13 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Link, useForm } from '@inertiajs/vue3'
+import { CalendarDays, CalendarPlus, Clock, MapPin, AlertCircle } from 'lucide-vue-next'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import {
-  PageHeader,
-  PageStates,
   StatusBadge,
   Modal,
   FormGroup,
+  AuthGuardLink,
 } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 
@@ -56,7 +56,39 @@ function formatDate(dt) {
   })
 }
 
+// Date block helpers for the per-card calendar tile
+function formatDay(dt) {
+  if (!dt) return '—'
+  return new Date(dt).toLocaleDateString('ar-SA', { day: 'numeric' })
+}
+function formatMonth(dt) {
+  if (!dt) return ''
+  return new Date(dt).toLocaleDateString('ar-SA', { month: 'short' })
+}
+function formatTime(dt) {
+  if (!dt) return ''
+  return new Date(dt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+}
+function formatRelativeDay(dt) {
+  if (!dt) return null
+  const target = new Date(dt)
+  const today = new Date()
+  const tomorrow = new Date()
+  tomorrow.setDate(today.getDate() + 1)
+  const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (sameDay(target, today)) return 'اليوم'
+  if (sameDay(target, tomorrow)) return 'غدًا'
+  return null
+}
+
 function deliveryLabel(mode) { return mode === 'home' ? 'منزلية' : 'في العيادة' }
+
+// --- Tab filter (client-side) ---
+const activeTab = ref('upcoming')
+const upcomingAppts = computed(() => props.appointments.data.filter(a => !isTerminal(a.status)))
+const pastAppts = computed(() => props.appointments.data.filter(a => isTerminal(a.status)))
+const visibleAppts = computed(() => activeTab.value === 'upcoming' ? upcomingAppts.value : pastAppts.value)
+const tabCounts = computed(() => ({ upcoming: upcomingAppts.value.length, past: pastAppts.value.length }))
 
 // --- Cancel flow ---
 const showCancelModal = ref(false)
@@ -133,60 +165,150 @@ function submitReschedule() {
 
 <template>
   <ClientShell>
-    <div class="p-4">
-      <PageHeader title="مواعيدي" />
+    <div class="p-4 space-y-4">
+      <!-- Header -->
+      <header class="space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <h1 class="text-2xl font-extrabold text-text-primary">مواعيدي</h1>
+            <p class="text-sm text-text-secondary">إدارة مواعيدك ومتابعة المدفوعات.</p>
+          </div>
+          <AuthGuardLink
+            intent="booking"
+            authed-href="/portal/booking"
+            staff-href="/admin/booking"
+            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-brand text-white text-sm font-bold hover:bg-brand-hover transition shrink-0"
+          >
+            <CalendarPlus class="w-4 h-4" aria-hidden="true" />
+            <span>حجز جديد</span>
+          </AuthGuardLink>
+        </div>
+
+        <!-- Tabs -->
+        <div role="tablist" class="inline-flex bg-surface-card rounded-full p-1 ring-1 ring-border-default">
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === 'upcoming'"
+            :class="[
+              'px-4 py-1.5 rounded-full text-sm font-bold transition',
+              activeTab === 'upcoming' ? 'bg-brand text-white shadow-sm' : 'text-text-secondary hover:text-text-primary',
+            ]"
+            @click="activeTab = 'upcoming'"
+          >
+            القادمة <span class="text-xs opacity-80">({{ tabCounts.upcoming }})</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === 'past'"
+            :class="[
+              'px-4 py-1.5 rounded-full text-sm font-bold transition',
+              activeTab === 'past' ? 'bg-brand text-white shadow-sm' : 'text-text-secondary hover:text-text-primary',
+            ]"
+            @click="activeTab = 'past'"
+          >
+            المنتهية <span class="text-xs opacity-80">({{ tabCounts.past }})</span>
+          </button>
+        </div>
+      </header>
 
       <!-- Error banner -->
       <div
         v-if="errors.appointment"
-        class="mb-4 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger"
+        class="rounded-2xl bg-danger/10 border-2 border-danger/30 p-4 text-sm text-danger inline-flex items-start gap-2"
         role="alert"
       >
-        {{ errors.appointment }}
+        <AlertCircle class="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+        <span>{{ errors.appointment }}</span>
       </div>
 
-      <PageStates :is-empty="appointments.data.length === 0">
-        <template #empty>
-          <div class="text-text-secondary p-6 text-center">لا توجد مواعيد بعد.</div>
-        </template>
+      <!-- Empty states (per-tab) -->
+      <div
+        v-if="appointments.data.length === 0"
+        class="bg-surface-card rounded-2xl border-2 border-dashed border-brand/20 p-8 text-center space-y-3"
+      >
+        <div class="mx-auto w-16 h-16 rounded-full bg-brand/10 grid place-items-center text-brand">
+          <CalendarDays class="w-8 h-8" aria-hidden="true" />
+        </div>
+        <p class="text-base font-bold text-text-primary">لا توجد مواعيد بعد</p>
+        <p class="text-sm text-text-secondary">احجز موعدك الأوّل وابدأ رحلتك معنا.</p>
+        <AuthGuardLink
+          intent="booking"
+          authed-href="/portal/booking"
+          staff-href="/admin/booking"
+          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-brand text-white text-sm font-bold hover:bg-brand-hover transition"
+        >
+          <CalendarPlus class="w-4 h-4" aria-hidden="true" />
+          <span>احجز الآن</span>
+        </AuthGuardLink>
+      </div>
 
-        <div class="space-y-3">
-          <div
-            v-for="appt in appointments.data"
-            :key="appt.id"
-            class="rounded-lg border border-border-default bg-surface-card p-4 space-y-2"
-          >
-            <div class="flex items-start justify-between gap-2">
-              <div class="space-y-1 min-w-0">
-                <p class="font-medium text-text-primary">{{ appt.service?.name }}</p>
-                <p class="text-sm text-text-secondary">{{ appt.doctor?.user?.name }}</p>
-                <p class="text-sm text-text-secondary">{{ formatDate(appt.start_at) }}</p>
-                <p class="text-xs text-text-tertiary">{{ deliveryLabel(appt.delivery_mode) }} · {{ appt.price_at_booking }} ₪</p>
+      <div
+        v-else-if="visibleAppts.length === 0"
+        class="bg-surface-card rounded-2xl border border-border-default p-6 text-center text-sm text-text-secondary"
+      >
+        {{ activeTab === 'upcoming' ? 'لا مواعيد قادمة حاليًا.' : 'لا مواعيد منتهية بعد.' }}
+      </div>
+
+      <!-- Appointment cards -->
+      <ul v-else class="space-y-3">
+        <li
+          v-for="appt in visibleAppts"
+          :key="appt.id"
+          class="bg-surface-card rounded-2xl border-2 border-border-default p-4 space-y-3 hover:shadow-sm transition"
+        >
+          <!-- Top: date block + service info + status -->
+          <div class="flex items-start gap-3">
+            <!-- Calendar tile -->
+            <div class="shrink-0 w-16 rounded-xl bg-brand/5 ring-1 ring-brand/15 text-center overflow-hidden">
+              <div class="bg-brand text-white py-0.5 text-[10px] font-bold">{{ formatMonth(appt.start_at) }}</div>
+              <div class="py-1.5">
+                <div class="text-xl font-extrabold text-brand leading-none">{{ formatDay(appt.start_at) }}</div>
+                <div class="mt-0.5 inline-flex items-center gap-0.5 text-[10px] text-text-secondary font-bold">
+                  <Clock class="w-2.5 h-2.5" aria-hidden="true" />
+                  <span dir="ltr">{{ formatTime(appt.start_at) }}</span>
+                </div>
               </div>
-              <StatusBadge :type="statusVariant(appt.status)" :label="statusLabel(appt.status)" />
             </div>
 
-            <!-- Action row — payment first, then reschedule, then cancel. All in one row.
-                 Payment is always visible if a Payment row exists (even after the appointment is terminal,
-                 so the customer can still see the receipt / refund). Reschedule + cancel are gated on non-terminal status. -->
-            <div
-              v-if="paymentAction(appt) || !isTerminal(appt.status)"
-              class="flex flex-wrap items-center gap-2 pt-2 border-t border-border-default mt-2"
-            >
-              <Link v-if="paymentAction(appt)" :href="`/portal/appointments/${appt.id}/payment`">
-                <Button :variant="paymentAction(appt).variant" size="sm">{{ paymentAction(appt).label }}</Button>
-              </Link>
-              <template v-if="!isTerminal(appt.status)">
-                <Button variant="outline" size="sm" @click="openRescheduleModal(appt)">إعادة جدولة</Button>
-                <Button variant="outline" size="sm" class="text-danger" @click="openCancelModal(appt)">إلغاء</Button>
-              </template>
-              <p v-if="paymentAction(appt)" class="text-xs text-text-tertiary ms-auto">
-                {{ paymentAction(appt).subtext }}
-              </p>
+            <!-- Service + doctor + meta -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between gap-2">
+                <h3 class="text-base font-extrabold text-text-primary truncate">{{ appt.service?.name }}</h3>
+                <StatusBadge :type="statusVariant(appt.status)" :label="statusLabel(appt.status)" />
+              </div>
+              <p class="mt-0.5 text-sm text-text-secondary truncate">{{ appt.doctor?.user?.name }}</p>
+              <p v-if="formatRelativeDay(appt.start_at)" class="mt-0.5 text-xs font-bold text-warning">{{ formatRelativeDay(appt.start_at) }}</p>
+              <div class="mt-1.5 flex items-center gap-2 flex-wrap text-xs text-text-tertiary">
+                <span class="inline-flex items-center gap-1">
+                  <MapPin class="w-3 h-3" aria-hidden="true" />
+                  {{ deliveryLabel(appt.delivery_mode) }}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span class="font-bold text-text-secondary">{{ appt.price_at_booking }} ₪</span>
+              </div>
             </div>
           </div>
-        </div>
-      </PageStates>
+
+          <!-- Action row — payment first, then reschedule, then cancel. -->
+          <div
+            v-if="paymentAction(appt) || !isTerminal(appt.status)"
+            class="flex flex-wrap items-center gap-2 pt-3 border-t border-border-default"
+          >
+            <Link v-if="paymentAction(appt)" :href="`/portal/appointments/${appt.id}/payment`">
+              <Button :variant="paymentAction(appt).variant" size="sm">{{ paymentAction(appt).label }}</Button>
+            </Link>
+            <template v-if="!isTerminal(appt.status)">
+              <Button variant="outline" size="sm" @click="openRescheduleModal(appt)">إعادة جدولة</Button>
+              <Button variant="outline" size="sm" class="text-danger" @click="openCancelModal(appt)">إلغاء</Button>
+            </template>
+            <p v-if="paymentAction(appt)" class="text-xs text-text-tertiary ms-auto">
+              {{ paymentAction(appt).subtext }}
+            </p>
+          </div>
+        </li>
+      </ul>
     </div>
 
     <!-- Cancel Modal -->

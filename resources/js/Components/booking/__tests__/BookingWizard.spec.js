@@ -145,23 +145,21 @@ describe('BookingWizard', () => {
 
   it('filters services by chosen doctor on step 2', async () => {
     const wrapper = mountWizard()
+    wrapper.vm.step = 2
+    await wrapper.vm.$nextTick()
 
-    // Navigate to step 2
-    await wrapper.find('button:not([disabled])').trigger('click')
-
-    // Select doctor 1
-    const doctorSelect = wrapper.find('#doctor')
-    await doctorSelect.setValue(1)
-    await doctorSelect.trigger('change')
+    // Pick doctor 1 (UI is now a grid of button cards, not a <select>)
+    wrapper.vm.doctorId = 1
+    await wrapper.vm.$nextTick()
 
     const serviceOptions = wrapper.findAll('#service option').filter(o => o.element.value !== '')
     expect(serviceOptions).toHaveLength(2)
     expect(wrapper.text()).toContain('استشارة عامة')
     expect(wrapper.text()).toContain('فحص خاص')
 
-    // Switch to doctor 2
-    await doctorSelect.setValue(2)
-    await doctorSelect.trigger('change')
+    // Switch to doctor 2 (watcher clears serviceId — fine here)
+    wrapper.vm.doctorId = 2
+    await wrapper.vm.$nextTick()
 
     const serviceOptions2 = wrapper.findAll('#service option').filter(o => o.element.value !== '')
     expect(serviceOptions2).toHaveLength(1)
@@ -171,20 +169,15 @@ describe('BookingWizard', () => {
   it('filters home-only services when delivery mode is home on step 2', async () => {
     const wrapper = mountWizard()
 
-    // Set delivery mode to home via radio (step 1)
     const homeRadio = wrapper.find('input[value="home"]')
     await homeRadio.setValue(true)
     await homeRadio.trigger('change')
 
-    // Navigate to step 2 (skip step 1 validation by navigating directly)
     wrapper.vm.step = 2
-
     await wrapper.vm.$nextTick()
 
-    // Select doctor 1 — has one home-enabled service (id=10) and one not (id=11)
-    const doctorSelect = wrapper.find('#doctor')
-    await doctorSelect.setValue(1)
-    await doctorSelect.trigger('change')
+    wrapper.vm.doctorId = 1
+    await wrapper.vm.$nextTick()
 
     const serviceOptions = wrapper.findAll('#service option').filter(o => o.element.value !== '')
     expect(serviceOptions).toHaveLength(1)

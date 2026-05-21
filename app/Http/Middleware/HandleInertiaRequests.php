@@ -60,6 +60,8 @@ class HandleInertiaRequests extends Middleware
                 'name' => app(SettingService::class)
                     ->get('clinic_name', config('clinic.name', 'عيادة جنّة')),
                 'logo_path' => app(SettingService::class)->get('clinic_logo_path'),
+                'address' => app(SettingService::class)
+                    ->get('clinic_address', (string) config('clinic.contact.address', '')),
             ],
         ];
     }

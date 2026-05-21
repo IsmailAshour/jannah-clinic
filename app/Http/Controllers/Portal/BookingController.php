@@ -63,6 +63,9 @@ class BookingController extends Controller
             $doctors[] = [
                 'id' => $d->id,
                 'name' => $user->name,
+                'specialty' => $d->specialty,
+                'team_role' => $d->team_role->value,
+                'image_path' => $d->image_path,
                 'services' => $services,
             ];
         }

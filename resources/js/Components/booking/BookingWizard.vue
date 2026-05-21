@@ -211,6 +211,17 @@ function prevStep() {
 // the 'في العيادة' delivery option so the customer sees exactly which branch.
 const inertiaPage = usePage()
 const clinicName = computed(() => inertiaPage.props?.clinic?.name ?? 'العيادة')
+const clinicAddress = computed(() => {
+  const addr = inertiaPage.props?.clinic?.address
+  return addr && addr.trim() !== '' ? addr : clinicName.value
+})
+
+const TEAM_ROLE_LABEL = {
+  doctor: 'طبيب',
+  nurse: 'ممرّض',
+  physiotherapist: 'أخصّائي علاج طبيعي',
+}
+function teamRoleLabel(d) { return TEAM_ROLE_LABEL[d.team_role] ?? 'طبيب' }
 
 // --- Stepper presentation ---
 const stepConfig = computed(() => {
@@ -425,8 +436,8 @@ function handleSubmit() {
           <div class="mx-auto w-12 h-12 rounded-full bg-brand/10 text-brand grid place-items-center mb-2">
             <MapPin class="w-6 h-6" aria-hidden="true" />
           </div>
-          <p class="text-sm font-bold text-text-primary">في العيادة</p>
-          <p class="text-xs text-text-tertiary mt-0.5 truncate">{{ clinicName }}</p>
+          <p class="text-sm font-bold text-text-primary">في المركز</p>
+          <p class="text-xs text-text-tertiary mt-0.5 line-clamp-2 leading-relaxed">{{ clinicAddress }}</p>
         </label>
         <label
           data-testid="home-radio"
@@ -490,20 +501,48 @@ function handleSubmit() {
 
     <!-- Step 2: Doctor and service -->
     <section v-if="step === 2" class="bg-surface-card rounded-2xl border border-border-default p-5 space-y-4 shadow-sm">
-      <FormGroup label="الطبيب" name="doctor" required>
-        <template #default="{ describedby }">
-          <select
-            id="doctor"
-            v-model="doctorId"
-            name="doctor"
-            :aria-describedby="describedby"
-            class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+      <div>
+        <label class="block text-sm font-bold text-text-primary mb-2">
+          الطبيب أو مقدّم الخدمة
+          <span class="text-danger" aria-hidden="true">*</span>
+        </label>
+        <p v-if="doctors.length === 0" class="text-sm text-text-secondary py-3">لا يوجد أطبّاء متاحون للحجز حاليًا.</p>
+        <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <button
+            v-for="d in doctors"
+            :key="d.id"
+            type="button"
+            :aria-pressed="doctorId === d.id"
+            :class="[
+              'group text-start rounded-2xl border-2 overflow-hidden transition shadow-sm',
+              doctorId === d.id
+                ? 'border-brand ring-4 ring-brand/15 bg-brand/5'
+                : 'border-border-default bg-surface-card hover:border-brand/40 hover:shadow-md',
+            ]"
+            @click="doctorId = d.id"
           >
-            <option value="" disabled selected>اختر الطبيب...</option>
-            <option v-for="d in doctors" :key="d.id" :value="d.id">{{ d.name }}</option>
-          </select>
-        </template>
-      </FormGroup>
+            <!-- Avatar / fallback initial -->
+            <div
+              v-if="d.image_path"
+              class="w-full aspect-square bg-cover bg-center"
+              :style="{ backgroundImage: `url(/storage/${d.image_path})` }"
+              role="img"
+              :aria-label="d.name"
+            />
+            <div v-else class="w-full aspect-square grid place-items-center bg-brand/10 text-brand text-3xl font-extrabold">
+              {{ Array.from(d.name ?? 'ط')[0] }}
+            </div>
+            <!-- Meta -->
+            <div class="p-2.5 space-y-0.5">
+              <span class="inline-block px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-brand/10 text-brand">
+                {{ teamRoleLabel(d) }}
+              </span>
+              <p class="text-sm font-extrabold text-text-primary truncate">{{ d.name }}</p>
+              <p class="text-[11px] text-text-secondary truncate">{{ d.specialty || 'متعدّد التخصّصات' }}</p>
+            </div>
+          </button>
+        </div>
+      </div>
 
       <FormGroup label="الخدمة" name="service" required>
         <template #default="{ describedby }">
@@ -622,42 +661,73 @@ function handleSubmit() {
       />
     </section>
 
-    <!-- Live summary card — visible across steps once selections start landing -->
+    <!-- Live summary — visible card-stack once selections start landing -->
     <aside
       v-if="step > (customerPicker ? 0 : 1) && (selectedCustomerLabel || deliveryMode || selectedDoctor || selectedService || selectedStart)"
-      class="bg-surface-card rounded-2xl border-2 border-brand/15 p-4 space-y-2 text-sm shadow-sm"
+      class="bg-surface-card rounded-2xl border-2 border-brand/15 overflow-hidden shadow-sm"
     >
-      <p class="text-xs font-bold text-brand">ملخّص الحجز حتى الآن</p>
-      <dl class="grid grid-cols-2 gap-y-1.5 gap-x-3">
-        <template v-if="customerPicker && selectedCustomerLabel">
-          <dt class="text-text-tertiary">العميل</dt>
-          <dd class="text-text-primary font-medium text-end">{{ selectedCustomerLabel }}</dd>
-        </template>
-        <dt class="text-text-tertiary">طريقة الخدمة</dt>
-        <dd class="text-text-primary font-medium text-end">{{ deliveryLabel(deliveryMode) }}</dd>
-        <template v-if="selectedCoverageArea">
-          <dt class="text-text-tertiary">المنطقة</dt>
-          <dd class="text-text-primary font-medium text-end">{{ selectedCoverageArea.name }}</dd>
-        </template>
-        <template v-if="selectedDoctor">
-          <dt class="text-text-tertiary">الطبيب</dt>
-          <dd class="text-text-primary font-medium text-end">{{ selectedDoctor.name }}</dd>
-        </template>
-        <template v-if="selectedService">
-          <dt class="text-text-tertiary">الخدمة</dt>
-          <dd class="text-text-primary font-medium text-end">{{ selectedService.name }}</dd>
-        </template>
-        <template v-if="selectedStart">
-          <dt class="text-text-tertiary">الموعد</dt>
-          <dd class="text-text-primary font-medium text-end" dir="ltr">
+      <div class="bg-brand/5 px-4 py-2.5 border-b border-brand/15 inline-flex items-center gap-2 w-full">
+        <Check class="w-4 h-4 text-brand" aria-hidden="true" />
+        <p class="text-sm font-bold text-brand">ملخّص الحجز</p>
+      </div>
+      <ul class="divide-y divide-border-default text-sm">
+        <li v-if="customerPicker && selectedCustomerLabel" class="px-4 py-2.5 flex items-start justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <UserIcon class="w-3.5 h-3.5" aria-hidden="true" />
+            العميل
+          </span>
+          <span class="font-bold text-text-primary text-end">{{ selectedCustomerLabel }}</span>
+        </li>
+        <li class="px-4 py-2.5 flex items-start justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <component :is="deliveryMode === 'home' ? Home : MapPin" class="w-3.5 h-3.5" aria-hidden="true" />
+            طريقة الخدمة
+          </span>
+          <span class="font-bold text-text-primary text-end">{{ deliveryLabel(deliveryMode) }}</span>
+        </li>
+        <li v-if="selectedCoverageArea" class="px-4 py-2.5 flex items-start justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <MapPin class="w-3.5 h-3.5" aria-hidden="true" />
+            المنطقة
+          </span>
+          <span class="font-bold text-text-primary text-end">{{ selectedCoverageArea.name }}</span>
+        </li>
+        <li v-if="selectedDoctor" class="px-4 py-2.5 flex items-center justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <Stethoscope class="w-3.5 h-3.5" aria-hidden="true" />
+            مقدّم الخدمة
+          </span>
+          <span class="inline-flex items-center gap-2">
+            <span
+              v-if="selectedDoctor.image_path"
+              class="w-7 h-7 rounded-full bg-cover bg-center"
+              :style="{ backgroundImage: `url(/storage/${selectedDoctor.image_path})` }"
+              aria-hidden="true"
+            />
+            <span class="font-bold text-text-primary text-end">{{ selectedDoctor.name }}</span>
+          </span>
+        </li>
+        <li v-if="selectedService" class="px-4 py-2.5 flex items-start justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <CalendarDays class="w-3.5 h-3.5" aria-hidden="true" />
+            الخدمة
+          </span>
+          <span class="font-bold text-text-primary text-end">{{ selectedService.name }}</span>
+        </li>
+        <li v-if="selectedStart" class="px-4 py-2.5 flex items-start justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <Clock class="w-3.5 h-3.5" aria-hidden="true" />
+            الموعد
+          </span>
+          <span class="font-bold text-text-primary text-end" dir="ltr">
             {{ formatSelectedDate(selectedStart) }} · {{ formatSelectedTime(selectedStart) }}
-          </dd>
-        </template>
-        <template v-if="previewPrice">
-          <dt class="text-text-tertiary">الإجمالي</dt>
-          <dd class="text-brand font-extrabold text-end">{{ previewPrice.total }} ₪</dd>
-        </template>
-      </dl>
+          </span>
+        </li>
+        <li v-if="previewPrice" class="px-4 py-3 flex items-center justify-between gap-3 bg-brand/5">
+          <span class="text-text-primary font-bold">الإجمالي</span>
+          <span class="text-lg font-extrabold text-brand">{{ previewPrice.total }} ₪</span>
+        </li>
+      </ul>
     </aside>
 
     <!-- Navigation buttons -->
@@ -669,7 +739,7 @@ function handleSubmit() {
         class="gap-1.5"
         @click="prevStep"
       >
-        <ArrowRight class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
+        <ArrowLeft class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
         <span>السابق</span>
       </Button>
       <div v-else />
@@ -686,7 +756,7 @@ function handleSubmit() {
         @click="nextStep"
       >
         <span>التالي</span>
-        <ArrowLeft class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
+        <ArrowRight class="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
       </Button>
       <Button
         v-else

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Home, MapPin, Stethoscope, User as UserIcon } from 'lucide-vue-next'
 import { FormGroup, PageStates, MonthCalendar, PaymentMethodPicker } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
@@ -205,6 +206,11 @@ function nextStep() {
 function prevStep() {
   step.value--
 }
+
+// Clinic name comes from HandleInertiaRequests::share; used as subtitle under
+// the 'في العيادة' delivery option so the customer sees exactly which branch.
+const inertiaPage = usePage()
+const clinicName = computed(() => inertiaPage.props?.clinic?.name ?? 'العيادة')
 
 // --- Stepper presentation ---
 const stepConfig = computed(() => {
@@ -420,7 +426,7 @@ function handleSubmit() {
             <MapPin class="w-6 h-6" aria-hidden="true" />
           </div>
           <p class="text-sm font-bold text-text-primary">في العيادة</p>
-          <p class="text-xs text-text-tertiary mt-0.5">زر فرعنا الرئيسي</p>
+          <p class="text-xs text-text-tertiary mt-0.5 truncate">{{ clinicName }}</p>
         </label>
         <label
           data-testid="home-radio"

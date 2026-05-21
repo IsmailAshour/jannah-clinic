@@ -3,8 +3,43 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#0B4F2F">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        {{-- Title: per-page Inertia <Head> can override via <title inertia>. --}}
+        <title inertia>{{ $seoClinicName }}</title>
+
+        {{-- Standard SEO --}}
+        <meta name="description" content="{{ $seoDescription }}">
+        <link rel="canonical" href="{{ $seoUrl }}">
+        <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+        {{-- Open Graph (Facebook / WhatsApp / Telegram / LinkedIn) --}}
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="{{ $seoClinicName }}">
+        <meta property="og:locale" content="{{ $seoLocale }}">
+        <meta property="og:title" content="{{ $seoClinicName }}">
+        <meta property="og:description" content="{{ $seoDescription }}">
+        <meta property="og:image" content="{{ $seoImageUrl }}">
+        <meta property="og:image:alt" content="{{ $seoClinicName }}">
+        <meta property="og:url" content="{{ $seoUrl }}">
+
+        {{-- Twitter Card --}}
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $seoClinicName }}">
+        <meta name="twitter:description" content="{{ $seoDescription }}">
+        <meta name="twitter:image" content="{{ $seoImageUrl }}">
+
+        {{-- JSON-LD structured data (MedicalBusiness) — helps Google understand the clinic. --}}
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "MedicalBusiness",
+            "name": @json($seoClinicName),
+            "description": @json($seoDescription),
+            "image": @json($seoImageUrl),
+            "url": @json(url('/'))
+        }
+        </script>
 
         <!-- Fonts: Cairo self-hosted via Vite asset pipeline (see resources/css/app.css) -->
 

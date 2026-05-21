@@ -124,7 +124,7 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6 space-y-6">
+    <div class="p-4 sm:p-6 space-y-6">
       <PageHeader title="المدفوعات" description="مراجعة إثباتات الدفع والتحقق من حالة المعاملات." />
 
       <div class="bg-surface-card rounded-lg shadow-sm px-4">

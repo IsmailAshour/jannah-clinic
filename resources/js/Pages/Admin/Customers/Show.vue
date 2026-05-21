@@ -282,7 +282,7 @@ const entryColumns = [
 
 <template>
   <AdminShell>
-    <div class="p-6 space-y-6">
+    <div class="p-4 sm:p-6 space-y-6">
       <!--
         One-shot temp-password banner — appears only on the redirect that follows
         a successful customer-create. Refreshing the page clears the flash, and

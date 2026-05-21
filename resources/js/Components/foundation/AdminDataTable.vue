@@ -63,7 +63,9 @@ defineExpose({ table })
         <AdminDataTableViewOptions :table="table" class="ms-auto" />
       </slot>
     </div>
-    <div class="border rounded-md">
+    <!-- Horizontal scroll on small screens so tables with many columns don't
+         force the whole admin page to overflow viewport width. -->
+    <div class="border rounded-md overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow v-for="hg in table.getHeaderGroups()" :key="hg.id">

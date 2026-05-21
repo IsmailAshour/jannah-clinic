@@ -257,7 +257,7 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6 space-y-6">
+    <div class="p-4 sm:p-6 space-y-6">
       <PageHeader title="الخدمات" description="إدارة كتالوج الخدمات المُقدَّمة وأسعارها ومدّتها.">
         <template v-if="isManager" #action>
           <Button @click="openCreate">إضافة خدمة</Button>

@@ -42,7 +42,7 @@ function handleSubmit(payload) {
 
 <template>
   <AdminShell>
-    <div class="p-6 max-w-2xl mx-auto">
+    <div class="p-4 sm:p-6 max-w-2xl mx-auto">
       <PageHeader title="حجز موعد نيابةً عن عميل" />
 
       <div v-if="form.errors.booking" class="mb-4 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger" role="alert">

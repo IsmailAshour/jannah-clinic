@@ -67,7 +67,7 @@ function formatDateTime(dt) {
 
 <template>
   <AdminShell>
-    <div class="p-6 space-y-6">
+    <div class="p-4 sm:p-6 space-y-6">
       <PageHeader :title="`دفعة #${payment.id}`">
         <template #action>
           <div v-if="isManager" class="flex gap-2 flex-wrap">

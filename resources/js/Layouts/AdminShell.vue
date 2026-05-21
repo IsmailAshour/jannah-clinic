@@ -250,7 +250,7 @@ const NavLink = defineComponent({
       app's surface palette. `flex-col` + `min-h-svh` come from the component.
     -->
     <SidebarInset class="bg-surface-page">
-      <header class="h-16 shrink-0 bg-surface-card border-b border-border-default flex items-center px-6">
+      <header class="h-16 shrink-0 bg-surface-card border-b border-border-default flex items-center px-4 sm:px-6">
         <!--
           Single trigger: shadcn-vue's SidebarTrigger uses useSidebar() to
           toggle the mobile sheet (< md) or desktop icon-rail (≥ md)

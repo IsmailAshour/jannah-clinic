@@ -151,7 +151,7 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6 space-y-6">
+    <div class="p-4 sm:p-6 space-y-6">
       <!-- 1 — Header -->
       <PageHeader title="العملاء" description="إدارة قاعدة العملاء ومتابعة حالاتهم.">
         <template v-if="isManager" #action>

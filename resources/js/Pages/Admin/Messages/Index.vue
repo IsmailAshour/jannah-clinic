@@ -182,7 +182,7 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6 space-y-6">
+    <div class="p-4 sm:p-6 space-y-6">
       <PageHeader title="رسائل التواصل" description="رسائل الزوار والعملاء المرسلة من صفحة الدعم." />
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

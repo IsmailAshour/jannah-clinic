@@ -9,7 +9,7 @@ const clinicName = computed(() => page.props?.clinic?.name ?? 'عيادة جنّ
 </script>
 <template>
   <AdminShell>
-    <div class="p-6">
+    <div class="p-4 sm:p-6">
       <PageHeader title="لوحة التحكم" :eyebrow="clinicName" description="نظرة عامة (تُفعَّل المؤشرات في المراحل القادمة)" />
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="المواعيد اليوم" value="—" />

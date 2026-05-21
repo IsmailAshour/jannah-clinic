@@ -214,7 +214,7 @@ const columns = [
 
 <template>
   <AdminShell>
-    <div class="p-6 space-y-6">
+    <div class="p-4 sm:p-6 space-y-6">
       <PageHeader title="المواعيد" description="متابعة طلبات الحجز وحالاتها." />
 
       <div

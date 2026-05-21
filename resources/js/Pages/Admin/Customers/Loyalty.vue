@@ -21,7 +21,7 @@ const reasonLabel = {
 
 <template>
   <AdminShell>
-    <div class="p-6 space-y-6">
+    <div class="p-4 sm:p-6 space-y-6">
       <PageHeader :title="`نقاط ولاء — ${customer.name}`" :description="`الرصيد الحالي: ${balance}`">
         <template #action>
           <Button variant="outline" @click="router.visit(`/admin/customers/${customer.id}`)">

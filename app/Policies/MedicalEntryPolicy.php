@@ -28,8 +28,10 @@ class MedicalEntryPolicy
             return false;
         }
 
-        return $appointment->doctor_profile_id === $user->doctorProfile?->id
-            && $appointment->status === AppointmentStatus::Completed;
+        // Status gate lifted 2026-05-21 — doctors may file the record at any
+        // point in the appointment lifecycle (during the visit, before the
+        // status flips to Completed, etc.).
+        return $appointment->doctor_profile_id === $user->doctorProfile?->id;
     }
 
     public function update(User $user, MedicalEntry $entry): bool

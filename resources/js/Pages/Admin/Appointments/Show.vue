@@ -183,54 +183,10 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
       </p>
 
       <!-- ============ 2-COL LAYOUT ============ -->
-      <!-- Body (right in RTL): payment + medical + photos. Sidebar (left in RTL): actions + people. -->
+      <!-- Body (right in RTL): medical + photos. Sidebar (left in RTL): status, payment, customer, doctor. -->
       <div class="grid gap-4 lg:grid-cols-3">
         <!-- ============ BODY (2/3) ============ -->
         <div class="lg:col-span-2 space-y-4">
-          <!-- Payment & receipt -->
-          <section v-if="payment" class="bg-surface-card rounded-2xl ring-1 ring-border-default overflow-hidden">
-            <header class="px-5 py-3 border-b border-border-default flex items-center justify-between gap-2 bg-surface-page/40">
-              <h2 class="text-base font-bold text-text-primary inline-flex items-center gap-2">
-                <CreditCard class="w-4 h-4 text-brand" aria-hidden="true" />
-                الدفع — {{ payment.amount }} ₪
-              </h2>
-              <StatusBadge :type="payStatusMap[payment.status]?.variant ?? 'info'" :label="payStatusMap[payment.status]?.label ?? payment.status" />
-            </header>
-
-            <div class="p-5 space-y-3">
-              <p class="text-sm font-bold text-text-primary inline-flex items-center gap-1.5">
-                <Receipt class="w-4 h-4 text-brand" aria-hidden="true" />
-                إيصال التحويل
-              </p>
-              <div v-if="latestReceipt">
-                <a v-if="receiptIsImage" :href="latestReceipt.file_url" target="_blank" rel="noopener" class="block rounded-lg overflow-hidden ring-1 ring-border-default hover:ring-brand transition">
-                  <img :src="latestReceipt.file_url" alt="إيصال التحويل" class="w-full max-h-[28rem] object-contain bg-surface-page" />
-                </a>
-                <a v-else :href="latestReceipt.file_url" target="_blank" rel="noopener" class="block rounded-lg border-2 border-dashed border-border-default p-6 text-center hover:border-brand transition">
-                  <p class="text-sm font-bold text-text-primary">تنزيل الإيصال (PDF)</p>
-                  <p class="text-xs text-text-tertiary mt-1">{{ latestReceipt.mime_type }}</p>
-                </a>
-                <p class="mt-2 text-xs text-text-tertiary">رُفع: {{ formatDateTime(latestReceipt.created_at) }}</p>
-              </div>
-              <div v-else class="rounded-lg border-2 border-dashed border-border-default p-6 text-center text-sm text-text-secondary">
-                لم يرفع العميل إيصال التحويل بعد.
-              </div>
-
-              <p v-if="payment.rejection_reason" class="rounded-md bg-danger/10 border border-danger/30 px-3 py-2 text-xs text-danger">
-                <span class="font-bold">سبب الرفض:</span> {{ payment.rejection_reason }}
-              </p>
-              <p v-if="payment.verified_at" class="text-xs text-success font-medium inline-flex items-center gap-1">
-                <Check class="w-3.5 h-3.5" aria-hidden="true" /> تم التحقّق {{ formatDateTime(payment.verified_at) }}
-              </p>
-              <p v-if="payment.refund_reference" class="text-xs text-text-secondary">
-                مرجع الاسترداد: <span dir="ltr" class="font-mono">{{ payment.refund_reference }}</span>
-              </p>
-            </div>
-          </section>
-          <section v-else class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5">
-            <p class="text-sm text-text-secondary">لا توجد دفعة مرتبطة بهذا الموعد (مدفوع نقدًا أو بنقاط الولاء).</p>
-          </section>
-
           <!-- Medical record -->
           <section v-if="canViewMedical" class="bg-surface-card rounded-2xl ring-1 ring-border-default overflow-hidden">
             <header class="px-5 py-3 border-b border-border-default flex items-center justify-between gap-2 bg-surface-page/40">
@@ -248,7 +204,7 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
                   <span>تعديل</span>
                 </Link>
                 <Link
-                  v-else-if="!medicalEntry && canWriteMedical && appointment.status === 'completed'"
+                  v-else-if="!medicalEntry && canWriteMedical"
                   :href="`/admin/appointments/${appointment.id}/medical-entry/create`"
                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-xs font-bold hover:bg-brand-hover transition"
                 >
@@ -261,11 +217,10 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
             <div class="p-5 space-y-4">
               <div v-if="!medicalEntry" class="text-sm text-text-secondary text-center py-3">
                 <FileText class="w-8 h-8 mx-auto text-brand/30 mb-2" aria-hidden="true" />
-                <p v-if="appointment.status === 'completed'">
+                <p>
                   لم يُضَف سجل طبي بعد.
                   <span v-if="!canWriteMedical">سيقوم الطبيب بإضافته.</span>
                 </p>
-                <p v-else>سيُتاح إضافة السجل بعد إكمال الموعد.</p>
               </div>
 
               <template v-else>
@@ -386,38 +341,82 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
             <p v-else class="text-xs text-text-tertiary">لا إجراءات متاحة في الحالة الحاليّة.</p>
           </section>
 
-          <!-- Payment actions -->
-          <section v-if="payment" class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5 space-y-3">
-            <h3 class="text-sm font-bold text-text-primary">إجراءات الدفع</h3>
-            <template v-if="payment.status === 'submitted' && isManager">
-              <Button class="w-full gap-1.5" @click="verifyPayment">
-                <BadgeCheck class="w-4 h-4" aria-hidden="true" />
-                <span>الموافقة على الإيصال</span>
-              </Button>
-              <Button variant="destructive" class="w-full gap-1.5" @click="openRejectModal">
-                <BadgeX class="w-4 h-4" aria-hidden="true" />
-                <span>رفض الإيصال</span>
-              </Button>
-            </template>
-            <template v-else-if="payment.status === 'paid' && isManager">
-              <Button variant="outline" class="w-full gap-1.5" @click="markRefundPending">
-                <RotateCcw class="w-4 h-4" aria-hidden="true" />
-                <span>بدء الاسترداد</span>
-              </Button>
-            </template>
-            <template v-else-if="payment.status === 'refund_pending' && isManager">
-              <Button class="w-full gap-1.5" @click="openRefundModal">
-                <Check class="w-4 h-4" aria-hidden="true" />
-                <span>وسم كمُسترَدّ</span>
-              </Button>
-            </template>
-            <p v-else class="text-xs text-text-secondary">
-              {{ payment.status === 'pending' ? 'بانتظار رفع الإيصال.' :
-                 payment.status === 'rejected' ? 'الإيصال مرفوض — العميل يحتاج إعادة الرفع.' :
-                 payment.status === 'paid' ? 'الدفع مكتمل.' :
-                 payment.status === 'refunded' ? 'تم الاسترداد.' :
-                 'لا إجراءات متاحة الآن.' }}
-            </p>
+          <!-- Payment block: receipt preview + meta + actions, all in one card.
+               Sits directly below "حالة الموعد" so receipt review + status flips
+               happen in the same visual lane. -->
+          <section v-if="payment" class="bg-surface-card rounded-2xl ring-1 ring-border-default overflow-hidden">
+            <header class="px-4 py-3 border-b border-border-default flex items-center justify-between gap-2 bg-surface-page/40">
+              <h3 class="text-sm font-bold text-text-primary inline-flex items-center gap-1.5">
+                <CreditCard class="w-4 h-4 text-brand" aria-hidden="true" />
+                الدفع — {{ payment.amount }} ₪
+              </h3>
+              <StatusBadge :type="payStatusMap[payment.status]?.variant ?? 'info'" :label="payStatusMap[payment.status]?.label ?? payment.status" />
+            </header>
+
+            <div class="p-4 space-y-3">
+              <p class="text-xs font-bold text-text-secondary inline-flex items-center gap-1.5">
+                <Receipt class="w-3.5 h-3.5 text-brand" aria-hidden="true" />
+                إيصال التحويل
+              </p>
+              <div v-if="latestReceipt">
+                <a v-if="receiptIsImage" :href="latestReceipt.file_url" target="_blank" rel="noopener" class="block rounded-md overflow-hidden ring-1 ring-border-default hover:ring-brand transition">
+                  <img :src="latestReceipt.file_url" alt="إيصال التحويل" class="w-full max-h-72 object-contain bg-surface-page" />
+                </a>
+                <a v-else :href="latestReceipt.file_url" target="_blank" rel="noopener" class="block rounded-md border-2 border-dashed border-border-default p-4 text-center hover:border-brand transition">
+                  <p class="text-xs font-bold text-text-primary">تنزيل الإيصال (PDF)</p>
+                </a>
+                <p class="mt-1.5 text-[11px] text-text-tertiary">رُفع: {{ formatDateTime(latestReceipt.created_at) }}</p>
+              </div>
+              <div v-else class="rounded-md border-2 border-dashed border-border-default p-4 text-center text-xs text-text-secondary">
+                لم يرفع العميل إيصال التحويل بعد.
+              </div>
+
+              <p v-if="payment.rejection_reason" class="rounded-md bg-danger/10 border border-danger/30 px-2.5 py-1.5 text-[11px] text-danger">
+                <span class="font-bold">سبب الرفض:</span> {{ payment.rejection_reason }}
+              </p>
+              <p v-if="payment.verified_at" class="text-[11px] text-success font-medium inline-flex items-center gap-1">
+                <Check class="w-3 h-3" aria-hidden="true" /> تم التحقّق {{ formatDateTime(payment.verified_at) }}
+              </p>
+              <p v-if="payment.refund_reference" class="text-[11px] text-text-secondary">
+                مرجع الاسترداد: <span dir="ltr" class="font-mono">{{ payment.refund_reference }}</span>
+              </p>
+
+              <!-- Action buttons -->
+              <div class="pt-2 border-t border-border-default space-y-2">
+                <template v-if="payment.status === 'submitted' && isManager">
+                  <Button class="w-full gap-1.5" size="sm" @click="verifyPayment">
+                    <BadgeCheck class="w-4 h-4" aria-hidden="true" />
+                    <span>الموافقة على الإيصال</span>
+                  </Button>
+                  <Button variant="destructive" class="w-full gap-1.5" size="sm" @click="openRejectModal">
+                    <BadgeX class="w-4 h-4" aria-hidden="true" />
+                    <span>رفض الإيصال</span>
+                  </Button>
+                </template>
+                <template v-else-if="payment.status === 'paid' && isManager">
+                  <Button variant="outline" class="w-full gap-1.5" size="sm" @click="markRefundPending">
+                    <RotateCcw class="w-4 h-4" aria-hidden="true" />
+                    <span>بدء الاسترداد</span>
+                  </Button>
+                </template>
+                <template v-else-if="payment.status === 'refund_pending' && isManager">
+                  <Button class="w-full gap-1.5" size="sm" @click="openRefundModal">
+                    <Check class="w-4 h-4" aria-hidden="true" />
+                    <span>وسم كمُسترَدّ</span>
+                  </Button>
+                </template>
+                <p v-else class="text-[11px] text-text-secondary text-center">
+                  {{ payment.status === 'pending' ? 'بانتظار رفع الإيصال.' :
+                     payment.status === 'rejected' ? 'الإيصال مرفوض — العميل يحتاج إعادة الرفع.' :
+                     payment.status === 'paid' ? 'الدفع مكتمل.' :
+                     payment.status === 'refunded' ? 'تم الاسترداد.' :
+                     'لا إجراءات متاحة الآن.' }}
+                </p>
+              </div>
+            </div>
+          </section>
+          <section v-else class="bg-surface-card rounded-2xl ring-1 ring-border-default p-4">
+            <p class="text-xs text-text-secondary">لا دفعة مرتبطة (نقدًا أو بنقاط الولاء).</p>
           </section>
 
           <!-- Customer card -->

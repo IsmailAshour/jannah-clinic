@@ -25,11 +25,10 @@ class HomeController extends Controller
 
         $doctors = DoctorProfile::query()
             ->where('is_bookable', true)
-            ->orderByDesc('rating_average')
             ->orderBy('display_order')
             ->limit(4)
             ->with('user:id,name')
-            ->get(['id', 'user_id', 'specialty', 'image_path', 'team_role', 'rating_average']);
+            ->get(['id', 'user_id', 'specialty', 'image_path', 'team_role']);
 
         $featuredServices = Service::query()
             ->where('is_active', true)

@@ -41,7 +41,7 @@ class ClinicSettingController extends Controller
     public function uploadLogo(Request $request): RedirectResponse
     {
         $request->validate([
-            'logo' => ['required', 'image', 'max:2048'],
+            'logo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ]);
         $path = $request->file('logo')->store('clinic', 'public');
         app(SettingService::class)->set('clinic_logo_path', $path);

@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
-import { ArrowLeft, Bell, Sparkles, Star, User as UserIcon } from 'lucide-vue-next'
+import { ArrowLeft, Bell, Sparkles, User as UserIcon } from 'lucide-vue-next'
 
 const TEAM_ROLE_LABEL = {
   doctor: 'طبيب',
@@ -76,7 +76,7 @@ const tipText = computed(() => {
 
         <div v-if="upcomingAppointments.length === 0" class="bg-surface-card rounded-2xl border-2 border-brand/15 p-5 text-sm text-text-secondary">
           لا مواعيد قادمة.
-          <AuthGuardLink intent="booking" authed-href="/portal/booking" class="font-bold text-brand">احجز الآن</AuthGuardLink>
+          <AuthGuardLink intent="booking" authed-href="/portal/booking" staff-href="/admin/booking" class="font-bold text-brand">احجز الآن</AuthGuardLink>
         </div>
 
         <ul v-else class="space-y-3">
@@ -108,6 +108,7 @@ const tipText = computed(() => {
       <AuthGuardLink
         intent="booking"
         authed-href="/portal/booking"
+        staff-href="/admin/booking"
         class="block relative overflow-hidden rounded-2xl p-5 text-white shadow-md bg-gradient-to-bl from-brand/95 via-brand to-brand/80"
       >
         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning text-white text-xs font-extrabold">
@@ -215,10 +216,6 @@ const tipText = computed(() => {
             <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/10 text-brand">{{ roleLabel(d) }}</span>
             <p class="text-sm font-extrabold text-text-primary truncate">{{ d.user?.name }}</p>
             <p class="text-[11px] text-text-secondary truncate">{{ d.specialty || 'متعدّد التخصّصات' }}</p>
-            <p class="text-[11px] text-warning font-bold inline-flex items-center gap-0.5">
-              <Star class="w-3 h-3 fill-current" aria-hidden="true" />
-              {{ Number(d.rating_average).toFixed(1) }}
-            </p>
           </Link>
         </div>
       </section>

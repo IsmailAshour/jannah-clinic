@@ -15,9 +15,8 @@ class DoctorBrowseController extends Controller
         $doctors = DoctorProfile::query()
             ->where('is_bookable', true)
             ->with('user:id,name')
-            ->orderByDesc('rating_average')
             ->orderBy('display_order')
-            ->get(['id', 'user_id', 'specialty', 'bio', 'image_path', 'team_role', 'rating_average']);
+            ->get(['id', 'user_id', 'specialty', 'bio', 'image_path', 'team_role']);
 
         return Inertia::render('Public/Doctors', [
             'doctors' => $doctors,

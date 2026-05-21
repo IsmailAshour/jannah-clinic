@@ -1,5 +1,6 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
+import { useForm, usePage } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
@@ -30,16 +31,40 @@ function saveClinic() {
 const logoForm = useForm({
   logo: null,
 })
+const logoPreview = ref(null)
+const logoFileSizeError = ref(null)
+
+const page = usePage()
+const logoFlash = computed(() => page.props?.flash?.success ?? null)
 
 function pickLogo(event) {
-  logoForm.logo = event.target.files?.[0] ?? null
+  const file = event.target.files?.[0] ?? null
+  logoForm.logo = file
+  logoFileSizeError.value = null
+  if (file) {
+    if (file.size > 8 * 1024 * 1024) {
+      logoFileSizeError.value = `الصورة كبيرة (${(file.size / 1024 / 1024).toFixed(1)}MB). الحدّ الأقصى 8MB.`
+      logoForm.logo = null
+      event.target.value = ''
+      logoPreview.value = null
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => { logoPreview.value = ev.target.result }
+    reader.readAsDataURL(file)
+  } else {
+    logoPreview.value = null
+  }
 }
 
 function uploadLogo() {
   if (!logoForm.logo) return
   logoForm.post('/admin/settings/clinic/logo', {
     forceFormData: true,
-    onSuccess: () => { logoForm.reset() },
+    onSuccess: () => {
+      logoForm.reset()
+      logoPreview.value = null
+    },
   })
 }
 
@@ -90,26 +115,44 @@ function saveBank() {
 
         <div class="border-t border-border-default pt-4 space-y-3">
           <p class="text-sm font-semibold text-text-primary">شعار العيادة</p>
-          <div class="flex items-center gap-3">
+          <p class="text-xs text-text-tertiary">JPG / PNG / WEBP — حتى 8MB. يظهر في ترويسة كل الصفحات تلقائيًا بعد الحفظ.</p>
+
+          <div
+            v-if="logoFlash"
+            role="status"
+            class="rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm text-success"
+          >
+            {{ logoFlash }}
+          </div>
+
+          <div class="flex items-center gap-3 flex-wrap">
             <img
-              v-if="clinic_logo_path"
+              v-if="logoPreview"
+              :src="logoPreview"
+              alt="معاينة الشعار الجديد"
+              class="w-20 h-20 rounded-full object-cover ring-2 ring-brand/40 bg-surface-page"
+            />
+            <img
+              v-else-if="clinic_logo_path"
               :src="`/storage/${clinic_logo_path}`"
               alt="شعار العيادة"
-              class="w-16 h-16 rounded-md object-cover bg-surface-page"
+              class="w-20 h-20 rounded-full object-cover ring-1 ring-border-default bg-surface-page"
             />
-            <div v-else class="w-16 h-16 rounded-md bg-surface-page flex items-center justify-center text-text-tertiary text-xs">
+            <div v-else class="w-20 h-20 rounded-full bg-surface-page ring-1 ring-border-default flex items-center justify-center text-text-tertiary text-xs">
               لا يوجد
             </div>
-            <div class="flex-1 space-y-2">
+
+            <div class="flex-1 min-w-[200px] space-y-2">
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 @change="pickLogo"
-                class="block text-sm"
+                class="block w-full text-sm text-text-secondary file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-brand/10 file:text-brand file:font-medium hover:file:bg-brand/15"
               />
-              <p v-if="logoForm.errors.logo" class="text-xs text-danger">{{ logoForm.errors.logo }}</p>
+              <p v-if="logoFileSizeError" class="text-xs text-danger font-medium">{{ logoFileSizeError }}</p>
+              <p v-if="logoForm.errors.logo" class="text-xs text-danger font-medium">{{ logoForm.errors.logo }}</p>
               <Button size="sm" :disabled="!logoForm.logo || logoForm.processing" @click="uploadLogo">
-                رفع الشعار
+                {{ logoForm.processing ? 'جاري الرفع…' : 'رفع الشعار' }}
               </Button>
             </div>
           </div>

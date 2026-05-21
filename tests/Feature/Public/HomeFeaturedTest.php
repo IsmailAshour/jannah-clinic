@@ -51,18 +51,18 @@ it('home includes up to 6 categories ordered by display_order', function () {
     expect(count($categories))->toBe(6);
 });
 
-it('home includes up to 4 doctors ordered by rating', function () {
+it('home includes up to 4 bookable team members ordered by display_order', function () {
     $u1 = User::factory()->create(['role' => UserRole::Doctor]);
     $u2 = User::factory()->create(['role' => UserRole::Doctor]);
     $u3 = User::factory()->create(['role' => UserRole::Doctor]);
-    DoctorProfile::factory()->create(['user_id' => $u1->id, 'rating_average' => '4.0', 'is_bookable' => true]);
-    DoctorProfile::factory()->create(['user_id' => $u2->id, 'rating_average' => '5.0', 'is_bookable' => true]);
-    DoctorProfile::factory()->create(['user_id' => $u3->id, 'rating_average' => '3.5', 'is_bookable' => true]);
+    DoctorProfile::factory()->create(['user_id' => $u1->id, 'display_order' => 2, 'is_bookable' => true]);
+    DoctorProfile::factory()->create(['user_id' => $u2->id, 'display_order' => 1, 'is_bookable' => true]);
+    DoctorProfile::factory()->create(['user_id' => $u3->id, 'display_order' => 3, 'is_bookable' => true]);
 
     $resp = $this->get('/');
     $doctors = $resp->viewData('page')['props']['doctors'];
     expect(count($doctors))->toBe(3)
-        ->and((float) $doctors[0]['rating_average'])->toBe(5.0);
+        ->and((int) $doctors[0]['user_id'])->toBe($u2->id);
 });
 
 it('home includes a tip from config', function () {

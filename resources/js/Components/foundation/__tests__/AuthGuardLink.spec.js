@@ -43,4 +43,20 @@ describe('AuthGuardLink', () => {
     })
     expect(w.find('a').attributes('href')).toBe('/login?intent=booking&service=5')
   })
+
+  it('routes staff (manager) to staffHref when provided', () => {
+    pageProps = { auth: { user: { id: 1, name: 'm', role: 'manager' } } }
+    const w = mount(AuthGuardLink, {
+      props: { intent: 'booking', authedHref: '/portal/booking', staffHref: '/admin/booking' },
+    })
+    expect(w.find('a').attributes('href')).toBe('/admin/booking')
+  })
+
+  it('falls back to authedHref for customer even when staffHref provided', () => {
+    pageProps = { auth: { user: { id: 1, role: 'customer' } } }
+    const w = mount(AuthGuardLink, {
+      props: { intent: 'booking', authedHref: '/portal/booking', staffHref: '/admin/booking' },
+    })
+    expect(w.find('a').attributes('href')).toBe('/portal/booking')
+  })
 })

@@ -1,5 +1,5 @@
 <script setup>
-import { User as UserIcon, Star } from 'lucide-vue-next'
+import { User as UserIcon } from 'lucide-vue-next'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import { PageHeader } from '@/Components/foundation'
 
@@ -46,10 +46,6 @@ function roleLabel(d) {
             <h3 class="text-base font-extrabold text-text-primary">{{ d.user?.name }}</h3>
             <p class="text-xs text-text-secondary">{{ d.specialty || 'متعدّد التخصّصات' }}</p>
             <p v-if="d.bio" class="text-xs text-text-tertiary line-clamp-2 leading-relaxed">{{ d.bio }}</p>
-            <p v-if="d.rating_average" class="text-xs text-warning font-bold inline-flex items-center gap-0.5 pt-1">
-              <Star class="w-3 h-3 fill-current" aria-hidden="true" />
-              {{ Number(d.rating_average).toFixed(1) }}
-            </p>
           </div>
         </article>
       </div>

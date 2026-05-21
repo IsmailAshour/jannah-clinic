@@ -92,6 +92,7 @@ const visibleServices = computed(() => {
                 <AuthGuardLink
                   intent="booking"
                   :authed-href="`/portal/booking?service=${s.id}`"
+                  :staff-href="`/admin/booking?service=${s.id}`"
                   :context="{ service: s.id }"
                 >
                   <Button size="sm">احجز</Button>

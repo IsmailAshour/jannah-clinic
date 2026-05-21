@@ -56,7 +56,6 @@ it('eager-loads bookable doctors and related services', function () {
     $bookable = DoctorProfile::factory()->create([
         'user_id' => User::factory()->create(['role' => UserRole::Doctor])->id,
         'is_bookable' => true,
-        'rating_average' => '5.0',
     ]);
     $notBookable = DoctorProfile::factory()->create([
         'user_id' => User::factory()->create(['role' => UserRole::Doctor])->id,

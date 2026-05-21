@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Head, Link } from '@inertiajs/vue3'
-import { ArrowRight, Clock, Coins, Home, Sparkles, Star, User as UserIcon } from 'lucide-vue-next'
+import { ArrowRight, Clock, Coins, Home, Sparkles, User as UserIcon } from 'lucide-vue-next'
 
 const TEAM_ROLE_LABEL = {
   doctor: 'طبيب',
@@ -162,10 +162,6 @@ const loyaltyEarn = computed(() => {
             <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/10 text-brand">{{ roleLabel(d) }}</span>
             <p class="text-sm font-extrabold text-text-primary truncate">{{ d.user?.name }}</p>
             <p class="text-[11px] text-text-secondary truncate">{{ d.specialty || 'متعدّد التخصّصات' }}</p>
-            <p v-if="d.rating_average" class="text-[11px] text-warning font-bold inline-flex items-center gap-0.5">
-              <Star class="w-3 h-3 fill-current" aria-hidden="true" />
-              {{ Number(d.rating_average).toFixed(1) }}
-            </p>
           </li>
         </ul>
       </section>
@@ -210,6 +206,7 @@ const loyaltyEarn = computed(() => {
         <AuthGuardLink
           intent="booking"
           :authed-href="`/portal/booking?service=${service.id}`"
+          :staff-href="`/admin/booking?service=${service.id}`"
           :context="{ service: service.id }"
           class="block"
         >

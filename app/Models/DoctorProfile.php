@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TeamRole;
 use Database\Factories\DoctorProfileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,12 +16,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $user_id
  * @property string|null $specialty
  * @property string|null $bio
+ * @property string|null $image_path
+ * @property TeamRole $team_role
  * @property string|null $rating_average
  * @property bool $is_bookable
  * @property int $display_order
  * @property User $user
  */
-#[Fillable(['user_id', 'specialty', 'bio', 'rating_average', 'is_bookable', 'display_order'])]
+#[Fillable(['user_id', 'specialty', 'bio', 'image_path', 'team_role', 'rating_average', 'is_bookable', 'display_order'])]
 class DoctorProfile extends Model
 {
     /** @use HasFactory<DoctorProfileFactory> */
@@ -30,6 +33,7 @@ class DoctorProfile extends Model
         'rating_average' => 'decimal:1',
         'is_bookable' => 'boolean',
         'display_order' => 'integer',
+        'team_role' => TeamRole::class,
     ];
 
     public function user(): BelongsTo

@@ -35,7 +35,8 @@ class ServiceBrowseController extends Controller
             'category:id,name,slug,color_variant,icon_key',
             'doctors' => fn ($q) => $q->where('is_bookable', true)
                 ->with('user:id,name')
-                ->orderByDesc('rating_average'),
+                ->orderByDesc('rating_average')
+                ->select(['doctor_profiles.id', 'doctor_profiles.user_id', 'doctor_profiles.specialty', 'doctor_profiles.image_path', 'doctor_profiles.team_role', 'doctor_profiles.rating_average', 'doctor_profiles.is_bookable', 'doctor_profiles.display_order']),
         ]);
 
         $related = Service::query()

@@ -17,7 +17,7 @@ class DoctorBrowseController extends Controller
             ->with('user:id,name')
             ->orderByDesc('rating_average')
             ->orderBy('display_order')
-            ->get(['id', 'user_id', 'specialty', 'bio', 'rating_average']);
+            ->get(['id', 'user_id', 'specialty', 'bio', 'image_path', 'team_role', 'rating_average']);
 
         return Inertia::render('Public/Doctors', [
             'doctors' => $doctors,

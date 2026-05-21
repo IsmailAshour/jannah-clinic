@@ -1,7 +1,16 @@
 <script setup>
 import { computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
-import { ArrowLeft, Bell, Sparkles, Star, Stethoscope } from 'lucide-vue-next'
+import { ArrowLeft, Bell, Sparkles, Star, User as UserIcon } from 'lucide-vue-next'
+
+const TEAM_ROLE_LABEL = {
+  doctor: 'طبيب',
+  nurse: 'ممرّض',
+  physiotherapist: 'أخصّائي علاج طبيعي',
+}
+function roleLabel(d) {
+  return TEAM_ROLE_LABEL[d.team_role] ?? 'طبيب'
+}
 import ClientShell from '@/Layouts/ClientShell.vue'
 import { AuthGuardLink } from '@/Components/foundation'
 import { iconForCategory } from '@/lib/categoryIcons'
@@ -183,9 +192,9 @@ const tipText = computed(() => {
         </Link>
       </section>
 
-      <!-- Doctors grid -->
+      <!-- Medical team grid -->
       <section v-if="doctors.length > 0">
-        <h2 class="text-base font-bold text-text-primary mb-3">الأطباء</h2>
+        <h2 class="text-base font-bold text-text-primary mb-3">الفريق الطبي</h2>
         <div class="grid grid-cols-2 gap-3">
           <Link
             v-for="d in doctors"
@@ -193,9 +202,17 @@ const tipText = computed(() => {
             :href="`/doctors`"
             class="bg-surface-card rounded-2xl p-3 border-2 border-brand/15 hover:border-brand/40 transition space-y-2"
           >
-            <div class="w-full aspect-square rounded-xl bg-brand/10 grid place-items-center text-brand">
-              <Stethoscope class="w-10 h-10" aria-hidden="true" />
+            <div
+              v-if="d.image_path"
+              class="w-full aspect-square rounded-xl bg-cover bg-center"
+              :style="{ backgroundImage: `url(/storage/${d.image_path})` }"
+              role="img"
+              :aria-label="d.user?.name"
+            />
+            <div v-else class="w-full aspect-square rounded-xl bg-brand/10 grid place-items-center text-brand">
+              <UserIcon class="w-10 h-10" aria-hidden="true" />
             </div>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/10 text-brand">{{ roleLabel(d) }}</span>
             <p class="text-sm font-extrabold text-text-primary truncate">{{ d.user?.name }}</p>
             <p class="text-[11px] text-text-secondary truncate">{{ d.specialty || 'متعدّد التخصّصات' }}</p>
             <p class="text-[11px] text-warning font-bold inline-flex items-center gap-0.5">

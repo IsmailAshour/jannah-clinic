@@ -1,7 +1,16 @@
 <script setup>
 import { computed } from 'vue'
 import { Head, Link } from '@inertiajs/vue3'
-import { ArrowRight, Clock, Coins, Home, Sparkles, Star, Stethoscope } from 'lucide-vue-next'
+import { ArrowRight, Clock, Coins, Home, Sparkles, Star, User as UserIcon } from 'lucide-vue-next'
+
+const TEAM_ROLE_LABEL = {
+  doctor: 'طبيب',
+  nurse: 'ممرّض',
+  physiotherapist: 'أخصّائي علاج طبيعي',
+}
+function roleLabel(d) {
+  return TEAM_ROLE_LABEL[d.team_role] ?? 'طبيب'
+}
 import ClientShell from '@/Layouts/ClientShell.vue'
 import { AuthGuardLink } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
@@ -131,21 +140,29 @@ const loyaltyEarn = computed(() => {
         </p>
       </section>
 
-      <!-- Doctors who offer it -->
+      <!-- Team members who offer it -->
       <section v-if="service.doctors && service.doctors.length > 0" class="mx-4 mt-5">
-        <h2 class="text-base font-bold text-text-primary mb-2">الأطبّاء الذين يقدّمون هذه الخدمة</h2>
+        <h2 class="text-base font-bold text-text-primary mb-2">الفريق الذي يقدّم هذه الخدمة</h2>
         <ul class="grid grid-cols-2 gap-3">
           <li
             v-for="d in service.doctors"
             :key="d.id"
             class="bg-surface-card rounded-2xl border-2 border-brand/15 p-3 space-y-2"
           >
-            <div class="w-full aspect-square rounded-xl bg-brand/10 grid place-items-center text-brand">
-              <Stethoscope class="w-10 h-10" aria-hidden="true" />
+            <div
+              v-if="d.image_path"
+              class="w-full aspect-square rounded-xl bg-cover bg-center"
+              :style="{ backgroundImage: `url(/storage/${d.image_path})` }"
+              role="img"
+              :aria-label="d.user?.name"
+            />
+            <div v-else class="w-full aspect-square rounded-xl bg-brand/10 grid place-items-center text-brand">
+              <UserIcon class="w-10 h-10" aria-hidden="true" />
             </div>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/10 text-brand">{{ roleLabel(d) }}</span>
             <p class="text-sm font-extrabold text-text-primary truncate">{{ d.user?.name }}</p>
             <p class="text-[11px] text-text-secondary truncate">{{ d.specialty || 'متعدّد التخصّصات' }}</p>
-            <p class="text-[11px] text-warning font-bold inline-flex items-center gap-0.5">
+            <p v-if="d.rating_average" class="text-[11px] text-warning font-bold inline-flex items-center gap-0.5">
               <Star class="w-3 h-3 fill-current" aria-hidden="true" />
               {{ Number(d.rating_average).toFixed(1) }}
             </p>

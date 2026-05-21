@@ -69,7 +69,7 @@ const nav = [
     icon: Stethoscope,
     children: [
       { label: 'العملاء', href: '/admin/customers', icon: Contact2 },
-      { label: 'الأطباء', href: '/admin/doctors', icon: Users },
+      { label: 'الفريق الطبي', href: '/admin/doctors', icon: Users },
       { label: 'المواعيد', href: '/admin/appointments', icon: CalendarDays },
       { label: 'المدفوعات', href: '/admin/payments', icon: Receipt, badgeKey: 'submitted_payments' },
       { label: 'حجز موعد  لعميل', href: '/admin/booking', icon: CalendarPlus },

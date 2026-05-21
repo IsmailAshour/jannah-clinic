@@ -1,7 +1,13 @@
 <script setup>
 import { ref, computed, h } from 'vue'
 import { useForm, router, usePage } from '@inertiajs/vue3'
-import { Search } from 'lucide-vue-next'
+import { Search, User as UserIcon } from 'lucide-vue-next'
+
+const TEAM_ROLE_LABELS = {
+  doctor: 'طبيب',
+  nurse: 'ممرّض',
+  physiotherapist: 'أخصّائي علاج طبيعي',
+}
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
@@ -29,6 +35,7 @@ const rows = computed(() => props.doctors.map(d => ({
   ...d,
   doctor_name: d.user?.name ?? '—',
   services_count: d.services?.length ?? 0,
+  team_role_label: TEAM_ROLE_LABELS[d.team_role] ?? d.team_role,
 })))
 
 const q = ref('')
@@ -60,17 +67,54 @@ const form = useForm({
   password_confirmation: '',
   specialty: '',
   bio: '',
+  team_role: 'doctor',
   is_bookable: true,
   display_order: 0,
   services: [],
+  image: null,
+  remove_image: false,
+  _method: 'POST',
 })
+
+const currentImagePath = ref(null)
+const imagePreview = ref(null)
+const imageInputEl = ref(null)
+
+function clearImagePreview() {
+  imagePreview.value = null
+  if (imageInputEl.value) imageInputEl.value.value = ''
+}
+function onImageChange(e) {
+  const file = e.target.files?.[0] ?? null
+  form.image = file
+  if (file) {
+    const reader = new FileReader()
+    reader.onload = (ev) => { imagePreview.value = ev.target.result }
+    reader.readAsDataURL(file)
+    form.remove_image = false
+  } else {
+    imagePreview.value = null
+  }
+}
+function clearImageSelection() {
+  form.image = null
+  clearImagePreview()
+}
+function markRemoveCurrentImage() {
+  form.remove_image = true
+  currentImagePath.value = null
+}
 
 function openCreate() {
   editingId.value = null
   form.reset()
+  form.team_role = 'doctor'
   form.is_bookable = true
   form.display_order = 0
   form.services = []
+  form.remove_image = false
+  currentImagePath.value = null
+  clearImagePreview()
   showModal.value = true
 }
 
@@ -82,24 +126,33 @@ function openEdit(row) {
   form.password_confirmation = ''
   form.specialty = row.specialty
   form.bio = row.bio ?? ''
+  form.team_role = row.team_role ?? 'doctor'
   form.is_bookable = row.is_bookable
   form.display_order = row.display_order
   form.services = (row.services ?? []).map(s => ({
     service_id: s.id,
     price_override: s.pivot?.price_override ?? null,
   }))
+  form.image = null
+  form.remove_image = false
+  currentImagePath.value = row.image_path ?? null
+  clearImagePreview()
   showModal.value = true
 }
 
 function submitForm() {
+  form.transform((data) => ({
+    ...data,
+    is_bookable: !!data.is_bookable,
+    remove_image: !!data.remove_image,
+  }))
+  const onSuccess = () => { showModal.value = false }
   if (editingId.value) {
-    form.put(`/admin/doctors/${editingId.value}`, {
-      onSuccess: () => { showModal.value = false },
-    })
+    form._method = 'PUT'
+    form.post(`/admin/doctors/${editingId.value}`, { forceFormData: true, onSuccess })
   } else {
-    form.post('/admin/doctors', {
-      onSuccess: () => { showModal.value = false },
-    })
+    form._method = 'POST'
+    form.post('/admin/doctors', { forceFormData: true, onSuccess })
   }
 }
 
@@ -160,9 +213,29 @@ const columns = [
     meta: { label: 'تحديد', headerClass: 'w-10', cellClass: 'w-10 text-center' },
   },
   {
+    id: 'avatar',
+    enableHiding: false,
+    enableSorting: false,
+    header: () => '',
+    cell: ({ row }) => {
+      const src = row.original.image_path ? `/storage/${row.original.image_path}` : null
+      return h('div', { class: 'flex items-center justify-center' }, [
+        src
+          ? h('img', { src, alt: row.original.user?.name ?? '', class: 'h-9 w-9 rounded-full object-cover ring-1 ring-border-default' })
+          : h('div', { class: 'h-9 w-9 rounded-full bg-brand/10 text-brand grid place-items-center' }, [h(UserIcon, { class: 'h-4 w-4', 'aria-hidden': 'true' })]),
+      ])
+    },
+    meta: { label: 'الصورة', headerClass: 'w-14', cellClass: 'w-14' },
+  },
+  {
     accessorKey: 'doctor_name',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الاسم' }),
     meta: { label: 'الاسم' },
+  },
+  {
+    accessorKey: 'team_role_label',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الدور' }),
+    meta: { label: 'الدور' },
   },
   {
     accessorKey: 'specialty',
@@ -198,9 +271,9 @@ const columns = [
 <template>
   <AdminShell>
     <div class="p-6 space-y-6">
-      <PageHeader title="الأطباء" description="إدارة الكادر الطبي وتخصّصاته والخدمات المسندة.">
+      <PageHeader title="الفريق الطبي" description="إدارة فريق العيادة (أطبّاء، ممرّضين، أخصّائيين) وتخصّصاته والخدمات المسندة.">
         <template v-if="isManager" #action>
-          <Button @click="openCreate">إضافة طبيب</Button>
+          <Button @click="openCreate">إضافة عضو</Button>
         </template>
       </PageHeader>
 
@@ -208,7 +281,7 @@ const columns = [
         <AdminDataTable
           :columns="columns"
           :data="filteredRows"
-          empty-text="لا يوجد أطباء بعد."
+          empty-text="لا يوجد أعضاء في الفريق بعد."
         >
           <template #toolbar="{ table }">
             <form class="flex flex-wrap items-center justify-between gap-2 w-full" @submit.prevent="applyFilters()">
@@ -233,7 +306,7 @@ const columns = [
       </div>
     </div>
 
-    <Modal :open="showModal" :title="editingId ? 'تعديل الطبيب' : 'إضافة طبيب'" @update:open="showModal = $event">
+    <Modal :open="showModal" :title="editingId ? 'تعديل عضو الفريق' : 'إضافة عضو إلى الفريق'" @update:open="showModal = $event">
       <form class="space-y-4" @submit.prevent="submitForm">
         <FormGroup label="الاسم" name="name" :error="form.errors.name" required>
           <template #default="{ describedby }">
@@ -259,6 +332,22 @@ const columns = [
           </template>
         </FormGroup>
 
+        <FormGroup label="الدور" name="team_role" :error="form.errors.team_role" required>
+          <template #default="{ describedby }">
+            <select
+              id="team_role"
+              v-model="form.team_role"
+              name="team_role"
+              :aria-describedby="describedby"
+              class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
+            >
+              <option value="doctor">طبيب</option>
+              <option value="nurse">ممرّض</option>
+              <option value="physiotherapist">أخصّائي علاج طبيعي</option>
+            </select>
+          </template>
+        </FormGroup>
+
         <FormGroup label="التخصص" name="specialty" :error="form.errors.specialty" required>
           <template #default="{ describedby }">
             <Input id="specialty" v-model="form.specialty" name="specialty" :aria-describedby="describedby" />
@@ -275,6 +364,31 @@ const columns = [
               :aria-describedby="describedby"
               class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
             />
+          </template>
+        </FormGroup>
+
+        <FormGroup label="الصورة الشخصية" name="image" :error="form.errors.image" hint="JPG / PNG / WEBP — حتى 4MB. تظهر في صفحات الموقع العامّة.">
+          <template #default="{ describedby }">
+            <div class="space-y-2">
+              <div v-if="imagePreview" class="relative inline-block">
+                <img :src="imagePreview" alt="معاينة الصورة الجديدة" class="h-24 w-24 object-cover rounded-full ring-2 ring-brand/30" />
+                <button type="button" class="absolute -top-1 -end-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white shadow text-xs" aria-label="إلغاء" @click="clearImageSelection">×</button>
+              </div>
+              <div v-else-if="currentImagePath" class="relative inline-block">
+                <img :src="`/storage/${currentImagePath}`" alt="الصورة الحالية" class="h-24 w-24 object-cover rounded-full ring-2 ring-border-default" />
+                <button type="button" class="absolute -top-1 -end-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white shadow text-xs" aria-label="إزالة" @click="markRemoveCurrentImage">×</button>
+              </div>
+              <input
+                id="image"
+                ref="imageInputEl"
+                type="file"
+                name="image"
+                accept="image/jpeg,image/png,image/webp"
+                :aria-describedby="describedby"
+                class="block w-full text-sm text-text-secondary file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-brand/10 file:text-brand file:font-medium hover:file:bg-brand/15"
+                @change="onImageChange"
+              />
+            </div>
           </template>
         </FormGroup>
 
@@ -328,8 +442,8 @@ const columns = [
 
     <ConfirmModal
       :open="confirmDelete"
-      title="حذف الطبيب"
-      :message="`هل أنت متأكد من حذف الطبيب «${deleteTarget?.user?.name ?? deleteTarget?.specialty}»؟`"
+      title="حذف العضو"
+      :message="`هل أنت متأكد من حذف «${deleteTarget?.user?.name ?? deleteTarget?.specialty}»؟`"
       confirm-text="حذف"
       cancel-text="إلغاء"
       @update:open="confirmDelete = $event"

@@ -28,7 +28,7 @@ it('login with intent=booking redirects to /portal/booking with service param', 
         ->toContain('service=5');
 });
 
-it('login without intent redirects to portal home', function () {
+it('login without intent redirects to public home', function () {
     $u = User::factory()->create([
         'role' => UserRole::Customer,
         'email' => 'c2@example.com',
@@ -39,7 +39,7 @@ it('login without intent redirects to portal home', function () {
         'identifier' => 'c2@example.com',
         'password' => $this->password,
     ]);
-    $resp->assertRedirect(route('portal.home'));
+    $resp->assertRedirect(route('public.home'));
 });
 
 it('staff login still goes to admin dashboard regardless of intent', function () {

@@ -20,8 +20,7 @@ class AuthenticationTest extends TestCase
     // Login now accepts 'identifier' (email OR phone) instead of 'email'.
     // After login, users are redirected based on role:
     //   staff  → admin.dashboard
-    //   customer → portal.home
-    // Factory default role is Customer, so redirect goes to portal.home.
+    //   customer → public.home (the redesigned /, customer-personalized).
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
         $user = User::factory()->create();
@@ -32,7 +31,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('portal.home'));
+        $response->assertRedirect(route('public.home'));
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void

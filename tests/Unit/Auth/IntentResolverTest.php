@@ -7,12 +7,12 @@ beforeEach(function () {
     $this->resolver = new IntentResolver;
 });
 
-it('returns portal home when intent is null', function () {
-    expect($this->resolver->resolve(new Request, null))->toBe(route('portal.home'));
+it('returns public home when intent is null', function () {
+    expect($this->resolver->resolve(new Request, null))->toBe(route('public.home'));
 });
 
-it('returns portal home when intent is empty string', function () {
-    expect($this->resolver->resolve(new Request, ''))->toBe(route('portal.home'));
+it('returns public home when intent is empty string', function () {
+    expect($this->resolver->resolve(new Request, ''))->toBe(route('public.home'));
 });
 
 it('returns booking with passed service id', function () {
@@ -29,6 +29,6 @@ it('returns loyalty route', function () {
     expect($this->resolver->resolve(new Request, 'loyalty'))->toBe(route('portal.loyalty.index'));
 });
 
-it('unknown intent falls back to portal home', function () {
-    expect($this->resolver->resolve(new Request, 'unknown-intent'))->toBe(route('portal.home'));
+it('unknown intent falls back to public home', function () {
+    expect($this->resolver->resolve(new Request, 'unknown-intent'))->toBe(route('public.home'));
 });

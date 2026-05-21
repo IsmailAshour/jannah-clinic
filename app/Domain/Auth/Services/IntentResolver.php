@@ -9,7 +9,7 @@ class IntentResolver
     public function resolve(Request $request, ?string $intent): string
     {
         if ($intent === null || $intent === '') {
-            return route('portal.home');
+            return route('public.home');
         }
 
         return match ($intent) {
@@ -19,7 +19,7 @@ class IntentResolver
             'medical-record' => route('portal.medical-record.index'),
             'profile' => route('portal.profile.edit'),
             'settings' => route('portal.settings.index'),
-            default => route('portal.home'),
+            default => route('public.home'),
         };
     }
 

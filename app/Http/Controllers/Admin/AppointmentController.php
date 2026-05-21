@@ -87,6 +87,7 @@ class AppointmentController extends Controller
         $authedUser = request()->user();
         $isDoctor = $authedUser->role === \App\Enums\UserRole::Doctor;
         $isManager = $authedUser->role === \App\Enums\UserRole::Manager;
+        $canWriteMedical = $isDoctor || $isManager;
 
         $medicalEntryData = null;
         if ($appointment->medicalEntry) {
@@ -186,8 +187,8 @@ class AppointmentController extends Controller
             ] : null,
             'photos' => $photos,
             'medicalEntry' => $medicalEntryData,
-            'canWriteMedical' => $isDoctor,
-            'canViewMedical' => $isManager || $isDoctor,
+            'canWriteMedical' => $canWriteMedical,
+            'canViewMedical' => $canWriteMedical,
         ]);
     }
 

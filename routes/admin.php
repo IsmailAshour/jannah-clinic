@@ -148,8 +148,8 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::delete('messages/{message}', [ContactMessageController::class, 'destroy'])->name('messages.destroy');
         });
 
-        // P3 — Medical record writes (doctor only)
-        Route::middleware('role:doctor')->group(function () {
+        // P3 — Medical record writes (manager + doctor; gate refined in Policy)
+        Route::middleware('role:manager,doctor')->group(function () {
             Route::post('appointments/{appointment}/medical-entry', [MedicalEntryController::class, 'store'])
                 ->name('appointments.medical-entry.store');
             Route::get('appointments/{appointment}/medical-entry/create', [MedicalEntryController::class, 'create'])

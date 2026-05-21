@@ -24,18 +24,17 @@ class MedicalEntryPolicy
 
     public function create(User $user, Appointment $appointment): bool
     {
-        if ($user->role !== UserRole::Doctor) {
-            return false;
-        }
-
-        // Status gate lifted 2026-05-21 — doctors may file the record at any
-        // point in the appointment lifecycle (during the visit, before the
-        // status flips to Completed, etc.).
-        return $appointment->doctor_profile_id === $user->doctorProfile?->id;
+        // Status + ownership gates lifted 2026-05-21 — any doctor or the manager
+        // may file the record at any point in the appointment lifecycle. Reflects
+        // small-clinic reality where the manager often documents visits on the
+        // doctor's behalf.
+        return in_array($user->role, [UserRole::Manager, UserRole::Doctor], true);
     }
 
     public function update(User $user, MedicalEntry $entry): bool
     {
-        return $user->role === UserRole::Doctor && $entry->author_id === $user->id;
+        // Manager + entry author (doctor) can edit.
+        return $user->role === UserRole::Manager
+            || ($user->role === UserRole::Doctor && $entry->author_id === $user->id);
     }
 }

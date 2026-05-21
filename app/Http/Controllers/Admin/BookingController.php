@@ -78,15 +78,12 @@ class BookingController extends Controller
 
         $homeSurchargePct = app(SettingService::class)->get('home_surcharge_pct', config('clinic.home_surcharge_pct'));
 
-        $customers = User::where('role', UserRole::Customer)
-            ->orderBy('name')
-            ->get(['id', 'name', 'email', 'phone']);
-
+        // Customers no longer bulk-loaded — the wizard's picker uses an
+        // on-demand AJAX search against /admin/customers/search.
         return Inertia::render('Admin/Booking/Create', [
             'doctors' => $doctors,
             'coverageAreas' => $coverageAreas,
             'homeSurchargePct' => $homeSurchargePct,
-            'customers' => $customers,
         ]);
     }
 

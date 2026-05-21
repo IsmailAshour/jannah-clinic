@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
-import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Home, MapPin, Stethoscope, User as UserIcon } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Home, MapPin, Search, Stethoscope, User as UserIcon, X } from 'lucide-vue-next'
 import { FormGroup, PageStates, MonthCalendar, PaymentMethodPicker } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
@@ -13,6 +13,9 @@ const props = defineProps({
   availabilityDaysUrl: { type: String, required: true },
   homeSurchargePct: { type: [String, Number], default: 0 },
   customerPicker: { type: Boolean, default: false },
+  customerSearchUrl: { type: String, default: '/admin/customers/search' },
+  // Optional preset list (legacy); the picker now searches via AJAX. Kept
+  // for backwards-compat with any test or call-site that still passes it.
   customers: { type: Array, default: () => [] },
   loyaltyBalance: { type: Number, default: 0 },
   errors: { type: Object, default: () => ({}) },
@@ -26,9 +29,68 @@ const step = ref(props.customerPicker ? 0 : 1)
 // Customer picker state (admin only — step 0)
 const customerMode = ref('existing') // 'existing' | 'new'
 const selectedCustomerId = ref(null)
+const selectedCustomer = ref(null)   // full object — kept so summary + UI can show name
 const newCustomerName = ref('')
 const newCustomerEmail = ref('')
 const newCustomerPhone = ref('')
+
+// AJAX customer search (replaces the bulk <select>). Debounced so we don't
+// flood the endpoint while the admin types.
+const customerQuery = ref('')
+const customerResults = ref([])
+const customerSearchLoading = ref(false)
+const customerSearchError = ref(false)
+let customerSearchTimer = null
+let customerSearchSeq = 0
+
+async function runCustomerSearch() {
+  const mySeq = ++customerSearchSeq
+  customerSearchLoading.value = true
+  customerSearchError.value = false
+  try {
+    const url = `${props.customerSearchUrl}?q=${encodeURIComponent(customerQuery.value)}`
+    const res = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    // Discard out-of-order responses — last request always wins.
+    if (mySeq !== customerSearchSeq) return
+    customerResults.value = Array.isArray(data) ? data : []
+  } catch {
+    if (mySeq !== customerSearchSeq) return
+    customerSearchError.value = true
+    customerResults.value = []
+  } finally {
+    if (mySeq === customerSearchSeq) customerSearchLoading.value = false
+  }
+}
+
+watch(customerQuery, () => {
+  if (customerSearchTimer) clearTimeout(customerSearchTimer)
+  customerSearchTimer = setTimeout(runCustomerSearch, 250)
+})
+
+// Reset the picker when switching from 'existing' → 'new' (and vice versa).
+watch(customerMode, (m) => {
+  if (m !== 'existing') {
+    selectedCustomerId.value = null
+    selectedCustomer.value = null
+  }
+})
+
+function pickCustomer(c) {
+  selectedCustomerId.value = c.id
+  selectedCustomer.value = c
+  customerResults.value = []
+  customerQuery.value = ''
+}
+
+function clearSelectedCustomer() {
+  selectedCustomerId.value = null
+  selectedCustomer.value = null
+  customerQuery.value = ''
+  // Re-open the empty search so the admin can pick a different one.
+  runCustomerSearch()
+}
 
 // Step 1: delivery mode
 const deliveryMode = ref('center')
@@ -239,6 +301,8 @@ const stepConfig = computed(() => {
 
 const selectedCustomerLabel = computed(() => {
   if (customerMode.value === 'new') return newCustomerName.value || 'عميل جديد'
+  if (selectedCustomer.value) return selectedCustomer.value.name
+  // Fallback (legacy customers prop) in case a caller still passes preset list.
   const c = props.customers.find(c => c.id === selectedCustomerId.value)
   return c ? c.name : null
 })
@@ -364,23 +428,82 @@ function handleSubmit() {
         </label>
       </div>
 
-      <div v-if="customerMode === 'existing'">
-        <FormGroup label="اختر العميل" name="customer_id" required>
-          <template #default="{ describedby }">
-            <select
-              id="customer_id"
-              v-model="selectedCustomerId"
-              name="customer_id"
-              :aria-describedby="describedby"
-              class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand"
+      <div v-if="customerMode === 'existing'" class="space-y-3">
+        <!-- Selected customer card — replaces the search input once a pick is made. -->
+        <div
+          v-if="selectedCustomer"
+          class="flex items-center gap-3 rounded-2xl border-2 border-brand bg-brand/5 ring-2 ring-brand/15 p-3"
+        >
+          <div class="w-10 h-10 rounded-full bg-brand text-white grid place-items-center font-extrabold text-sm shrink-0">
+            {{ Array.from(selectedCustomer.name ?? 'ع')[0] }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-text-primary truncate">{{ selectedCustomer.name }}</p>
+            <p class="text-xs text-text-tertiary truncate" dir="ltr">
+              {{ selectedCustomer.phone || selectedCustomer.email || '—' }}
+            </p>
+          </div>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 text-xs font-bold text-danger hover:underline shrink-0"
+            @click="clearSelectedCustomer"
+          >
+            <X class="w-3.5 h-3.5" aria-hidden="true" />
+            تغيير
+          </button>
+        </div>
+
+        <!-- AJAX search input + results — visible only while no customer is picked. -->
+        <div v-else class="space-y-2">
+          <label for="customer_search" class="block text-sm font-bold text-text-primary">ابحث عن العميل
+            <span class="text-danger" aria-hidden="true">*</span>
+          </label>
+          <div class="relative">
+            <span class="absolute top-1/2 -translate-y-1/2 start-3 text-text-tertiary pointer-events-none">
+              <Search class="w-4 h-4" aria-hidden="true" />
+            </span>
+            <Input
+              id="customer_search"
+              v-model="customerQuery"
+              placeholder="ابحث بالاسم، البريد، أو رقم الجوّال…"
+              class="h-11 ps-9"
+              autocomplete="off"
+              @focus="runCustomerSearch"
+            />
+          </div>
+
+          <p v-if="customerSearchLoading" class="text-xs text-text-secondary px-1">جاري البحث…</p>
+          <p v-else-if="customerSearchError" class="text-xs text-danger px-1">تعذّر البحث، حاول مرة أخرى.</p>
+          <p
+            v-else-if="customerQuery && customerResults.length === 0"
+            class="text-xs text-text-secondary px-1"
+          >لا نتائج مطابقة — جرّب رقمًا أو بريدًا آخر.</p>
+
+          <ul v-if="customerResults.length > 0" class="rounded-xl border border-border-default divide-y divide-border-default bg-surface-card max-h-72 overflow-y-auto">
+            <li
+              v-for="c in customerResults"
+              :key="c.id"
             >
-              <option value="" disabled selected>اختر عميلاً...</option>
-              <option v-for="c in customers" :key="c.id" :value="c.id">
-                {{ c.name }} — {{ c.phone || c.email }}
-              </option>
-            </select>
-          </template>
-        </FormGroup>
+              <button
+                type="button"
+                class="w-full text-start px-3 py-2.5 hover:bg-brand/5 transition flex items-center gap-3"
+                @click="pickCustomer(c)"
+              >
+                <span class="w-8 h-8 rounded-full bg-brand/10 text-brand grid place-items-center font-bold text-sm shrink-0">
+                  {{ Array.from(c.name ?? 'ع')[0] }}
+                </span>
+                <span class="flex-1 min-w-0">
+                  <span class="block text-sm font-bold text-text-primary truncate">{{ c.name }}</span>
+                  <span class="block text-xs text-text-tertiary truncate" dir="ltr">{{ c.phone || c.email || '—' }}</span>
+                </span>
+              </button>
+            </li>
+          </ul>
+
+          <p v-if="!customerQuery && customerResults.length === 0 && !customerSearchLoading" class="text-xs text-text-tertiary px-1">
+            ابدأ بكتابة جزء من اسم العميل أو رقم جواله.
+          </p>
+        </div>
       </div>
 
       <div v-else class="space-y-4">

@@ -56,7 +56,7 @@ function handleSubmit(payload) {
         :availability-days-url="'/admin/availability/days'"
         :home-surcharge-pct="homeSurchargePct"
         :customer-picker="true"
-        :customers="customers"
+        :customer-search-url="'/admin/customers/search'"
         :errors="form.errors"
         @submit="handleSubmit"
       />

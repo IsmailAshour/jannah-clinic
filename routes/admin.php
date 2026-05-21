@@ -56,6 +56,9 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
 
         // Customer admin (Polish-D) — read-only for all staff
         Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+        // AJAX lookup for the admin booking wizard's customer picker.
+        // Defined BEFORE {customer} so it's not shadowed by the wildcard.
+        Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
         Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
 
         // P4a — Loyalty: any staff role can read

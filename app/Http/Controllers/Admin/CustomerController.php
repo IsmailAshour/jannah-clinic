@@ -14,6 +14,7 @@ use App\Models\CustomerProfile;
 use App\Models\LoyaltyLedger;
 use App\Models\MedicalEntry;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -245,6 +246,35 @@ class CustomerController extends Controller
             ->route('admin.customers.show', $user->id)
             ->with('success', 'تم إنشاء العميل.')
             ->with('temp_password', $tempPassword);
+    }
+
+    /**
+     * AJAX customer lookup for the admin booking wizard. Matches active
+     * customers by name / email / phone (case-insensitive) and returns the
+     * top 15 results. Trades the full customer-list bulk-load (slow once the
+     * clinic has hundreds of records) for an on-demand search.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->input('q', ''));
+
+        $query = User::query()
+            ->where('role', UserRole::Customer)
+            ->where('is_active', true)
+            ->orderBy('name');
+
+        if ($q !== '') {
+            $like = '%'.$q.'%';
+            $query->where(function ($w) use ($like) {
+                $w->where('name', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('phone', 'like', $like);
+            });
+        }
+
+        $results = $query->limit(15)->get(['id', 'name', 'email', 'phone']);
+
+        return response()->json($results);
     }
 
     public function toggleActive(User $customer): RedirectResponse

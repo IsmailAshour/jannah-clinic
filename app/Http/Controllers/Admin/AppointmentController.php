@@ -79,7 +79,43 @@ class AppointmentController extends Controller
             'serviceAddress',
             'payment.receipts' => fn ($q) => $q->orderByDesc('id'),
             'photos.uploader:id,name',
+            'medicalEntry.prescriptions',
+            'medicalEntry.author:id,name',
         ]);
+
+        /** @var \App\Models\User $authedUser */
+        $authedUser = request()->user();
+        $isDoctor = $authedUser->role === \App\Enums\UserRole::Doctor;
+        $isManager = $authedUser->role === \App\Enums\UserRole::Manager;
+
+        $medicalEntryData = null;
+        if ($appointment->medicalEntry) {
+            $entry = $appointment->medicalEntry;
+            $prescriptions = [];
+            foreach ($entry->prescriptions as $p) {
+                /** @var \App\Models\Prescription $p */
+                $prescriptions[] = [
+                    'id' => $p->id,
+                    'medication_name' => $p->medication_name,
+                    'dosage' => $p->dosage,
+                    'frequency' => $p->frequency,
+                    'duration' => $p->duration,
+                    'notes' => $p->notes,
+                ];
+            }
+            /** @var \App\Models\User|null $author */
+            $author = $entry->author;
+            $medicalEntryData = [
+                'id' => $entry->id,
+                'visible_summary' => $entry->visible_summary,
+                // staff_notes is encrypted + sensitive — staff (manager/doctor) only.
+                'staff_notes' => ($isManager || $isDoctor) ? $entry->staff_notes : null,
+                'author_name' => $author?->name,
+                'created_at' => $entry->created_at->toIso8601String(),
+                'updated_at' => $entry->updated_at->toIso8601String(),
+                'prescriptions' => $prescriptions,
+            ];
+        }
 
         $photos = [];
         foreach ($appointment->photos as $p) {
@@ -149,6 +185,9 @@ class AppointmentController extends Controller
                 'receipts' => $receipts,
             ] : null,
             'photos' => $photos,
+            'medicalEntry' => $medicalEntryData,
+            'canWriteMedical' => $isDoctor,
+            'canViewMedical' => $isManager || $isDoctor,
         ]);
     }
 

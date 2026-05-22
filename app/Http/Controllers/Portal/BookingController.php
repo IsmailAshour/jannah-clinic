@@ -17,6 +17,7 @@ use App\Models\DoctorServicePivot;
 use App\Models\HomeServiceCoverageArea;
 use App\Models\Service;
 use App\Models\User;
+use App\Support\PhoneNormalizer;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -107,6 +108,10 @@ class BookingController extends Controller
             $rules['lng'] = ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'];
         }
 
+        if ($request->input('delivery_mode') === 'online') {
+            $rules['whatsapp_phone'] = ['required', 'string', 'min:8', 'max:32'];
+        }
+
         $v = $request->validate($rules);
 
         if (isset($v['coverage_area_id'])) {
@@ -130,6 +135,7 @@ class BookingController extends Controller
             locationNote: $v['location_note'] ?? null,
             lat: isset($v['lat']) ? (float) $v['lat'] : null,
             lng: isset($v['lng']) ? (float) $v['lng'] : null,
+            whatsappPhone: isset($v['whatsapp_phone']) ? PhoneNormalizer::toE164($v['whatsapp_phone']) : null,
             paymentMethod: PaymentMethod::from($v['payment_method'] ?? 'cash'),
         );
 

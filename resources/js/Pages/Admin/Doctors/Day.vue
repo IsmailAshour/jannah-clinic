@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import {
   ArrowLeft, ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, Home,
-  ImagePlus, MapPin, Phone, Stethoscope, Trash2, User as UserIcon, X,
+  ImagePlus, MapPin, MessageCircle, Phone, Stethoscope, Trash2, User as UserIcon, Video, X,
 } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import { PageHeader, StatusBadge, Modal, FormGroup, ConfirmModal } from '@/Components/foundation'
@@ -31,6 +31,13 @@ const statusMap = {
   rejected:    { label: 'مرفوض',           variant: 'danger'  },
   no_show:     { label: 'لم يحضر',         variant: 'warning' },
   rescheduled: { label: 'أُعيد جدولته',    variant: 'info'    },
+}
+
+function whatsappLink(a) {
+  const phone = (a?.whatsapp_phone || '').replace(/\D+/g, '')
+  if (!phone) return '#'
+  const text = `السلام عليكم، معك ${props.doctor?.name || ''} من عيادة جنّة. أتواصل معك للموعد المحدد.`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
 }
 
 function formatDateAr(d) {
@@ -187,12 +194,28 @@ function partitionPhotos(photos) {
                   <a :href="`tel:${a.customer.phone}`" dir="ltr" class="text-brand">{{ a.customer.phone }}</a>
                 </p>
                 <p class="inline-flex items-center gap-1.5">
-                  <component :is="a.delivery_mode === 'home' ? Home : MapPin" class="w-3 h-3" aria-hidden="true" />
-                  {{ a.delivery_mode === 'home' ? 'منزليّة' : 'في المركز' }}
+                  <component
+                    :is="a.delivery_mode === 'home' ? Home : (a.delivery_mode === 'online' ? Video : MapPin)"
+                    class="w-3 h-3"
+                    aria-hidden="true"
+                  />
+                  {{ a.delivery_mode === 'home' ? 'منزليّة' : (a.delivery_mode === 'online' ? 'أونلاين' : 'في المركز') }}
                 </p>
                 <p class="inline-flex items-center gap-1.5">
                   <span class="font-bold">{{ a.price_at_booking }} ₪</span>
                 </p>
+              </div>
+
+              <div v-if="a.delivery_mode === 'online' && a.whatsapp_phone" class="mt-2">
+                <a
+                  :href="whatsappLink(a)"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center gap-1.5 rounded-md bg-[#25D366] text-white px-2.5 py-1 text-xs font-bold hover:bg-[#1ebe5d] transition"
+                >
+                  <MessageCircle class="w-3.5 h-3.5" aria-hidden="true" />
+                  تواصل واتساب
+                </a>
               </div>
             </div>
           </div>

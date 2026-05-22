@@ -21,6 +21,7 @@ final class BookingData
         public ?string $locationNote = null,
         public ?float $lat = null,
         public ?float $lng = null,
+        public ?string $whatsappPhone = null,
         public PaymentMethod $paymentMethod = PaymentMethod::Cash,
     ) {}
 }

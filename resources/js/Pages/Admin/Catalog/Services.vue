@@ -80,6 +80,7 @@ const form = useForm({
   base_price: 0,
   duration_minutes: 30,
   home_service_enabled: false,
+  online_service_enabled: false,
   icon_key: '',
   is_active: true,
   display_order: 0,
@@ -147,6 +148,7 @@ function openEdit(row) {
   form.base_price = row.base_price
   form.duration_minutes = row.duration_minutes
   form.home_service_enabled = row.home_service_enabled
+  form.online_service_enabled = row.online_service_enabled ?? false
   form.icon_key = row.icon_key ?? ''
   form.is_active = row.is_active
   form.display_order = row.display_order
@@ -165,6 +167,7 @@ function submitForm() {
     loyalty_enabled: !!data.loyalty_enabled,
     loyalty_redemption_points: data.loyalty_enabled ? (data.loyalty_redemption_points || null) : null,
     home_service_enabled: !!data.home_service_enabled,
+    online_service_enabled: !!data.online_service_enabled,
     is_active: !!data.is_active,
     remove_image: !!data.remove_image,
   }))
@@ -395,6 +398,12 @@ const columns = [
         <FormGroup label="خدمة منزلية" name="home_service_enabled" :error="form.errors.home_service_enabled">
           <template #default>
             <input id="home_service_enabled" v-model="form.home_service_enabled" type="checkbox" name="home_service_enabled" class="h-4 w-4" />
+          </template>
+        </FormGroup>
+
+        <FormGroup label="خدمة أونلاين (واتساب)" name="online_service_enabled" :error="form.errors.online_service_enabled">
+          <template #default>
+            <input id="online_service_enabled" v-model="form.online_service_enabled" type="checkbox" name="online_service_enabled" class="h-4 w-4" />
           </template>
         </FormGroup>
 

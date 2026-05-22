@@ -53,13 +53,13 @@ it('assigned doctor can create an entry with prescriptions', function () {
     expect(MedicalEntry::where('appointment_id', $this->appt->id)->exists())->toBeTrue();
 });
 
-it('unassigned doctor gets 403', function () {
+it('any doctor (assigned or not) can file a medical entry (ownership gate lifted 2026-05-21)', function () {
     $other = User::factory()->create(['role' => UserRole::Doctor]);
     DoctorProfile::factory()->create(['user_id' => $other->id]);
 
     $this->actingAs($other)->post("/admin/appointments/{$this->appt->id}/medical-entry", [
-        'visible_summary' => 'x',
-    ])->assertForbidden();
+        'visible_summary' => 'covering colleague note',
+    ])->assertRedirect()->assertSessionHasNoErrors();
 });
 
 it('receptionist gets 403 via role middleware', function () {
@@ -81,11 +81,11 @@ it('empty visible_summary returns 422', function () {
     ])->assertSessionHasErrors('visible_summary');
 });
 
-it('non-completed appointment cannot get a medical entry', function () {
+it('non-completed appointment can still get a medical entry (gate lifted 2026-05-21)', function () {
     $appt2 = mkP3Appointment($this->customer, $this->doctorProfile, AppointmentStatus::Requested);
     $this->actingAs($this->doctorUser)->post("/admin/appointments/{$appt2->id}/medical-entry", [
-        'visible_summary' => 'x',
-    ])->assertForbidden();
+        'visible_summary' => 'pre-visit note',
+    ])->assertRedirect()->assertSessionHasNoErrors();
 });
 
 it('doctor author can update own entry', function () {

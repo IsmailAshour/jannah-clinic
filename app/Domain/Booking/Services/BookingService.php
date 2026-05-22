@@ -51,6 +51,14 @@ class BookingService
                     throw new InvalidBookingException('منطقة التغطية أو العنوان غير صالح.');
                 }
             }
+            if ($d->deliveryMode === DeliveryMode::Online) {
+                if (! $service->online_service_enabled) {
+                    throw new InvalidBookingException('الخدمة غير متاحة كموعد أونلاين.');
+                }
+                if ($d->whatsappPhone === null || trim($d->whatsappPhone) === '') {
+                    throw new InvalidBookingException('رقم واتساب مطلوب لمواعيد الأونلاين.');
+                }
+            }
 
             $available = collect($this->availability->slotsFor($doctor, $service, $d->startAt))
                 ->first(fn ($s) => $s['start']->equalTo($d->startAt));
@@ -69,6 +77,7 @@ class BookingService
                 'status' => AppointmentStatus::Requested,
                 'price_at_booking' => $quote['total'],
                 'delivery_mode' => $d->deliveryMode,
+                'whatsapp_phone' => $d->deliveryMode === DeliveryMode::Online ? $d->whatsappPhone : null,
                 'home_surcharge_amount' => $quote['surcharge'],
                 'created_by_role' => $d->createdByRole,
                 'payment_method' => $d->paymentMethod,

@@ -3,8 +3,8 @@ import { computed, ref } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import {
   AlertCircle, ArrowLeft, BadgeCheck, BadgeX, Calendar, Check, Clock,
-  CreditCard, FileText, Home, ImagePlus, Mail, MapPin, NotebookPen, Pencil,
-  Phone, Pill, Plus, Receipt, RotateCcw, Stethoscope, Trash2, User as UserIcon, X,
+  CreditCard, FileText, Home, ImagePlus, Mail, MapPin, MessageCircle, NotebookPen, Pencil,
+  Phone, Pill, Plus, Receipt, RotateCcw, Stethoscope, Trash2, User as UserIcon, Video, X,
 } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import { StatusBadge, Modal, FormGroup, ConfirmModal } from '@/Components/foundation'
@@ -24,6 +24,14 @@ const page = usePage()
 const userRole = computed(() => page.props?.auth?.user?.role ?? null)
 const isManager = computed(() => userRole.value === 'manager')
 const canEditPhotos = computed(() => ['manager', 'doctor'].includes(userRole.value))
+
+const whatsappUrl = computed(() => {
+  const phone = (props.appointment.whatsapp_phone || '').replace(/\D+/g, '')
+  if (!phone) return '#'
+  const doctorName = props.appointment.doctor?.name || ''
+  const text = `السلام عليكم، معك ${doctorName} من عيادة جنّة. أتواصل معك للموعد المحدد.`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+})
 
 const apptStatusMap = {
   requested:   { label: 'بانتظار التأكيد', variant: 'warning' },
@@ -454,8 +462,12 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
           <!-- Delivery / address -->
           <section class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5 space-y-2.5">
             <h3 class="text-sm font-bold text-text-primary inline-flex items-center gap-1.5">
-              <component :is="appointment.delivery_mode === 'home' ? Home : MapPin" class="w-4 h-4 text-brand" aria-hidden="true" />
-              {{ appointment.delivery_mode === 'home' ? 'زيارة منزليّة' : 'في المركز' }}
+              <component
+                :is="appointment.delivery_mode === 'home' ? Home : (appointment.delivery_mode === 'online' ? Video : MapPin)"
+                class="w-4 h-4 text-brand"
+                aria-hidden="true"
+              />
+              {{ appointment.delivery_mode === 'home' ? 'زيارة منزليّة' : (appointment.delivery_mode === 'online' ? 'موعد أونلاين' : 'في المركز') }}
             </h3>
             <p class="text-sm">السعر: <span class="font-bold text-brand">{{ appointment.price_at_booking }} ₪</span></p>
             <p v-if="appointment.service_address" class="text-xs text-text-secondary leading-relaxed">{{ appointment.service_address.address_text }}</p>
@@ -470,6 +482,18 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
               <MapPin class="w-3.5 h-3.5" aria-hidden="true" />
               فتح الموقع في الخريطة
             </a>
+            <div v-if="appointment.delivery_mode === 'online' && appointment.whatsapp_phone" class="space-y-2">
+              <p class="text-xs text-text-secondary">رقم واتساب المريض: <span dir="ltr" class="font-bold">{{ appointment.whatsapp_phone }}</span></p>
+              <a
+                :href="whatsappUrl"
+                target="_blank"
+                rel="noopener"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#25D366] text-white px-3 py-2 text-sm font-bold hover:bg-[#1ebe5d] transition"
+              >
+                <MessageCircle class="w-4 h-4" aria-hidden="true" />
+                تواصل عبر واتساب
+              </a>
+            </div>
           </section>
         </aside>
       </div>

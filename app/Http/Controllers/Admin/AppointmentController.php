@@ -155,6 +155,7 @@ class AppointmentController extends Controller
                 'end_at' => $appointment->end_at->toIso8601String(),
                 'status' => $appointment->status->value,
                 'delivery_mode' => $appointment->delivery_mode->value,
+                'whatsapp_phone' => $appointment->whatsapp_phone,
                 'price_at_booking' => $appointment->price_at_booking,
                 'home_surcharge_amount' => $appointment->home_surcharge_amount,
                 'cancellation_reason' => $appointment->cancellation_reason,

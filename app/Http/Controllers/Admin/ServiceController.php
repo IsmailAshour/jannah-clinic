@@ -85,6 +85,7 @@ class ServiceController extends Controller
             'base_price' => 'required|numeric|min:0',
             'duration_minutes' => 'required|integer|in:30,60',
             'home_service_enabled' => 'boolean',
+            'online_service_enabled' => 'boolean',
             'icon_key' => 'nullable|string|max:64',
             'is_active' => 'boolean',
             'display_order' => 'nullable|integer|min:0',

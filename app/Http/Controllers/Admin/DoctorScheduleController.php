@@ -224,6 +224,7 @@ class DoctorScheduleController extends Controller
                 'time' => $a->start_at->format('H:i'),
                 'status' => $a->status->value,
                 'delivery_mode' => $a->delivery_mode->value,
+                'whatsapp_phone' => $a->whatsapp_phone,
                 'price_at_booking' => $a->price_at_booking,
                 'customer' => [
                     'id' => $a->customer->id,

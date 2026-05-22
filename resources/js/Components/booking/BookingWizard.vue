@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
-import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Home, MapPin, Search, Stethoscope, User as UserIcon, X } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Home, MapPin, MessageCircle, Search, Stethoscope, User as UserIcon, Video, X } from 'lucide-vue-next'
 import { FormGroup, PageStates, MonthCalendar, PaymentMethodPicker } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
@@ -99,6 +99,29 @@ const coverageAreaId = ref(null)
 const addressText = ref('')
 const locationNote = ref('')
 const homeLocation = ref(null) // { lat, lng } | null — picked on the map
+const whatsappPhone = ref('')  // for online mode — defaults from current customer's phone
+
+// Pre-fill the WhatsApp field from whichever phone we know:
+//  - admin mode: the picked customer (or the new-customer phone the admin is typing)
+//  - portal mode: the logged-in user's own phone (shared via Inertia)
+const initialPhoneFromAuth = (() => {
+  try {
+    const u = usePage().props?.auth?.user
+    return u?.phone ?? ''
+  } catch { return '' }
+})()
+if (initialPhoneFromAuth) whatsappPhone.value = initialPhoneFromAuth
+
+watch(selectedCustomer, (c) => {
+  if (deliveryMode.value === 'online' && c?.phone) {
+    whatsappPhone.value = c.phone
+  }
+})
+watch(newCustomerPhone, (p) => {
+  if (deliveryMode.value === 'online' && customerMode.value === 'new' && p) {
+    whatsappPhone.value = p
+  }
+})
 
 // Step 2: doctor + service
 const doctorId = ref(null)
@@ -110,6 +133,7 @@ const filteredServices = computed(() => {
   if (!selectedDoctor.value) return []
   return selectedDoctor.value.services.filter(s => {
     if (deliveryMode.value === 'home') return s.home_service_enabled
+    if (deliveryMode.value === 'online') return s.online_service_enabled
     return true
   })
 })
@@ -252,6 +276,9 @@ function canAdvanceStep1() {
   if (deliveryMode.value === 'home') {
     return !!coverageAreaId.value && !!addressText.value
   }
+  if (deliveryMode.value === 'online') {
+    return !!whatsappPhone.value && whatsappPhone.value.replace(/\D+/g, '').length >= 8
+  }
   return true
 }
 
@@ -312,7 +339,15 @@ const selectedCustomerLabel = computed(() => {
 const selectedCoverageArea = computed(() => props.coverageAreas.find(a => a.id === coverageAreaId.value) ?? null)
 
 function deliveryLabel(m) {
-  return m === 'home' ? 'زيارة منزلية' : 'في العيادة'
+  if (m === 'home') return 'زيارة منزلية'
+  if (m === 'online') return 'موعد أونلاين'
+  return 'في المركز'
+}
+
+function deliveryIcon(m) {
+  if (m === 'home') return Home
+  if (m === 'online') return Video
+  return MapPin
 }
 
 function formatSelectedDate(d) {
@@ -346,6 +381,10 @@ function handleSubmit() {
       payload.lat = homeLocation.value.lat
       payload.lng = homeLocation.value.lng
     }
+  }
+
+  if (deliveryMode.value === 'online') {
+    payload.whatsapp_phone = whatsappPhone.value
   }
 
   if (props.customerPicker) {
@@ -554,7 +593,7 @@ function handleSubmit() {
 
     <!-- Step 1: Delivery mode -->
     <section v-if="step === 1" class="bg-surface-card rounded-2xl border border-border-default p-5 space-y-4 shadow-sm">
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-3 gap-3">
         <label
           :class="[
             'cursor-pointer rounded-2xl border-2 p-4 text-center transition',
@@ -582,6 +621,39 @@ function handleSubmit() {
           <p class="text-sm font-bold text-text-primary">زيارة منزلية</p>
           <p class="text-xs text-text-tertiary mt-0.5">نأتي إليك</p>
         </label>
+        <label
+          data-testid="online-radio"
+          :class="[
+            'cursor-pointer rounded-2xl border-2 p-4 text-center transition',
+            deliveryMode === 'online' ? 'border-brand bg-brand/5 ring-2 ring-brand/20' : 'border-border-default hover:border-brand/40',
+          ]"
+        >
+          <input v-model="deliveryMode" type="radio" value="online" class="sr-only" />
+          <div class="mx-auto w-12 h-12 rounded-full bg-brand/10 text-brand grid place-items-center mb-2">
+            <Video class="w-6 h-6" aria-hidden="true" />
+          </div>
+          <p class="text-sm font-bold text-text-primary">أونلاين</p>
+          <p class="text-xs text-text-tertiary mt-0.5">عبر واتساب</p>
+        </label>
+      </div>
+
+      <div v-if="deliveryMode === 'online'" class="space-y-3 pt-2 border-t border-border-default" data-testid="online-fields">
+        <FormGroup label="رقم واتساب للتواصل" name="whatsapp_phone" required>
+          <template #default="{ describedby }">
+            <Input
+              id="whatsapp_phone"
+              v-model="whatsappPhone"
+              name="whatsapp_phone"
+              :aria-describedby="describedby"
+              placeholder="05xxxxxxxx"
+              dir="ltr"
+            />
+          </template>
+        </FormGroup>
+        <p class="text-xs text-text-tertiary inline-flex items-center gap-1.5">
+          <MessageCircle class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+          سيتواصل معك الطبيب على هذا الرقم عبر واتساب وقت الموعد.
+        </p>
       </div>
 
       <div v-if="deliveryMode === 'home'" class="space-y-4 pt-2 border-t border-border-default" data-testid="home-fields">
@@ -698,7 +770,10 @@ function handleSubmit() {
       </FormGroup>
 
       <div v-if="filteredServices.length === 0 && doctorId && deliveryMode === 'home'" class="rounded-md bg-warning/5 border border-warning/30 px-3 py-2 text-sm text-warning">
-        لا توجد خدمات منزلية متاحة لهذا الطبيب. اختر طبيبًا آخر أو ارجع للخطوة السابقة لاختيار "في العيادة".
+        لا توجد خدمات منزلية متاحة لهذا الطبيب. اختر طبيبًا آخر أو ارجع للخطوة السابقة لاختيار "في المركز".
+      </div>
+      <div v-if="filteredServices.length === 0 && doctorId && deliveryMode === 'online'" class="rounded-md bg-warning/5 border border-warning/30 px-3 py-2 text-sm text-warning">
+        لا توجد خدمات أونلاين متاحة لهذا الطبيب. اختر طبيبًا آخر أو ارجع للخطوة السابقة.
       </div>
     </section>
 
@@ -815,10 +890,17 @@ function handleSubmit() {
         </li>
         <li class="px-4 py-2.5 flex items-start justify-between gap-3">
           <span class="inline-flex items-center gap-1.5 text-text-secondary">
-            <component :is="deliveryMode === 'home' ? Home : MapPin" class="w-3.5 h-3.5" aria-hidden="true" />
+            <component :is="deliveryIcon(deliveryMode)" class="w-3.5 h-3.5" aria-hidden="true" />
             طريقة الخدمة
           </span>
           <span class="font-bold text-text-primary text-end">{{ deliveryLabel(deliveryMode) }}</span>
+        </li>
+        <li v-if="deliveryMode === 'online' && whatsappPhone" class="px-4 py-2.5 flex items-start justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <MessageCircle class="w-3.5 h-3.5 text-success" aria-hidden="true" />
+            رقم واتساب
+          </span>
+          <span class="font-bold text-text-primary text-end" dir="ltr">{{ whatsappPhone }}</span>
         </li>
         <li v-if="selectedCoverageArea" class="px-4 py-2.5 flex items-start justify-between gap-3">
           <span class="inline-flex items-center gap-1.5 text-text-secondary">

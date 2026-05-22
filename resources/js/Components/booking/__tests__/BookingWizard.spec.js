@@ -74,15 +74,15 @@ const sampleDoctors = [
     id: 1,
     name: 'د. سارة',
     services: [
-      { id: 10, name: 'استشارة عامة', base_price: 100, price_override: null, duration_minutes: 30, home_service_enabled: true },
-      { id: 11, name: 'فحص خاص', base_price: 200, price_override: null, duration_minutes: 60, home_service_enabled: false },
+      { id: 10, name: 'استشارة عامة', base_price: 100, price_override: null, duration_minutes: 30, home_service_enabled: true, online_service_enabled: true },
+      { id: 11, name: 'فحص خاص', base_price: 200, price_override: null, duration_minutes: 60, home_service_enabled: false, online_service_enabled: false },
     ],
   },
   {
     id: 2,
     name: 'د. أحمد',
     services: [
-      { id: 20, name: 'استشارة متخصصة', base_price: 150, price_override: null, duration_minutes: 45, home_service_enabled: true },
+      { id: 20, name: 'استشارة متخصصة', base_price: 150, price_override: null, duration_minutes: 45, home_service_enabled: true, online_service_enabled: false },
     ],
   },
 ]
@@ -114,13 +114,46 @@ describe('BookingWizard', () => {
     global.fetch = vi.fn()
   })
 
-  it('renders step 1 with two delivery-mode radio options', () => {
+  it('renders step 1 with three delivery-mode radio options', () => {
     const wrapper = mountWizard()
     const radios = wrapper.findAll('input[type="radio"]')
     const values = radios.map(r => r.element.value)
     expect(values).toContain('center')
     expect(values).toContain('home')
+    expect(values).toContain('online')
   })
+
+  it('shows WhatsApp phone field when online mode is selected', async () => {
+    const wrapper = mountWizard()
+    expect(wrapper.find('[data-testid="online-fields"]').exists()).toBe(false)
+
+    const onlineRadio = wrapper.find('input[value="online"]')
+    await onlineRadio.setValue(true)
+    await onlineRadio.trigger('change')
+
+    expect(wrapper.find('[data-testid="online-fields"]').exists()).toBe(true)
+    expect(wrapper.find('#whatsapp_phone').exists()).toBe(true)
+  })
+
+  it('filters services to online_service_enabled when delivery mode is online', async () => {
+    const wrapper = mountWizard()
+
+    const onlineRadio = wrapper.find('input[value="online"]')
+    await onlineRadio.setValue(true)
+    await onlineRadio.trigger('change')
+
+    wrapper.vm.step = 2
+    await wrapper.vm.$nextTick()
+
+    wrapper.vm.doctorId = 1
+    await wrapper.vm.$nextTick()
+
+    const serviceOptions = wrapper.findAll('#service option').filter(o => o.element.value !== '')
+    expect(serviceOptions).toHaveLength(1)
+    expect(wrapper.text()).toContain('استشارة عامة')
+    expect(wrapper.text()).not.toContain('فحص خاص')
+  })
+
 
   it('shows coverage-area and address fields when home mode is selected', async () => {
     const wrapper = mountWizard()

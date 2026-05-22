@@ -19,6 +19,9 @@ const form = useForm({
   coverage_area_id: null,
   address_text: null,
   location_note: null,
+  lat: null,
+  lng: null,
+  whatsapp_phone: null,
   payment_method: 'cash',
 })
 
@@ -30,6 +33,9 @@ function handleSubmit(payload) {
   form.coverage_area_id = payload.coverage_area_id ?? null
   form.address_text = payload.address_text ?? null
   form.location_note = payload.location_note ?? null
+  form.lat = payload.lat ?? null
+  form.lng = payload.lng ?? null
+  form.whatsapp_phone = payload.whatsapp_phone ?? null
   form.payment_method = payload.payment_method ?? 'cash'
 
   form.post(route('portal.booking.store'))
@@ -43,6 +49,9 @@ function handleSubmit(payload) {
 
       <div v-if="form.errors.booking" class="mb-4 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger" role="alert">
         {{ form.errors.booking }}
+      </div>
+      <div v-if="form.errors.whatsapp_phone" class="mb-4 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger" role="alert">
+        {{ form.errors.whatsapp_phone }}
       </div>
 
       <BookingWizard

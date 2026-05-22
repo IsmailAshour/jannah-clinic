@@ -638,7 +638,7 @@ function handleSubmit() {
       </div>
 
       <div v-if="deliveryMode === 'online'" class="space-y-3 pt-2 border-t border-border-default" data-testid="online-fields">
-        <FormGroup label="رقم واتساب للتواصل" name="whatsapp_phone" required>
+        <FormGroup label="رقم واتساب للتواصل" name="whatsapp_phone" :error="errors?.whatsapp_phone" required>
           <template #default="{ describedby }">
             <Input
               id="whatsapp_phone"

@@ -72,7 +72,17 @@ function formatDate(dt) {
   })
 }
 
-function deliveryLabel(mode) { return mode === 'home' ? 'منزلية' : 'في العيادة' }
+function deliveryLabel(mode) {
+  if (mode === 'home') return 'منزلية'
+  if (mode === 'online') return 'أونلاين'
+  return 'في العيادة'
+}
+
+function deliveryVariant(mode) {
+  if (mode === 'home') return 'warning'
+  if (mode === 'online') return 'success'
+  return 'info'
+}
 
 function isTerminal(status) {
   return ['completed', 'cancelled', 'rejected', 'no_show', 'rescheduled'].includes(status)

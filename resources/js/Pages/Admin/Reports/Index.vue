@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
-import { ArrowLeft, BarChart3, CalendarRange, Home, MapPin, Stethoscope, TrendingDown, TrendingUp, Users } from 'lucide-vue-next'
+import { ArrowLeft, BarChart3, CalendarRange, Home, MapPin, Stethoscope, TrendingDown, TrendingUp, Users, Video } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import { PageHeader, StatCard } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
@@ -18,7 +18,7 @@ const props = defineProps({
   },
   monthlyRevenue: { type: Array, default: () => [] },
   statusCounts: { type: Object, default: () => ({}) },
-  deliveryBreakdown: { type: Object, default: () => ({ home: 0, center: 0 }) },
+  deliveryBreakdown: { type: Object, default: () => ({ home: 0, center: 0, online: 0 }) },
   topServices: { type: Array, default: () => [] },
   topDoctors: { type: Array, default: () => [] },
 })
@@ -79,11 +79,15 @@ const statusRows = computed(() => Object.entries(props.statusCounts).map(([k, co
 })))
 const totalAppts = computed(() => statusRows.value.reduce((s, r) => s + r.count, 0))
 
-const homePct = computed(() => {
-  const total = props.deliveryBreakdown.home + props.deliveryBreakdown.center
-  if (total === 0) return 0
-  return Math.round((props.deliveryBreakdown.home / total) * 100)
+const deliveryTotal = computed(() => {
+  return (props.deliveryBreakdown.home ?? 0) + (props.deliveryBreakdown.center ?? 0) + (props.deliveryBreakdown.online ?? 0)
 })
+
+function pctOf(value) {
+  const total = deliveryTotal.value
+  if (total === 0) return 0
+  return Math.round(((value ?? 0) / total) * 100)
+}
 
 function formatMoney(v) {
   const n = Number(v) || 0
@@ -229,22 +233,29 @@ function formatMoney(v) {
         <div class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5 space-y-3">
           <header>
             <h2 class="text-base font-bold text-text-primary">طريقة تقديم الخدمة</h2>
-            <p class="text-xs text-text-secondary mt-0.5">في المركز مقابل المنزليّة.</p>
+            <p class="text-xs text-text-secondary mt-0.5">في المركز، المنزليّة، أونلاين.</p>
           </header>
-          <div class="flex items-center justify-around py-3">
+          <div class="grid grid-cols-3 gap-2 py-3">
             <div class="text-center">
               <div class="w-14 h-14 mx-auto rounded-full bg-brand/10 text-brand grid place-items-center mb-1">
                 <MapPin class="w-7 h-7" aria-hidden="true" />
               </div>
               <p class="text-2xl font-extrabold text-text-primary">{{ deliveryBreakdown.center }}</p>
-              <p class="text-xs text-text-secondary">في المركز</p>
+              <p class="text-xs text-text-secondary">في المركز ({{ pctOf(deliveryBreakdown.center) }}٪)</p>
             </div>
             <div class="text-center">
               <div class="w-14 h-14 mx-auto rounded-full bg-warning/10 text-warning grid place-items-center mb-1">
                 <Home class="w-7 h-7" aria-hidden="true" />
               </div>
               <p class="text-2xl font-extrabold text-text-primary">{{ deliveryBreakdown.home }}</p>
-              <p class="text-xs text-text-secondary">منزليّة ({{ homePct }}٪)</p>
+              <p class="text-xs text-text-secondary">منزليّة ({{ pctOf(deliveryBreakdown.home) }}٪)</p>
+            </div>
+            <div class="text-center">
+              <div class="w-14 h-14 mx-auto rounded-full bg-success/10 text-success grid place-items-center mb-1">
+                <Video class="w-7 h-7" aria-hidden="true" />
+              </div>
+              <p class="text-2xl font-extrabold text-text-primary">{{ deliveryBreakdown.online ?? 0 }}</p>
+              <p class="text-xs text-text-secondary">أونلاين ({{ pctOf(deliveryBreakdown.online) }}٪)</p>
             </div>
           </div>
         </div>

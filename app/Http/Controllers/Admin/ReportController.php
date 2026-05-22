@@ -72,6 +72,7 @@ class ReportController extends Controller
         // ---- Delivery breakdown ----
         $homeCount = $appointments->where('delivery_mode', DeliveryMode::Home)->count();
         $centerCount = $appointments->where('delivery_mode', DeliveryMode::Center)->count();
+        $onlineCount = $appointments->where('delivery_mode', DeliveryMode::Online)->count();
 
         // ---- Monthly revenue trend (within the selected range) ----
         $monthlyRevenue = [];
@@ -138,6 +139,7 @@ class ReportController extends Controller
             'deliveryBreakdown' => [
                 'home' => $homeCount,
                 'center' => $centerCount,
+                'online' => $onlineCount,
             ],
             'topServices' => $topServices,
             'topDoctors' => $topDoctors,

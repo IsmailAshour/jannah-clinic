@@ -88,6 +88,9 @@ class AppointmentTransitionService
                 coverageAreaId: $addr?->coverage_area_id,
                 addressText: $addr?->address_text,
                 locationNote: $addr?->location_note,
+                lat: $addr?->lat !== null ? (float) $addr->lat : null,
+                lng: $addr?->lng !== null ? (float) $addr->lng : null,
+                whatsappPhone: $old->whatsapp_phone,
                 paymentMethod: $paymentMethod,
             ));
             $new->rescheduled_from_id = $old->id;

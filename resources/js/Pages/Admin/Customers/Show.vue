@@ -95,7 +95,17 @@ function formatDate(dt) {
   })
 }
 
-function deliveryLabel(mode) { return mode === 'home' ? 'منزلية' : 'في العيادة' }
+function deliveryLabel(mode) {
+  if (mode === 'home') return 'منزلية'
+  if (mode === 'online') return 'أونلاين'
+  return 'في العيادة'
+}
+
+function deliveryVariant(mode) {
+  if (mode === 'home') return 'warning'
+  if (mode === 'online') return 'success'
+  return 'info'
+}
 
 function genderLabel(g) {
   if (!g) return '—'
@@ -186,7 +196,7 @@ const apptColumns = [
     accessorKey: 'delivery_mode',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'طريقة التقديم' }),
     cell: ({ row }) => h(StatusBadge, {
-      type: row.original.delivery_mode === 'home' ? 'warning' : 'info',
+      type: deliveryVariant(row.original.delivery_mode),
       label: deliveryLabel(row.original.delivery_mode),
     }),
     meta: { label: 'طريقة التقديم' },

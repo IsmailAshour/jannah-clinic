@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
-import { CalendarDays, Clock, Home, MapPin, RotateCw, Stethoscope, User as UserIcon } from 'lucide-vue-next'
+import { CalendarDays, Clock, Home, MapPin, RotateCw, Stethoscope, User as UserIcon, Video } from 'lucide-vue-next'
 import { PageHeader, StatCard, MonthCalendar, StatusBadge } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 import AdminShell from '@/Layouts/AdminShell.vue'
@@ -165,8 +165,12 @@ function formatSelectedDateAr() {
                   {{ a.doctor_name }}
                 </p>
                 <p class="inline-flex items-center gap-1.5">
-                  <component :is="a.delivery_mode === 'home' ? Home : MapPin" class="w-3 h-3" aria-hidden="true" />
-                  {{ a.delivery_mode === 'home' ? 'منزليّة' : 'في المركز' }}
+                  <component
+                    :is="a.delivery_mode === 'home' ? Home : (a.delivery_mode === 'online' ? Video : MapPin)"
+                    class="w-3 h-3"
+                    aria-hidden="true"
+                  />
+                  {{ a.delivery_mode === 'home' ? 'منزليّة' : (a.delivery_mode === 'online' ? 'أونلاين' : 'في المركز') }}
                 </p>
               </div>
             </li>

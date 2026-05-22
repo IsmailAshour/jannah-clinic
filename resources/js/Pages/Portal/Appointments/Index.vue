@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Link, useForm } from '@inertiajs/vue3'
-import { CalendarDays, CalendarPlus, Clock, MapPin, AlertCircle } from 'lucide-vue-next'
+import { CalendarDays, CalendarPlus, Clock, Home, MapPin, MessageCircle, Video, AlertCircle } from 'lucide-vue-next'
 import ClientShell from '@/Layouts/ClientShell.vue'
 import {
   StatusBadge,
@@ -81,7 +81,17 @@ function formatRelativeDay(dt) {
   return null
 }
 
-function deliveryLabel(mode) { return mode === 'home' ? 'منزلية' : 'في العيادة' }
+function deliveryLabel(mode) {
+  if (mode === 'home') return 'منزلية'
+  if (mode === 'online') return 'أونلاين'
+  return 'في العيادة'
+}
+
+function deliveryIcon(mode) {
+  if (mode === 'home') return Home
+  if (mode === 'online') return Video
+  return MapPin
+}
 
 // --- Tab filter (client-side) ---
 const activeTab = ref('upcoming')
@@ -282,7 +292,7 @@ function submitReschedule() {
               <p v-if="formatRelativeDay(appt.start_at)" class="mt-0.5 text-xs font-bold text-warning">{{ formatRelativeDay(appt.start_at) }}</p>
               <div class="mt-1.5 flex items-center gap-2 flex-wrap text-xs text-text-tertiary">
                 <span class="inline-flex items-center gap-1">
-                  <MapPin class="w-3 h-3" aria-hidden="true" />
+                  <component :is="deliveryIcon(appt.delivery_mode)" class="w-3 h-3" aria-hidden="true" />
                   {{ deliveryLabel(appt.delivery_mode) }}
                 </span>
                 <span aria-hidden="true">·</span>

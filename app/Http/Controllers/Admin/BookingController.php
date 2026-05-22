@@ -40,7 +40,7 @@ class BookingController extends Controller
             ->orderBy('id')
             ->get();
 
-        /** @var list<array{id:int,name:string,services:list<array{id:int,name:string,base_price:string,price_override:string|null,duration_minutes:int,home_service_enabled:bool,loyalty_enabled:bool,loyalty_redemption_points:int|null}>}> $doctors */
+        /** @var list<array{id:int,name:string,services:list<array{id:int,name:string,base_price:string,price_override:string|null,duration_minutes:int,home_service_enabled:bool,online_service_enabled:bool,loyalty_enabled:bool,loyalty_redemption_points:int|null}>}> $doctors */
         $doctors = [];
         foreach ($doctorRows as $d) {
             /** @var DoctorProfile $d */
@@ -56,6 +56,7 @@ class BookingController extends Controller
                     'price_override' => $pivot->price_override,
                     'duration_minutes' => $s->duration_minutes,
                     'home_service_enabled' => $s->home_service_enabled,
+                    'online_service_enabled' => $s->online_service_enabled,
                     'loyalty_enabled' => (bool) $s->loyalty_enabled,
                     'loyalty_redemption_points' => $s->loyalty_redemption_points,
                 ];

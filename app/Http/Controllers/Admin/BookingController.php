@@ -95,7 +95,7 @@ class BookingController extends Controller
             'doctor' => ['required', 'exists:doctor_profiles,id'],
             'service' => ['required', 'exists:services,id'],
             'start' => ['required', 'date'],
-            'delivery_mode' => ['required', 'in:center,home'],
+            'delivery_mode' => ['required', 'in:center,home,online'],
             'payment_method' => ['sometimes', 'string', 'in:cash,loyalty_points'],
             'customer_id' => ['nullable', 'integer'],
             'new_customer' => ['nullable', 'array'],

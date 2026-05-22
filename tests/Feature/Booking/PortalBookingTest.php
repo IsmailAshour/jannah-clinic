@@ -119,3 +119,87 @@ it('customer can book a valid home appointment via portal', function () {
 
     expect(session('success'))->not->toBeNull();
 });
+
+it('customer can book a valid online appointment via portal', function () {
+    $cat = ServiceCategory::create(['name' => 'استشارة أونلاين', 'slug' => uniqid(), 'color_variant' => 'brand']);
+    $svc = Service::create(['category_id' => $cat->id, 'name' => 'متابعة أونلاين', 'base_price' => 80, 'duration_minutes' => 30, 'home_service_enabled' => false, 'online_service_enabled' => true]);
+    $doc = DoctorProfile::factory()->create(['is_bookable' => true]);
+    $doc->services()->attach($svc->id);
+    $date = CarbonImmutable::parse('next monday');
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    $start = $slots[0]['start']->toIso8601String();
+
+    $this->actingAs($customer)
+        ->post('/portal/booking', [
+            'doctor' => $doc->id,
+            'service' => $svc->id,
+            'start' => $start,
+            'delivery_mode' => 'online',
+            'whatsapp_phone' => '0599123456',
+        ])
+        ->assertRedirect(route('portal.appointments.index'));
+
+    $this->assertDatabaseHas('appointments', [
+        'customer_id' => $customer->id,
+        'doctor_profile_id' => $doc->id,
+        'service_id' => $svc->id,
+        'delivery_mode' => 'online',
+        'whatsapp_phone' => '+970599123456',
+        'status' => AppointmentStatus::Requested->value,
+    ]);
+
+    $appt = Appointment::where('customer_id', $customer->id)->first();
+    $this->assertDatabaseMissing('service_addresses', ['appointment_id' => $appt->id]);
+});
+
+it('online booking without whatsapp_phone fails validation', function () {
+    $cat = ServiceCategory::create(['name' => 'أونلاين', 'slug' => uniqid(), 'color_variant' => 'brand']);
+    $svc = Service::create(['category_id' => $cat->id, 'name' => 'استشارة', 'base_price' => 80, 'duration_minutes' => 30, 'online_service_enabled' => true]);
+    $doc = DoctorProfile::factory()->create(['is_bookable' => true]);
+    $doc->services()->attach($svc->id);
+    $date = CarbonImmutable::parse('next monday');
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    $start = $slots[0]['start']->toIso8601String();
+
+    $this->actingAs($customer)
+        ->post('/portal/booking', [
+            'doctor' => $doc->id,
+            'service' => $svc->id,
+            'start' => $start,
+            'delivery_mode' => 'online',
+        ])
+        ->assertSessionHasErrors('whatsapp_phone');
+
+    $this->assertDatabaseCount('appointments', 0);
+});
+
+it('online booking against a non-online service is rejected', function () {
+    $cat = ServiceCategory::create(['name' => 'مركز', 'slug' => uniqid(), 'color_variant' => 'brand']);
+    $svc = Service::create(['category_id' => $cat->id, 'name' => 'فحص', 'base_price' => 100, 'duration_minutes' => 30, 'home_service_enabled' => false, 'online_service_enabled' => false]);
+    $doc = DoctorProfile::factory()->create(['is_bookable' => true]);
+    $doc->services()->attach($svc->id);
+    $date = CarbonImmutable::parse('next monday');
+    enableDoctorSlots($doc, (int) $date->dayOfWeek, slotRange('09:00', 6));
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    $start = $slots[0]['start']->toIso8601String();
+
+    $this->actingAs($customer)
+        ->post('/portal/booking', [
+            'doctor' => $doc->id,
+            'service' => $svc->id,
+            'start' => $start,
+            'delivery_mode' => 'online',
+            'whatsapp_phone' => '0599123456',
+        ])
+        ->assertSessionHasErrors('booking');
+
+    $this->assertDatabaseCount('appointments', 0);
+});

@@ -103,6 +103,8 @@ class BookingController extends Controller
             $rules['coverage_area_id'] = ['required', 'exists:home_service_coverage_areas,id'];
             $rules['address_text'] = ['required', 'string', 'max:1000'];
             $rules['location_note'] = ['nullable', 'string', 'max:500'];
+            $rules['lat'] = ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'];
+            $rules['lng'] = ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'];
         }
 
         $v = $request->validate($rules);
@@ -126,6 +128,8 @@ class BookingController extends Controller
             coverageAreaId: isset($v['coverage_area_id']) ? (int) $v['coverage_area_id'] : null,
             addressText: $v['address_text'] ?? null,
             locationNote: $v['location_note'] ?? null,
+            lat: isset($v['lat']) ? (float) $v['lat'] : null,
+            lng: isset($v['lng']) ? (float) $v['lng'] : null,
             paymentMethod: PaymentMethod::from($v['payment_method'] ?? 'cash'),
         );
 

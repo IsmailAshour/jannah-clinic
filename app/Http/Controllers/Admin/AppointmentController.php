@@ -193,7 +193,7 @@ class AppointmentController extends Controller
     }
 
     /**
-     * @return array{address_text: string, location_note: string|null}|null
+     * @return array{address_text: string, location_note: string|null, lat: float|null, lng: float|null}|null
      */
     private function serializeAddress(Appointment $appointment): ?array
     {
@@ -206,6 +206,8 @@ class AppointmentController extends Controller
         return [
             'address_text' => $addr->address_text,
             'location_note' => $addr->location_note,
+            'lat' => $addr->lat !== null ? (float) $addr->lat : null,
+            'lng' => $addr->lng !== null ? (float) $addr->lng : null,
         ];
     }
 

@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Home, MapPin, Search
 import { FormGroup, PageStates, MonthCalendar, PaymentMethodPicker } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
+import LocationPickerMap from '@/Components/booking/LocationPickerMap.vue'
 
 const props = defineProps({
   doctors: { type: Array, default: () => [] },
@@ -97,6 +98,7 @@ const deliveryMode = ref('center')
 const coverageAreaId = ref(null)
 const addressText = ref('')
 const locationNote = ref('')
+const homeLocation = ref(null) // { lat, lng } | null — picked on the map
 
 // Step 2: doctor + service
 const doctorId = ref(null)
@@ -340,6 +342,10 @@ function handleSubmit() {
     payload.coverage_area_id = coverageAreaId.value
     payload.address_text = addressText.value
     payload.location_note = locationNote.value || null
+    if (homeLocation.value) {
+      payload.lat = homeLocation.value.lat
+      payload.lng = homeLocation.value.lng
+    }
   }
 
   if (props.customerPicker) {
@@ -619,6 +625,12 @@ function handleSubmit() {
             />
           </template>
         </FormGroup>
+
+        <FormGroup label="موقع الزيارة على الخريطة" name="home_location">
+          <template #default>
+            <LocationPickerMap v-model="homeLocation" />
+          </template>
+        </FormGroup>
       </div>
     </section>
 
@@ -814,6 +826,15 @@ function handleSubmit() {
             المنطقة
           </span>
           <span class="font-bold text-text-primary text-end">{{ selectedCoverageArea.name }}</span>
+        </li>
+        <li v-if="deliveryMode === 'home' && homeLocation" class="px-4 py-2.5 flex items-start justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <MapPin class="w-3.5 h-3.5" aria-hidden="true" />
+            الإحداثيات
+          </span>
+          <span class="font-bold text-text-primary text-end" dir="ltr">
+            {{ homeLocation.lat.toFixed(5) }}, {{ homeLocation.lng.toFixed(5) }}
+          </span>
         </li>
         <li v-if="selectedDoctor" class="px-4 py-2.5 flex items-center justify-between gap-3">
           <span class="inline-flex items-center gap-1.5 text-text-secondary">

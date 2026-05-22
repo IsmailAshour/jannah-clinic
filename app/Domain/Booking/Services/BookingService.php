@@ -89,6 +89,8 @@ class BookingService
                     'coverage_area_id' => $d->coverageAreaId,
                     'address_text' => $d->addressText,
                     'location_note' => $d->locationNote,
+                    'lat' => $d->lat,
+                    'lng' => $d->lng,
                 ]);
             }
 

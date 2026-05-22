@@ -19,6 +19,8 @@ final class BookingData
         public ?int $coverageAreaId = null,
         public ?string $addressText = null,
         public ?string $locationNote = null,
+        public ?float $lat = null,
+        public ?float $lng = null,
         public PaymentMethod $paymentMethod = PaymentMethod::Cash,
     ) {}
 }

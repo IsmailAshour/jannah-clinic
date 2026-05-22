@@ -460,6 +460,16 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
             <p class="text-sm">السعر: <span class="font-bold text-brand">{{ appointment.price_at_booking }} ₪</span></p>
             <p v-if="appointment.service_address" class="text-xs text-text-secondary leading-relaxed">{{ appointment.service_address.address_text }}</p>
             <p v-if="appointment.service_address?.location_note" class="text-xs text-text-tertiary leading-relaxed">{{ appointment.service_address.location_note }}</p>
+            <a
+              v-if="appointment.service_address?.lat != null && appointment.service_address?.lng != null"
+              :href="`https://www.openstreetmap.org/?mlat=${appointment.service_address.lat}&mlon=${appointment.service_address.lng}#map=17/${appointment.service_address.lat}/${appointment.service_address.lng}`"
+              target="_blank"
+              rel="noopener"
+              class="inline-flex items-center gap-1 text-xs font-bold text-brand hover:underline"
+            >
+              <MapPin class="w-3.5 h-3.5" aria-hidden="true" />
+              فتح الموقع في الخريطة
+            </a>
           </section>
         </aside>
       </div>

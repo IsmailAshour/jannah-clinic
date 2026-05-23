@@ -49,8 +49,8 @@ Route::middleware(['auth', 'role:customer'])
         // P3 — Medical Record (customer view of own record)
         Route::get('medical-record', [MedicalRecordController::class, 'index'])->name('medical-record.index');
         Route::get('medical-record/entries/{entry}', [MedicalRecordController::class, 'show'])->name('medical-record.show');
-        Route::get('medical-record/entries/{entry}/attachments/{attachment}/file', [MedicalAttachmentController::class, 'file'])
-            ->name('medical-record.attachments.file');
+        Route::get('appointments/{appointment}/medical-attachments/{attachment}/file', [MedicalAttachmentController::class, 'file'])
+            ->name('appointments.medical-attachments.file');
 
         // P5a — Notifications (customer feed)
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');

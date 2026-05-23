@@ -84,9 +84,11 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::get('medical-entries/{entry}/edit', [MedicalEntryController::class, 'edit'])
             ->name('medical-entries.edit');
 
-        // Medical attachment file stream — gated at controller via view policy
-        Route::get('medical-entries/{entry}/attachments/{attachment}/file', [MedicalAttachmentController::class, 'file'])
-            ->name('medical-entries.attachments.file');
+        // Medical attachment file stream — file is owned by an appointment so
+        // the path nests under appointments (allows attaching even before a
+        // structured medical entry is written).
+        Route::get('appointments/{appointment}/medical-attachments/{attachment}/file', [MedicalAttachmentController::class, 'file'])
+            ->name('appointments.medical-attachments.file');
 
         // P5a — Notifications (any staff role can read their own feed)
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
@@ -171,11 +173,13 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             Route::put('medical-entries/{entry}', [MedicalEntryController::class, 'update'])
                 ->name('medical-entries.update');
 
-            // Medical attachments (PDF/image) — upload + delete; gated further in policy.
-            Route::post('medical-entries/{entry}/attachments', [MedicalAttachmentController::class, 'store'])
-                ->name('medical-entries.attachments.store');
-            Route::delete('medical-entries/{entry}/attachments/{attachment}', [MedicalAttachmentController::class, 'destroy'])
-                ->name('medical-entries.attachments.destroy');
+            // Medical attachments (PDF/image) — upload + delete; attached to
+            // the appointment so they're available regardless of MedicalEntry
+            // existence. Gated by MedicalAttachmentPolicy (manager + doctor).
+            Route::post('appointments/{appointment}/medical-attachments', [MedicalAttachmentController::class, 'store'])
+                ->name('appointments.medical-attachments.store');
+            Route::delete('appointments/{appointment}/medical-attachments/{attachment}', [MedicalAttachmentController::class, 'destroy'])
+                ->name('appointments.medical-attachments.destroy');
         });
 
         // P3 — Customer medical profile (manager + doctor)

@@ -3,23 +3,22 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\Appointment;
 use App\Models\MedicalAttachment;
-use App\Models\MedicalEntry;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Read-only attachment stream for customers. The Gate `view` call enforces
- * that only the appointment owner (or staff) gets the file — receptionists
- * are explicitly excluded by the same policy used for the medical record.
+ * Read-only attachment stream for the appointment's customer. The Gate
+ * `view` enforces ownership — staff routes use the admin controller.
  */
 class MedicalAttachmentController extends Controller
 {
-    public function file(MedicalEntry $entry, MedicalAttachment $attachment): StreamedResponse
+    public function file(Appointment $appointment, MedicalAttachment $attachment): StreamedResponse
     {
-        Gate::authorize('view', $entry);
-        abort_unless($attachment->medical_entry_id === $entry->id, 404);
+        Gate::authorize('view', [MedicalAttachment::class, $appointment]);
+        abort_unless($attachment->appointment_id === $appointment->id, 404);
 
         return Storage::disk('local')->response($attachment->file_path, $attachment->original_filename);
     }

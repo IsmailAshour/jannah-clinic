@@ -51,11 +51,11 @@ class MedicalRecordController extends Controller
         if ($entry->appointment->customer_id !== $request->user()->id) {
             abort(404);
         }
-        $entry->load(['appointment', 'prescriptions', 'attachments']);
+        $entry->load(['appointment.medicalAttachments', 'prescriptions']);
         $audit->record(MedicalAuditAction::EntryViewed, $entry, $request->user());
 
         $attachments = [];
-        foreach ($entry->attachments as $a) {
+        foreach ($entry->appointment->medicalAttachments as $a) {
             /** @var \App\Models\MedicalAttachment $a */
             $attachments[] = [
                 'id' => $a->id,
@@ -63,8 +63,8 @@ class MedicalRecordController extends Controller
                 'original_filename' => $a->original_filename,
                 'mime_type' => $a->mime_type,
                 'file_size' => $a->file_size,
-                'file_url' => route('portal.medical-record.attachments.file', [
-                    'entry' => $entry->id,
+                'file_url' => route('portal.appointments.medical-attachments.file', [
+                    'appointment' => $entry->appointment->id,
                     'attachment' => $a->id,
                 ]),
                 'created_at' => $a->created_at?->toIso8601String(),

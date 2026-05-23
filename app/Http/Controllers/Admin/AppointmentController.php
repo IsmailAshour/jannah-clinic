@@ -79,6 +79,7 @@ class AppointmentController extends Controller
             'serviceAddress',
             'payment.receipts' => fn ($q) => $q->orderByDesc('id'),
             'photos.uploader:id,name',
+            'medicalAttachments.uploader:id,name',
             'medicalEntry.prescriptions',
             'medicalEntry.author:id,name',
             'reminders' => fn ($q) => $q->orderBy('sent_at'),
@@ -188,6 +189,7 @@ class AppointmentController extends Controller
                 'receipts' => $receipts,
             ] : null,
             'photos' => $photos,
+            'medicalAttachments' => $this->serializeMedicalAttachments($appointment),
             'medicalEntry' => $medicalEntryData,
             'reminders' => $this->serializeReminders($appointment),
             'customerHasEmail' => $appointment->customer->email !== null && $appointment->customer->email !== '',
@@ -213,6 +215,34 @@ class AppointmentController extends Controller
             'lat' => $addr->lat !== null ? (float) $addr->lat : null,
             'lng' => $addr->lng !== null ? (float) $addr->lng : null,
         ];
+    }
+
+    /**
+     * @return list<array{id:int,title:string|null,original_filename:string,mime_type:string,file_size:int,file_url:string,uploaded_by_name:string|null,created_at:string|null}>
+     */
+    private function serializeMedicalAttachments(Appointment $appointment): array
+    {
+        $out = [];
+        foreach ($appointment->medicalAttachments as $a) {
+            /** @var \App\Models\MedicalAttachment $a */
+            /** @var \App\Models\User|null $uploader */
+            $uploader = $a->uploader;
+            $out[] = [
+                'id' => $a->id,
+                'title' => $a->title,
+                'original_filename' => $a->original_filename,
+                'mime_type' => $a->mime_type,
+                'file_size' => $a->file_size,
+                'file_url' => route('admin.appointments.medical-attachments.file', [
+                    'appointment' => $appointment->id,
+                    'attachment' => $a->id,
+                ]),
+                'uploaded_by_name' => $uploader?->name,
+                'created_at' => $a->created_at?->toIso8601String(),
+            ];
+        }
+
+        return $out;
     }
 
     /**

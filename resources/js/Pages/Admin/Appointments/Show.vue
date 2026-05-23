@@ -3,8 +3,9 @@ import { computed, ref } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import {
   AlertCircle, ArrowLeft, BadgeCheck, BadgeX, Bell, Calendar, Check, Clock,
-  CreditCard, FileText, Home, ImagePlus, Mail, MapPin, MessageCircle, NotebookPen, Pencil,
-  Phone, Pill, Plus, Receipt, RotateCcw, Stethoscope, Trash2, User as UserIcon, Video, X,
+  CreditCard, Download, FileText, Home, ImagePlus, Mail, MapPin, MessageCircle, NotebookPen,
+  Paperclip, Pencil, Phone, Pill, Plus, Receipt, RotateCcw, Stethoscope, Trash2, Upload,
+  User as UserIcon, Video, X,
 } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import { StatusBadge, Modal, FormGroup, ConfirmModal } from '@/Components/foundation'
@@ -15,12 +16,46 @@ const props = defineProps({
   appointment: { type: Object, required: true },
   payment: { type: Object, default: null },
   photos: { type: Array, default: () => [] },
+  medicalAttachments: { type: Array, default: () => [] },
   medicalEntry: { type: Object, default: null },
   reminders: { type: Array, default: () => [] },
   customerHasEmail: { type: Boolean, default: false },
   canWriteMedical: { type: Boolean, default: false },
   canViewMedical: { type: Boolean, default: false },
 })
+
+// ---- Medical attachments upload (decoupled from the structured entry) ----
+const attForm = useForm({ file: null, title: '' })
+const attInputEl = ref(null)
+function onPickAttFile(e) { attForm.file = e.target.files?.[0] ?? null }
+function clearAttFilePick() {
+  attForm.file = null
+  if (attInputEl.value) attInputEl.value.value = ''
+}
+function uploadMedicalAttachment() {
+  if (!attForm.file) return
+  attForm.post(`/admin/appointments/${props.appointment.id}/medical-attachments`, {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => { attForm.reset(); clearAttFilePick() },
+  })
+}
+const attConfirmDelete = ref(false)
+const attDeleteTarget = ref(null)
+function askDeleteAtt(att) { attDeleteTarget.value = att; attConfirmDelete.value = true }
+function doDeleteAtt() {
+  if (!attDeleteTarget.value) return
+  router.delete(`/admin/appointments/${props.appointment.id}/medical-attachments/${attDeleteTarget.value.id}`, {
+    preserveScroll: true,
+    onFinish: () => { attConfirmDelete.value = false; attDeleteTarget.value = null },
+  })
+}
+function humanFileSize(bytes) {
+  if (!bytes) return '—'
+  const kb = bytes / 1024
+  if (kb < 1024) return `${kb.toFixed(1)} KB`
+  return `${(kb / 1024).toFixed(1)} MB`
+}
 
 const reminderKindsAll = [
   { kind: 'before_24h', label: 'قبل 24 ساعة' },
@@ -289,6 +324,80 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
                   </ul>
                 </div>
               </template>
+            </div>
+          </section>
+
+          <!-- Medical attachments — labs, imaging, scanned prescriptions.
+               Tied to the appointment, NOT the medical entry, so uploads work
+               regardless of whether a structured entry has been written yet. -->
+          <section v-if="canWriteMedical || medicalAttachments.length" class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5 space-y-3">
+            <header class="flex items-center justify-between gap-2">
+              <h2 class="text-base font-bold text-text-primary inline-flex items-center gap-1.5">
+                <Paperclip class="w-4 h-4 text-brand" aria-hidden="true" />
+                الملفّات الطبيّة
+              </h2>
+            </header>
+
+            <ul v-if="medicalAttachments.length" class="space-y-2">
+              <li
+                v-for="att in medicalAttachments"
+                :key="att.id"
+                class="flex items-center gap-3 p-3 rounded-md border border-border-default bg-surface-card"
+              >
+                <FileText class="w-5 h-5 text-brand shrink-0" aria-hidden="true" />
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-text-primary truncate">{{ att.title || att.original_filename }}</p>
+                  <p class="text-xs text-text-tertiary">
+                    {{ humanFileSize(att.file_size) }} · رفع: {{ att.uploaded_by_name || '—' }}
+                  </p>
+                </div>
+                <a
+                  :href="att.file_url"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center gap-1 text-xs font-bold text-brand hover:underline"
+                >
+                  <Download class="w-3.5 h-3.5" aria-hidden="true" />
+                  تنزيل
+                </a>
+                <button
+                  v-if="canWriteMedical"
+                  type="button"
+                  class="inline-flex items-center justify-center w-7 h-7 rounded-md text-danger hover:bg-danger/5"
+                  :aria-label="`حذف ${att.original_filename}`"
+                  @click="askDeleteAtt(att)"
+                >
+                  <Trash2 class="w-4 h-4" aria-hidden="true" />
+                </button>
+              </li>
+            </ul>
+            <p v-else class="text-xs text-text-tertiary">لا ملفّات مرفقة بعد.</p>
+
+            <div v-if="canWriteMedical" class="rounded-md border border-dashed border-border-default p-3 space-y-2">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                <div class="sm:col-span-2">
+                  <label class="block text-xs text-text-secondary mb-1">عنوان الملف (اختياري)</label>
+                  <Input v-model="attForm.title" placeholder="مثلًا: تحليل دم" />
+                </div>
+                <input
+                  ref="attInputEl"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  class="block w-full text-xs text-text-secondary file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-brand/10 file:text-brand file:font-medium hover:file:bg-brand/15"
+                  @change="onPickAttFile"
+                />
+              </div>
+              <p v-if="attForm.errors.file" class="text-xs text-danger">{{ attForm.errors.file }}</p>
+              <div class="flex justify-end">
+                <Button
+                  type="button"
+                  :disabled="!attForm.file || attForm.processing"
+                  @click="uploadMedicalAttachment"
+                >
+                  <Upload class="w-4 h-4 me-1" aria-hidden="true" />
+                  رفع الملف
+                </Button>
+              </div>
             </div>
           </section>
 
@@ -629,6 +738,16 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
       cancel-text="إلغاء"
       @update:open="confirmDelete = $event"
       @confirm="doDeletePhoto"
+    />
+
+    <ConfirmModal
+      :open="attConfirmDelete"
+      title="حذف الملف"
+      :message="`هل أنت متأكّد من حذف الملف «${attDeleteTarget?.title || attDeleteTarget?.original_filename}»؟ لا يمكن التراجع.`"
+      confirm-text="حذف"
+      cancel-text="إلغاء"
+      @update:open="attConfirmDelete = $event"
+      @confirm="doDeleteAtt"
     />
   </AdminShell>
 </template>

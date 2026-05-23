@@ -6,7 +6,6 @@ use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
 use App\Models\MedicalAttachment;
-use App\Models\MedicalEntry;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\User;
@@ -34,60 +33,56 @@ function mkAttachmentFixtures(): array
     ]);
     $doctor->services()->attach($svc->id);
 
+    // Appointment is Requested — no medical entry yet, intentionally —
+    // so the tests prove attachments work BEFORE a structured record exists.
     $appt = Appointment::create([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doctor->id,
         'service_id' => $svc->id,
-        'start_at' => now()->subDay(),
-        'end_at' => now()->subDay()->addMinutes(30),
-        'status' => AppointmentStatus::Completed,
+        'start_at' => now()->addDay(),
+        'end_at' => now()->addDay()->addMinutes(30),
+        'status' => AppointmentStatus::Requested,
         'price_at_booking' => '100.00',
         'delivery_mode' => DeliveryMode::Center,
         'home_surcharge_amount' => '0.00',
         'created_by_role' => UserRole::Customer,
     ]);
 
-    $entry = MedicalEntry::create([
-        'appointment_id' => $appt->id,
-        'author_id' => $doctorUser->id,
-        'visible_summary' => 'صحّة جيّدة.',
-    ]);
-
-    return compact('manager', 'doctorUser', 'customer', 'entry');
+    return compact('manager', 'doctorUser', 'customer', 'appt');
 }
 
 beforeEach(function () {
     Storage::fake('local');
 });
 
-it('manager can upload a PDF attachment', function () {
-    ['manager' => $mgr, 'entry' => $entry] = mkAttachmentFixtures();
+it('manager can upload a PDF attachment (no medical entry required)', function () {
+    ['manager' => $mgr, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('lab-results.pdf', 200, 'application/pdf');
 
     $this->actingAs($mgr)
-        ->post("/admin/medical-entries/{$entry->id}/attachments", [
+        ->post("/admin/appointments/{$appt->id}/medical-attachments", [
             'file' => $file,
             'title' => 'تحليل دم',
         ])
         ->assertRedirect();
 
     $this->assertDatabaseHas('medical_attachments', [
-        'medical_entry_id' => $entry->id,
+        'appointment_id' => $appt->id,
         'title' => 'تحليل دم',
         'original_filename' => 'lab-results.pdf',
         'uploaded_by' => $mgr->id,
     ]);
     /** @var \App\Models\MedicalAttachment $att */
-    $att = MedicalAttachment::where('medical_entry_id', $entry->id)->first();
+    $att = MedicalAttachment::where('appointment_id', $appt->id)->first();
     Storage::disk('local')->assertExists($att->file_path);
 });
 
 it('doctor can upload an image attachment', function () {
-    ['doctorUser' => $doc, 'entry' => $entry] = mkAttachmentFixtures();
+    ['doctorUser' => $doc, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->image('scan.jpg', 800, 600);
 
     $this->actingAs($doc)
-        ->post("/admin/medical-entries/{$entry->id}/attachments", [
+        ->post("/admin/appointments/{$appt->id}/medical-attachments", [
             'file' => $file,
         ])
         ->assertRedirect();
@@ -96,113 +91,110 @@ it('doctor can upload an image attachment', function () {
 });
 
 it('receptionist cannot upload', function () {
-    $fix = mkAttachmentFixtures();
+    ['appt' => $appt] = mkAttachmentFixtures();
     $rec = User::factory()->create(['role' => UserRole::Receptionist]);
     $file = UploadedFile::fake()->create('x.pdf', 100, 'application/pdf');
 
     $this->actingAs($rec)
-        ->post("/admin/medical-entries/{$fix['entry']->id}/attachments", [
-            'file' => $file,
-        ])
+        ->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file])
         ->assertForbidden();
 
     $this->assertDatabaseCount('medical_attachments', 0);
 });
 
 it('customer cannot upload', function () {
-    ['customer' => $customer, 'entry' => $entry] = mkAttachmentFixtures();
+    ['customer' => $customer, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('x.pdf', 100, 'application/pdf');
 
     $this->actingAs($customer)
-        ->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file])
+        ->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file])
         ->assertForbidden();
 });
 
 it('rejects executable file uploads', function () {
-    ['manager' => $mgr, 'entry' => $entry] = mkAttachmentFixtures();
+    ['manager' => $mgr, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('malware.exe', 100, 'application/x-msdownload');
 
     $this->actingAs($mgr)
-        ->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file])
+        ->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file])
         ->assertSessionHasErrors('file');
 });
 
 it('manager can stream a file from the admin route', function () {
-    ['manager' => $mgr, 'entry' => $entry] = mkAttachmentFixtures();
+    ['manager' => $mgr, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('lab.pdf', 100, 'application/pdf');
-    $this->actingAs($mgr)->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file]);
+    $this->actingAs($mgr)->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file]);
     /** @var \App\Models\MedicalAttachment $att */
-    $att = MedicalAttachment::where('medical_entry_id', $entry->id)->first();
+    $att = MedicalAttachment::where('appointment_id', $appt->id)->first();
 
     $this->actingAs($mgr)
-        ->get("/admin/medical-entries/{$entry->id}/attachments/{$att->id}/file")
+        ->get("/admin/appointments/{$appt->id}/medical-attachments/{$att->id}/file")
         ->assertOk();
 });
 
 it('receptionist cannot stream a file from admin', function () {
-    ['manager' => $mgr, 'entry' => $entry] = mkAttachmentFixtures();
+    ['manager' => $mgr, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('lab.pdf', 100, 'application/pdf');
-    $this->actingAs($mgr)->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file]);
+    $this->actingAs($mgr)->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file]);
     /** @var \App\Models\MedicalAttachment $att */
-    $att = MedicalAttachment::where('medical_entry_id', $entry->id)->first();
+    $att = MedicalAttachment::where('appointment_id', $appt->id)->first();
 
     $rec = User::factory()->create(['role' => UserRole::Receptionist]);
     $this->actingAs($rec)
-        ->get("/admin/medical-entries/{$entry->id}/attachments/{$att->id}/file")
+        ->get("/admin/appointments/{$appt->id}/medical-attachments/{$att->id}/file")
         ->assertForbidden();
 });
 
 it('owning customer can stream their attachment from portal', function () {
-    ['manager' => $mgr, 'customer' => $customer, 'entry' => $entry] = mkAttachmentFixtures();
+    ['manager' => $mgr, 'customer' => $customer, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('lab.pdf', 100, 'application/pdf');
-    $this->actingAs($mgr)->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file]);
+    $this->actingAs($mgr)->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file]);
     /** @var \App\Models\MedicalAttachment $att */
-    $att = MedicalAttachment::where('medical_entry_id', $entry->id)->first();
+    $att = MedicalAttachment::where('appointment_id', $appt->id)->first();
 
     $this->actingAs($customer)
-        ->get("/portal/medical-record/entries/{$entry->id}/attachments/{$att->id}/file")
+        ->get("/portal/appointments/{$appt->id}/medical-attachments/{$att->id}/file")
         ->assertOk();
 });
 
 it('non-owning customer cannot stream another customers attachment', function () {
-    ['manager' => $mgr, 'entry' => $entry] = mkAttachmentFixtures();
+    ['manager' => $mgr, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('lab.pdf', 100, 'application/pdf');
-    $this->actingAs($mgr)->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file]);
+    $this->actingAs($mgr)->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file]);
     /** @var \App\Models\MedicalAttachment $att */
-    $att = MedicalAttachment::where('medical_entry_id', $entry->id)->first();
+    $att = MedicalAttachment::where('appointment_id', $appt->id)->first();
 
     $intruder = User::factory()->create(['role' => UserRole::Customer]);
     $this->actingAs($intruder)
-        ->get("/portal/medical-record/entries/{$entry->id}/attachments/{$att->id}/file")
+        ->get("/portal/appointments/{$appt->id}/medical-attachments/{$att->id}/file")
         ->assertForbidden();
 });
 
-it('cross-entry attachment ID returns 404', function () {
-    ['manager' => $mgr, 'entry' => $entry] = mkAttachmentFixtures();
+it('cross-appointment attachment ID returns 404', function () {
+    ['manager' => $mgr, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('lab.pdf', 100, 'application/pdf');
-    $this->actingAs($mgr)->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file]);
+    $this->actingAs($mgr)->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file]);
     /** @var \App\Models\MedicalAttachment $att */
-    $att = MedicalAttachment::where('medical_entry_id', $entry->id)->first();
+    $att = MedicalAttachment::where('appointment_id', $appt->id)->first();
 
-    // Create a second entry — accessing $att via that entry's URL is wrong.
     $otherFix = mkAttachmentFixtures();
-    $otherEntry = $otherFix['entry'];
+    $otherAppt = $otherFix['appt'];
 
     $this->actingAs($mgr)
-        ->get("/admin/medical-entries/{$otherEntry->id}/attachments/{$att->id}/file")
+        ->get("/admin/appointments/{$otherAppt->id}/medical-attachments/{$att->id}/file")
         ->assertNotFound();
 });
 
 it('manager can delete an attachment and the file is removed from disk', function () {
-    ['manager' => $mgr, 'entry' => $entry] = mkAttachmentFixtures();
+    ['manager' => $mgr, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('lab.pdf', 100, 'application/pdf');
-    $this->actingAs($mgr)->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file]);
+    $this->actingAs($mgr)->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file]);
     /** @var \App\Models\MedicalAttachment $att */
-    $att = MedicalAttachment::where('medical_entry_id', $entry->id)->first();
+    $att = MedicalAttachment::where('appointment_id', $appt->id)->first();
     $path = $att->file_path;
 
     $this->actingAs($mgr)
-        ->delete("/admin/medical-entries/{$entry->id}/attachments/{$att->id}")
+        ->delete("/admin/appointments/{$appt->id}/medical-attachments/{$att->id}")
         ->assertRedirect();
 
     $this->assertDatabaseMissing('medical_attachments', ['id' => $att->id]);
@@ -210,15 +202,15 @@ it('manager can delete an attachment and the file is removed from disk', functio
 });
 
 it('receptionist cannot delete an attachment', function () {
-    ['manager' => $mgr, 'entry' => $entry] = mkAttachmentFixtures();
+    ['manager' => $mgr, 'appt' => $appt] = mkAttachmentFixtures();
     $file = UploadedFile::fake()->create('lab.pdf', 100, 'application/pdf');
-    $this->actingAs($mgr)->post("/admin/medical-entries/{$entry->id}/attachments", ['file' => $file]);
+    $this->actingAs($mgr)->post("/admin/appointments/{$appt->id}/medical-attachments", ['file' => $file]);
     /** @var \App\Models\MedicalAttachment $att */
-    $att = MedicalAttachment::where('medical_entry_id', $entry->id)->first();
+    $att = MedicalAttachment::where('appointment_id', $appt->id)->first();
 
     $rec = User::factory()->create(['role' => UserRole::Receptionist]);
     $this->actingAs($rec)
-        ->delete("/admin/medical-entries/{$entry->id}/attachments/{$att->id}")
+        ->delete("/admin/appointments/{$appt->id}/medical-attachments/{$att->id}")
         ->assertForbidden();
 
     $this->assertDatabaseHas('medical_attachments', ['id' => $att->id]);

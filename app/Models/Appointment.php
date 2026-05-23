@@ -86,4 +86,9 @@ class Appointment extends Model
     {
         return $this->hasMany(AppointmentReminder::class);
     }
+
+    public function medicalAttachments(): HasMany
+    {
+        return $this->hasMany(MedicalAttachment::class)->orderByDesc('created_at');
+    }
 }

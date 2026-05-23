@@ -73,12 +73,12 @@ class MedicalEntryController extends Controller
     public function edit(MedicalEntry $entry, AuditLogger $audit): Response
     {
         Gate::authorize('view', $entry);
-        $entry->load(['appointment.customer', 'prescriptions', 'attachments.uploader:id,name']);
+        $entry->load(['appointment.customer', 'appointment.medicalAttachments.uploader:id,name', 'prescriptions']);
 
         $audit->record(MedicalAuditAction::EntryViewed, $entry, $entry->appointment->customer);
 
         $attachments = [];
-        foreach ($entry->attachments as $a) {
+        foreach ($entry->appointment->medicalAttachments as $a) {
             /** @var \App\Models\MedicalAttachment $a */
             /** @var \App\Models\User|null $uploader */
             $uploader = $a->uploader;
@@ -88,8 +88,8 @@ class MedicalEntryController extends Controller
                 'original_filename' => $a->original_filename,
                 'mime_type' => $a->mime_type,
                 'file_size' => $a->file_size,
-                'file_url' => route('admin.medical-entries.attachments.file', [
-                    'entry' => $entry->id,
+                'file_url' => route('admin.appointments.medical-attachments.file', [
+                    'appointment' => $entry->appointment->id,
                     'attachment' => $a->id,
                 ]),
                 'uploaded_by_name' => $uploader?->name,

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
- * @property int $medical_entry_id
+ * @property int $appointment_id
  * @property string $file_path
  * @property string $original_filename
  * @property string $mime_type
@@ -16,12 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $title
  * @property int $uploaded_by
  */
-#[Fillable(['medical_entry_id', 'file_path', 'original_filename', 'mime_type', 'file_size', 'title', 'uploaded_by'])]
+#[Fillable(['appointment_id', 'file_path', 'original_filename', 'mime_type', 'file_size', 'title', 'uploaded_by'])]
 class MedicalAttachment extends Model
 {
-    public function entry(): BelongsTo
+    public function appointment(): BelongsTo
     {
-        return $this->belongsTo(MedicalEntry::class, 'medical_entry_id');
+        return $this->belongsTo(Appointment::class);
     }
 
     public function uploader(): BelongsTo

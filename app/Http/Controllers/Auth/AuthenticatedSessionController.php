@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Auth\Services\IntentResolver;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
@@ -32,7 +33,15 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
         $request->session()->forget('url.intended');
 
-        if ($request->user()->isStaff()) {
+        $user = $request->user();
+
+        if ($user->role === UserRole::Doctor && $user->doctorProfile !== null) {
+            // Doctors land on their own day-view — the surface they use most.
+            // Falls through to dashboard if no DoctorProfile is linked yet.
+            return redirect()->route('admin.doctors.day', ['doctor' => $user->doctorProfile->id]);
+        }
+
+        if ($user->isStaff()) {
             return redirect()->route('admin.dashboard');
         }
 

@@ -321,144 +321,195 @@ const columns = [
     </div>
 
     <Modal :open="showModal" :title="editingId ? 'تعديل الخدمة' : 'إضافة خدمة'" @update:open="showModal = $event">
-      <form class="space-y-4" @submit.prevent="submitForm">
-        <FormGroup label="الفئة" name="category_id" :error="form.errors.category_id" required>
-          <template #default="{ describedby }">
-            <select
-              id="category_id"
-              v-model="form.category_id"
-              name="category_id"
-              :aria-describedby="describedby"
-              class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
-            >
-              <option value="" disabled>اختر الفئة</option>
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-            </select>
-          </template>
-        </FormGroup>
-
-        <FormGroup label="اسم الخدمة" name="name" :error="form.errors.name" required>
-          <template #default="{ describedby }">
-            <Input id="name" v-model="form.name" name="name" :aria-describedby="describedby" />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="وصف قصير" name="description" :error="form.errors.description" hint="جملة أو جملتان تظهر في بطاقة الخدمة.">
-          <template #default="{ describedby }">
-            <textarea
-              id="description"
-              v-model="form.description"
-              name="description"
-              rows="2"
-              maxlength="500"
-              :aria-describedby="describedby"
-              class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
-            />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="المحتوى التفصيلي" name="content" :error="form.errors.content" hint="يظهر في صفحة الخدمة العامة — اكتب فقرات تشرح الخدمة، خطواتها، النتائج المتوقّعة، والتحضير اللازم.">
-          <template #default="{ describedby }">
-            <textarea
-              id="content"
-              v-model="form.content"
-              name="content"
-              rows="8"
-              maxlength="10000"
-              :aria-describedby="describedby"
-              class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm leading-relaxed"
-            />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="صورة الخدمة" name="image" :error="form.errors.image" hint="JPG / PNG / WEBP — حتى 4MB. تظهر في صفحة الخدمة وبطاقاتها.">
-          <template #default="{ describedby }">
-            <div class="space-y-2">
-              <!-- Previews: new file > current saved > placeholder -->
-              <div v-if="imagePreview" class="relative inline-block">
-                <img :src="imagePreview" alt="معاينة الصورة الجديدة" class="h-32 w-full sm:w-64 object-cover rounded-md border border-border-default" />
-                <button type="button" class="absolute top-1 end-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-danger text-white shadow" aria-label="إلغاء الصورة الجديدة" @click="clearImageSelection">×</button>
-              </div>
-              <div v-else-if="currentImagePath" class="relative inline-block">
-                <img :src="`/storage/${currentImagePath}`" alt="الصورة الحالية" class="h-32 w-full sm:w-64 object-cover rounded-md border border-border-default" />
-                <button type="button" class="absolute top-1 end-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-danger text-white shadow" aria-label="إزالة الصورة الحالية" @click="markRemoveCurrentImage">×</button>
-              </div>
-
-              <input
-                id="image"
-                ref="imageInputEl"
-                type="file"
-                name="image"
-                accept="image/jpeg,image/png,image/webp"
+      <form class="space-y-6" @submit.prevent="submitForm">
+        <!-- Section 1: Basic info -->
+        <section class="space-y-4">
+          <h3 class="text-sm font-bold text-text-primary border-b border-border-default pb-2">المعلومات الأساسية</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup label="الفئة" name="category_id" :error="form.errors.category_id" required>
+              <template #default="{ describedby }">
+                <select
+                  id="category_id"
+                  v-model="form.category_id"
+                  name="category_id"
+                  :aria-describedby="describedby"
+                  class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
+                >
+                  <option value="" disabled>اختر الفئة</option>
+                  <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                </select>
+              </template>
+            </FormGroup>
+            <FormGroup label="اسم الخدمة" name="name" :error="form.errors.name" required>
+              <template #default="{ describedby }">
+                <Input id="name" v-model="form.name" name="name" :aria-describedby="describedby" />
+              </template>
+            </FormGroup>
+          </div>
+          <FormGroup label="وصف قصير" name="description" :error="form.errors.description" hint="جملة أو جملتان تظهر في بطاقة الخدمة.">
+            <template #default="{ describedby }">
+              <textarea
+                id="description"
+                v-model="form.description"
+                name="description"
+                rows="2"
+                maxlength="500"
                 :aria-describedby="describedby"
-                class="block w-full text-sm text-text-secondary file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-brand/10 file:text-brand file:font-medium hover:file:bg-brand/15"
-                @change="onImageChange"
-              />
-            </div>
-          </template>
-        </FormGroup>
-
-        <FormGroup label="السعر الأساسي (₪)" name="base_price" :error="form.errors.base_price" required>
-          <template #default="{ describedby }">
-            <Input id="base_price" v-model.number="form.base_price" type="number" name="base_price" min="0" step="0.01" :aria-describedby="describedby" />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="المدة (دقيقة)" name="duration_minutes" :error="form.errors.duration_minutes" required>
-          <template #default="{ describedby }">
-            <Input id="duration_minutes" v-model.number="form.duration_minutes" type="number" name="duration_minutes" min="1" :aria-describedby="describedby" />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="خدمة منزلية" name="home_service_enabled" :error="form.errors.home_service_enabled">
-          <template #default>
-            <input id="home_service_enabled" v-model="form.home_service_enabled" type="checkbox" name="home_service_enabled" class="h-4 w-4" />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="خدمة أونلاين (واتساب)" name="online_service_enabled" :error="form.errors.online_service_enabled">
-          <template #default>
-            <input id="online_service_enabled" v-model="form.online_service_enabled" type="checkbox" name="online_service_enabled" class="h-4 w-4" />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="مميّزة في الصفحة الرئيسية" name="is_featured" :error="form.errors.is_featured" hint="حتى 4 خدمات تظهر في قسم 'خدماتنا المميّزة' بالأعلى.">
-          <template #default>
-            <input id="is_featured" v-model="form.is_featured" type="checkbox" name="is_featured" class="h-4 w-4" />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="مفتاح الأيقونة" name="icon_key" :error="form.errors.icon_key">
-          <template #default="{ describedby }">
-            <Input id="icon_key" v-model="form.icon_key" name="icon_key" dir="ltr" :aria-describedby="describedby" />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="نشطة" name="is_active" :error="form.errors.is_active">
-          <template #default>
-            <input id="is_active" v-model="form.is_active" type="checkbox" name="is_active" class="h-4 w-4" />
-          </template>
-        </FormGroup>
-
-        <FormGroup label="الترتيب" name="display_order" :error="form.errors.display_order">
-          <template #default="{ describedby }">
-            <Input id="display_order" v-model.number="form.display_order" type="number" name="display_order" min="0" :aria-describedby="describedby" />
-          </template>
-        </FormGroup>
-
-        <fieldset class="space-y-3 border-t border-border-default pt-4">
-          <legend class="text-sm font-semibold text-text-primary">الولاء</legend>
-          <FormGroup label="تفعيل الولاء" name="loyalty_enabled" :error="form.errors.loyalty_enabled">
-            <template #default>
-              <input
-                id="loyalty_enabled"
-                v-model="form.loyalty_enabled"
-                type="checkbox"
-                name="loyalty_enabled"
-                class="h-4 w-4"
+                class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
               />
             </template>
           </FormGroup>
+          <FormGroup label="المحتوى التفصيلي" name="content" :error="form.errors.content" hint="يظهر في صفحة الخدمة العامة — اكتب فقرات تشرح الخدمة، خطواتها، النتائج المتوقّعة، والتحضير اللازم.">
+            <template #default="{ describedby }">
+              <textarea
+                id="content"
+                v-model="form.content"
+                name="content"
+                rows="6"
+                maxlength="10000"
+                :aria-describedby="describedby"
+                class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm leading-relaxed"
+              />
+            </template>
+          </FormGroup>
+        </section>
+
+        <!-- Section 2: Image -->
+        <section class="space-y-4">
+          <h3 class="text-sm font-bold text-text-primary border-b border-border-default pb-2">صورة الخدمة</h3>
+          <FormGroup label="رفع صورة" name="image" :error="form.errors.image" hint="JPG / PNG / WEBP — حتى 4MB. تظهر في صفحة الخدمة وبطاقاتها.">
+            <template #default="{ describedby }">
+              <div class="space-y-2">
+                <div v-if="imagePreview" class="relative inline-block">
+                  <img :src="imagePreview" alt="معاينة الصورة الجديدة" class="h-32 w-full sm:w-64 object-cover rounded-md border border-border-default" />
+                  <button type="button" class="absolute top-1 end-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-danger text-white shadow" aria-label="إلغاء الصورة الجديدة" @click="clearImageSelection">×</button>
+                </div>
+                <div v-else-if="currentImagePath" class="relative inline-block">
+                  <img :src="`/storage/${currentImagePath}`" alt="الصورة الحالية" class="h-32 w-full sm:w-64 object-cover rounded-md border border-border-default" />
+                  <button type="button" class="absolute top-1 end-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-danger text-white shadow" aria-label="إزالة الصورة الحالية" @click="markRemoveCurrentImage">×</button>
+                </div>
+                <input
+                  id="image"
+                  ref="imageInputEl"
+                  type="file"
+                  name="image"
+                  accept="image/jpeg,image/png,image/webp"
+                  :aria-describedby="describedby"
+                  class="block w-full text-sm text-text-secondary file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-brand/10 file:text-brand file:font-medium hover:file:bg-brand/15"
+                  @change="onImageChange"
+                />
+              </div>
+            </template>
+          </FormGroup>
+        </section>
+
+        <!-- Section 3: Pricing + duration -->
+        <section class="space-y-4">
+          <h3 class="text-sm font-bold text-text-primary border-b border-border-default pb-2">التسعير والمدّة</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup label="السعر الأساسي (₪)" name="base_price" :error="form.errors.base_price" required>
+              <template #default="{ describedby }">
+                <Input id="base_price" v-model.number="form.base_price" type="number" name="base_price" min="0" step="0.01" :aria-describedby="describedby" />
+              </template>
+            </FormGroup>
+            <FormGroup label="المدة (دقيقة)" name="duration_minutes" :error="form.errors.duration_minutes" required>
+              <template #default="{ describedby }">
+                <Input id="duration_minutes" v-model.number="form.duration_minutes" type="number" name="duration_minutes" min="1" :aria-describedby="describedby" />
+              </template>
+            </FormGroup>
+          </div>
+        </section>
+
+        <!-- Section 4: Delivery modes (toggle cards) -->
+        <section class="space-y-3">
+          <h3 class="text-sm font-bold text-text-primary border-b border-border-default pb-2">طُرُق التقديم المتاحة</h3>
+          <p class="text-xs text-text-secondary">اختر الطُرُق التي يمكن للمريض حجزها لهذه الخدمة (في المركز متاحة دائمًا).</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label
+              :class="[
+                'cursor-pointer rounded-xl border-2 p-3 flex items-start gap-3 transition',
+                form.home_service_enabled ? 'border-brand bg-brand/5 ring-2 ring-brand/15' : 'border-border-default hover:border-brand/40',
+              ]"
+            >
+              <input id="home_service_enabled" v-model="form.home_service_enabled" type="checkbox" name="home_service_enabled" class="h-4 w-4 mt-0.5" />
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-text-primary">زيارة منزلية</p>
+                <p class="text-xs text-text-tertiary mt-0.5">يمكن طلب الخدمة في منزل المريض</p>
+              </div>
+            </label>
+            <label
+              :class="[
+                'cursor-pointer rounded-xl border-2 p-3 flex items-start gap-3 transition',
+                form.online_service_enabled ? 'border-brand bg-brand/5 ring-2 ring-brand/15' : 'border-border-default hover:border-brand/40',
+              ]"
+            >
+              <input id="online_service_enabled" v-model="form.online_service_enabled" type="checkbox" name="online_service_enabled" class="h-4 w-4 mt-0.5" />
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-text-primary">أونلاين (واتساب)</p>
+                <p class="text-xs text-text-tertiary mt-0.5">يتواصل الطبيب عبر واتساب وقت الموعد</p>
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <!-- Section 5: Display + visibility -->
+        <section class="space-y-4">
+          <h3 class="text-sm font-bold text-text-primary border-b border-border-default pb-2">العَرض والتنظيم</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormGroup label="مفتاح الأيقونة" name="icon_key" :error="form.errors.icon_key">
+              <template #default="{ describedby }">
+                <Input id="icon_key" v-model="form.icon_key" name="icon_key" dir="ltr" :aria-describedby="describedby" />
+              </template>
+            </FormGroup>
+            <FormGroup label="الترتيب" name="display_order" :error="form.errors.display_order">
+              <template #default="{ describedby }">
+                <Input id="display_order" v-model.number="form.display_order" type="number" name="display_order" min="0" :aria-describedby="describedby" />
+              </template>
+            </FormGroup>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label
+              :class="[
+                'cursor-pointer rounded-xl border-2 p-3 flex items-start gap-3 transition',
+                form.is_featured ? 'border-brand bg-brand/5 ring-2 ring-brand/15' : 'border-border-default hover:border-brand/40',
+              ]"
+            >
+              <input id="is_featured" v-model="form.is_featured" type="checkbox" name="is_featured" class="h-4 w-4 mt-0.5" />
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-text-primary">مميّزة في الصفحة الرئيسية</p>
+                <p class="text-xs text-text-tertiary mt-0.5">حتى 4 خدمات تظهر في قسم "خدماتنا المميّزة"</p>
+              </div>
+            </label>
+            <label
+              :class="[
+                'cursor-pointer rounded-xl border-2 p-3 flex items-start gap-3 transition',
+                form.is_active ? 'border-success bg-success/5 ring-2 ring-success/15' : 'border-border-default hover:border-success/40',
+              ]"
+            >
+              <input id="is_active" v-model="form.is_active" type="checkbox" name="is_active" class="h-4 w-4 mt-0.5" />
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-text-primary">نشطة</p>
+                <p class="text-xs text-text-tertiary mt-0.5">عند الإيقاف، تختفي الخدمة من جميع الواجهات</p>
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <!-- Section 6: Loyalty -->
+        <section class="space-y-3">
+          <h3 class="text-sm font-bold text-text-primary border-b border-border-default pb-2">برنامج الولاء</h3>
+          <label
+            :class="[
+              'cursor-pointer rounded-xl border-2 p-3 flex items-start gap-3 transition',
+              form.loyalty_enabled ? 'border-warning bg-warning/5 ring-2 ring-warning/15' : 'border-border-default hover:border-warning/40',
+            ]"
+          >
+            <input id="loyalty_enabled" v-model="form.loyalty_enabled" type="checkbox" name="loyalty_enabled" class="h-4 w-4 mt-0.5" />
+            <div class="min-w-0">
+              <p class="text-sm font-bold text-text-primary">تفعيل الولاء على هذه الخدمة</p>
+              <p class="text-xs text-text-tertiary mt-0.5">يكسب المريض نقاط عند حجز هذه الخدمة</p>
+            </div>
+          </label>
           <FormGroup
             label="نقاط الاستبدال"
             name="loyalty_redemption_points"
@@ -478,7 +529,7 @@ const columns = [
               />
             </template>
           </FormGroup>
-        </fieldset>
+        </section>
       </form>
       <template #footer>
         <Button variant="outline" @click="showModal = false">إلغاء</Button>

@@ -32,6 +32,7 @@ class HomeController extends Controller
 
         $featuredServices = Service::query()
             ->where('is_active', true)
+            ->where('is_featured', true)
             ->with('category:id,name,color_variant,icon_key')
             ->orderByRaw('image_path IS NULL')
             ->orderBy('display_order')

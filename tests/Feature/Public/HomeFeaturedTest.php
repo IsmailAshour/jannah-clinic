@@ -10,21 +10,28 @@ use App\Models\ServiceCategory;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 
-it('home features up to 4 active services, prioritising those with an image', function () {
+it('home features only services flagged is_featured, image-first ordering', function () {
     $cat = ServiceCategory::create(['name' => 'cat', 'slug' => 'c'.uniqid(), 'color_variant' => 'brand', 'is_active' => true]);
     $withImage = Service::create([
         'category_id' => $cat->id, 'name' => 'with-img', 'base_price' => '100',
-        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true,
+        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true, 'is_featured' => true,
         'image_path' => 'services/foo.jpg', 'display_order' => 9,
     ]);
     $noImage = Service::create([
         'category_id' => $cat->id, 'name' => 'no-img', 'base_price' => '50',
-        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true,
+        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true, 'is_featured' => true,
         'display_order' => 1,
     ]);
+    // Active but NOT featured — must be excluded.
     Service::create([
-        'category_id' => $cat->id, 'name' => 'inactive', 'base_price' => '10',
-        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => false,
+        'category_id' => $cat->id, 'name' => 'not-featured', 'base_price' => '20',
+        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true, 'is_featured' => false,
+        'image_path' => 'services/baz.jpg', 'display_order' => 0,
+    ]);
+    // Featured but inactive — must be excluded.
+    Service::create([
+        'category_id' => $cat->id, 'name' => 'inactive-featured', 'base_price' => '10',
+        'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => false, 'is_featured' => true,
         'image_path' => 'services/bar.jpg', 'display_order' => 0,
     ]);
 
@@ -33,6 +40,23 @@ it('home features up to 4 active services, prioritising those with an image', fu
     expect(count($featured))->toBe(2)
         ->and($featured[0]['id'])->toBe($withImage->id)
         ->and($featured[1]['id'])->toBe($noImage->id);
+});
+
+it('home excludes services where is_featured=false even when they are active and have an image', function () {
+    $cat = ServiceCategory::create(['name' => 'cat', 'slug' => 'c'.uniqid(), 'color_variant' => 'brand', 'is_active' => true]);
+    Service::create([
+        'category_id' => $cat->id, 'name' => 'not-featured-1', 'base_price' => '100',
+        'duration_minutes' => 30, 'is_active' => true, 'is_featured' => false,
+        'image_path' => 'services/x.jpg',
+    ]);
+    Service::create([
+        'category_id' => $cat->id, 'name' => 'not-featured-2', 'base_price' => '100',
+        'duration_minutes' => 30, 'is_active' => true, 'is_featured' => false,
+    ]);
+
+    $resp = $this->get('/');
+    $featured = $resp->viewData('page')['props']['featuredServices'];
+    expect($featured)->toBe([]);
 });
 
 it('home includes up to 6 categories ordered by display_order', function () {

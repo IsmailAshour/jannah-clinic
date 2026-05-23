@@ -81,6 +81,7 @@ const form = useForm({
   duration_minutes: 30,
   home_service_enabled: false,
   online_service_enabled: false,
+  is_featured: false,
   icon_key: '',
   is_active: true,
   display_order: 0,
@@ -149,6 +150,7 @@ function openEdit(row) {
   form.duration_minutes = row.duration_minutes
   form.home_service_enabled = row.home_service_enabled
   form.online_service_enabled = row.online_service_enabled ?? false
+  form.is_featured = row.is_featured ?? false
   form.icon_key = row.icon_key ?? ''
   form.is_active = row.is_active
   form.display_order = row.display_order
@@ -168,6 +170,7 @@ function submitForm() {
     loyalty_redemption_points: data.loyalty_enabled ? (data.loyalty_redemption_points || null) : null,
     home_service_enabled: !!data.home_service_enabled,
     online_service_enabled: !!data.online_service_enabled,
+    is_featured: !!data.is_featured,
     is_active: !!data.is_active,
     remove_image: !!data.remove_image,
   }))
@@ -237,6 +240,18 @@ const columns = [
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'خدمة منزلية' }),
     cell: ({ row }) => row.original.home_service_enabled ? 'نعم' : 'لا',
     meta: { label: 'خدمة منزلية' },
+  },
+  {
+    accessorKey: 'online_service_enabled',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'أونلاين' }),
+    cell: ({ row }) => row.original.online_service_enabled ? 'نعم' : 'لا',
+    meta: { label: 'أونلاين' },
+  },
+  {
+    accessorKey: 'is_featured',
+    header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'مميّزة' }),
+    cell: ({ row }) => row.original.is_featured ? 'نعم' : 'لا',
+    meta: { label: 'مميّزة' },
   },
   {
     accessorKey: 'is_active',
@@ -404,6 +419,12 @@ const columns = [
         <FormGroup label="خدمة أونلاين (واتساب)" name="online_service_enabled" :error="form.errors.online_service_enabled">
           <template #default>
             <input id="online_service_enabled" v-model="form.online_service_enabled" type="checkbox" name="online_service_enabled" class="h-4 w-4" />
+          </template>
+        </FormGroup>
+
+        <FormGroup label="مميّزة في الصفحة الرئيسية" name="is_featured" :error="form.errors.is_featured" hint="حتى 4 خدمات تظهر في قسم 'خدماتنا المميّزة' بالأعلى.">
+          <template #default>
+            <input id="is_featured" v-model="form.is_featured" type="checkbox" name="is_featured" class="h-4 w-4" />
           </template>
         </FormGroup>
 

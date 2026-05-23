@@ -86,6 +86,7 @@ class ServiceController extends Controller
             'duration_minutes' => 'required|integer|in:30,60',
             'home_service_enabled' => 'boolean',
             'online_service_enabled' => 'boolean',
+            'is_featured' => 'boolean',
             'icon_key' => 'nullable|string|max:64',
             'is_active' => 'boolean',
             'display_order' => 'nullable|integer|min:0',

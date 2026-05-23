@@ -31,7 +31,20 @@ class LoyaltyService
         if ($exists) {
             return;
         }
-        $points = (int) bcadd($payment->amount, '0', 0);
+        // Award points only on the loyalty-eligible portion of the visit.
+        // A 200₪ payment for [Service A loyalty_enabled=true 100₪, Service B
+        // loyalty_enabled=false 100₪] earns 100 points, not 200 — eligibility
+        // is per-line, not per-payment.
+        $eligibleSubtotal = '0.00';
+        foreach ($payment->appointment->appointmentServices()->with('service:id,loyalty_enabled')->get() as $row) {
+            /** @var \App\Models\AppointmentService $row */
+            /** @var \App\Models\Service|null $svc */
+            $svc = $row->service;
+            if ($svc?->loyalty_enabled) {
+                $eligibleSubtotal = bcadd($eligibleSubtotal, (string) $row->price_at_booking, 2);
+            }
+        }
+        $points = (int) bcadd($eligibleSubtotal, '0', 0);
         if ($points <= 0) {
             return;
         }

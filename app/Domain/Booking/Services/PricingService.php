@@ -45,12 +45,30 @@ class PricingService
         $lines = [];
         $subtotal = '0.00';
 
+        // Materialise the iterable + collect IDs once so we can fetch every
+        // doctor_service pivot in one query (avoids N+1 when 2+ services are
+        // priced).
+        $svcList = [];
+        $ids = [];
         foreach ($services as $service) {
             /** @var Service $service */
-            $linked = $doctor->services()->where('services.id', $service->id)->first();
+            $svcList[] = $service;
+            $ids[] = $service->id;
+        }
+        if ($svcList === []) {
+            return ['lines' => [], 'subtotal' => '0.00', 'surcharge' => '0.00', 'total' => '0.00'];
+        }
+        /** @var array<int,string|null> $overrides */
+        $overrides = [];
+        foreach ($doctor->services()->whereIn('services.id', $ids)->get(['services.id']) as $s) {
+            /** @var Service $s */
             /** @var DoctorServicePivot|null $pivot */
-            $pivot = $linked?->pivot;
-            $override = $pivot?->price_override;
+            $pivot = $s->pivot; // @phpstan-ignore-line  Larastan loses pivot type through collection iteration
+            $overrides[(int) $s->id] = $pivot?->price_override;
+        }
+
+        foreach ($svcList as $service) {
+            $override = $overrides[$service->id] ?? null;
             // bcmath-pure — decimal:2 cast values are numeric strings.
             $line = bcadd((string) ($override ?? $service->base_price), '0', 2);
             $lines[] = [

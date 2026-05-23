@@ -82,14 +82,10 @@ class PaymentService
             return $payment;
         });
         $this->notifications->paymentApproved($payment);
-        // Award loyalty if ANY service in the visit is loyalty-eligible.
-        // Multi-service appointments may mix loyalty-enabled with non-eligible
-        // services; awardForPayment computes points off the payment amount
-        // (not per-service), so we just need any eligible service to trigger.
-        $anyEligible = $payment->appointment->services()->where('loyalty_enabled', true)->exists();
-        if ($anyEligible) {
-            $this->loyalty->awardForPayment($payment);
-        }
+        // awardForPayment is self-gating now — it sums only the
+        // loyalty-eligible services' line prices and writes a ledger entry
+        // when the eligible subtotal > 0. Safe to call unconditionally.
+        $this->loyalty->awardForPayment($payment);
 
         return $payment;
     }

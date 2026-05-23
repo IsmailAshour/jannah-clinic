@@ -5,6 +5,7 @@ namespace App\Domain\Payment\Services;
 use App\Domain\Loyalty\Services\LoyaltyService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Domain\Payment\Exceptions\InvalidPaymentTransitionException;
+use App\Enums\AppointmentStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Payment;
 use App\Models\PaymentReceipt;
@@ -121,6 +122,13 @@ class PaymentService
     {
         if ($payment->status !== PaymentStatus::Paid) {
             throw new InvalidPaymentTransitionException("لا يمكن طلب استرداد إلا لدفعة مُسدَّدة (الحالة الحالية: {$payment->status->value}).");
+        }
+        // Once the visit happened and was paid for, the service has been
+        // rendered — there's nothing to refund. Refunds are reserved for
+        // cancelled / rejected / no-show / rescheduled appointments where
+        // the patient paid but never received the service.
+        if ($payment->appointment->status === AppointmentStatus::Completed) {
+            throw new InvalidPaymentTransitionException('لا يمكن استرداد المبلغ — الموعد اكتمل وتمّ تقديم الخدمة.');
         }
         $payment->update(['status' => PaymentStatus::RefundPending]);
 

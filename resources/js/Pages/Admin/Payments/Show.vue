@@ -79,7 +79,7 @@ function formatDateTime(dt) {
               <X class="h-4 w-4" />
               <span>رفض</span>
             </Button>
-            <Button v-if="payment.status === 'paid'" variant="outline" @click="markRefundPending">
+            <Button v-if="payment.status === 'paid' && payment.appointment?.status !== 'completed'" variant="outline" @click="markRefundPending">
               <RotateCcw class="h-4 w-4" />
               <span>وَسِم للاسترداد</span>
             </Button>

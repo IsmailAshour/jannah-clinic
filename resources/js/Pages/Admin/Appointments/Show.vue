@@ -523,7 +523,7 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
                     <span>رفض الإيصال</span>
                   </Button>
                 </template>
-                <template v-else-if="payment.status === 'paid' && isManager">
+                <template v-else-if="payment.status === 'paid' && isManager && appointment.status !== 'completed'">
                   <Button variant="outline" class="w-full gap-1.5" size="sm" @click="markRefundPending">
                     <RotateCcw class="w-4 h-4" aria-hidden="true" />
                     <span>بدء الاسترداد</span>

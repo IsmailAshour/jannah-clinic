@@ -91,6 +91,20 @@ it('manager marks refund pending on a paid payment', function () {
     expect($p->fresh()->status)->toBe(PaymentStatus::RefundPending);
 });
 
+it('refund is blocked when the appointment is Completed (service was rendered)', function () {
+    $m = User::factory()->create(['role' => UserRole::Manager]);
+    [$p, $appt] = aSubmittedPaymentForAdmin();
+    $p->update(['status' => PaymentStatus::Paid, 'verified_at' => now(), 'verified_by' => $m->id]);
+    $appt->update(['status' => AppointmentStatus::Completed]);
+
+    $this->actingAs($m)
+        ->post("/admin/payments/{$p->id}/mark-refund-pending")
+        ->assertSessionHasErrors('payment');
+
+    expect($p->fresh()->status)->toBe(PaymentStatus::Paid); // unchanged
+});
+
+
 it('manager marks refunded with reference', function () {
     $m = User::factory()->create(['role' => UserRole::Manager]);
     [$p] = aSubmittedPaymentForAdmin();

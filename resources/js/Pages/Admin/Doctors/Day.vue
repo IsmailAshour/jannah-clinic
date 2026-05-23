@@ -171,8 +171,13 @@ function partitionPhotos(photos) {
           :key="a.id"
           class="bg-surface-card rounded-2xl ring-1 ring-border-default overflow-hidden"
         >
-          <!-- Header strip -->
-          <div class="flex items-start gap-3 p-4 border-b border-border-default">
+          <!-- Header strip: the whole upper card is a Link to the appointment.
+               Phone tel: + WhatsApp + add-photo buttons are deliberately
+               OUTSIDE the Link to keep HTML valid (no nested interactives). -->
+          <Link
+            :href="`/admin/appointments/${a.id}`"
+            class="flex items-start gap-3 p-4 border-b border-border-default hover:bg-brand/5 transition"
+          >
             <!-- Time block -->
             <div class="shrink-0 w-16 rounded-xl bg-brand/10 ring-1 ring-brand/15 text-center py-2">
               <div class="text-lg font-extrabold text-brand leading-none" dir="ltr">{{ a.time }}</div>
@@ -191,7 +196,7 @@ function partitionPhotos(photos) {
                 </p>
                 <p v-if="a.customer.phone" class="inline-flex items-center gap-1.5">
                   <Phone class="w-3 h-3" aria-hidden="true" />
-                  <a :href="`tel:${a.customer.phone}`" dir="ltr" class="text-brand">{{ a.customer.phone }}</a>
+                  <span dir="ltr">{{ a.customer.phone }}</span>
                 </p>
                 <p class="inline-flex items-center gap-1.5">
                   <component
@@ -205,19 +210,32 @@ function partitionPhotos(photos) {
                   <span class="font-bold">{{ a.price_at_booking }} ₪</span>
                 </p>
               </div>
-
-              <div v-if="a.delivery_mode === 'online' && a.whatsapp_phone" class="mt-2">
-                <a
-                  :href="whatsappLink(a)"
-                  target="_blank"
-                  rel="noopener"
-                  class="inline-flex items-center gap-1.5 rounded-md bg-[#25D366] text-white px-2.5 py-1 text-xs font-bold hover:bg-[#1ebe5d] transition"
-                >
-                  <MessageCircle class="w-3.5 h-3.5" aria-hidden="true" />
-                  تواصل واتساب
-                </a>
-              </div>
             </div>
+          </Link>
+
+          <!-- Action buttons (outside the Link): WhatsApp deep-link + tel: -->
+          <div
+            v-if="(a.delivery_mode === 'online' && a.whatsapp_phone) || a.customer.phone"
+            class="flex items-center gap-2 px-4 py-2 border-b border-border-default bg-surface-page/50"
+          >
+            <a
+              v-if="a.delivery_mode === 'online' && a.whatsapp_phone"
+              :href="whatsappLink(a)"
+              target="_blank"
+              rel="noopener"
+              class="inline-flex items-center gap-1.5 rounded-md bg-[#25D366] text-white px-2.5 py-1 text-xs font-bold hover:bg-[#1ebe5d] transition"
+            >
+              <MessageCircle class="w-3.5 h-3.5" aria-hidden="true" />
+              تواصل واتساب
+            </a>
+            <a
+              v-if="a.customer.phone"
+              :href="`tel:${a.customer.phone}`"
+              class="inline-flex items-center gap-1.5 rounded-md border border-border-default text-text-secondary px-2.5 py-1 text-xs font-bold hover:bg-surface-muted transition"
+            >
+              <Phone class="w-3.5 h-3.5" aria-hidden="true" />
+              اتّصال
+            </a>
           </div>
 
           <!-- Photos section -->

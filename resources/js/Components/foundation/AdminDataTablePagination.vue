@@ -45,18 +45,24 @@ function pageInfo() {
         </select>
       </div>
       <div class="text-sm font-medium">صفحة {{ pageInfo().current }} من {{ pageInfo().last }}</div>
+      <!--
+        Pagination arrows follow reading-direction motion:
+        LTR (Western)  → First=<< Prev=< Next=> Last=>>
+        RTL (Arabic)   → First=>> Prev=> Next=< Last=<<
+        Each button paints both glyphs and toggles visibility on the html[dir] root.
+      -->
       <div class="flex items-center gap-1">
         <Button variant="outline" size="icon" :disabled="pageInfo().current === 1" @click="go(1)">
-          <ChevronsRight class="size-4 rtl:hidden" /><ChevronsLeft class="size-4 hidden rtl:block" />
+          <ChevronsLeft class="size-4 rtl:hidden" /><ChevronsRight class="size-4 hidden rtl:block" />
         </Button>
         <Button variant="outline" size="icon" :disabled="pageInfo().current === 1" @click="go(pageInfo().current - 1)">
-          <ChevronRight class="size-4 rtl:hidden" /><ChevronLeft class="size-4 hidden rtl:block" />
-        </Button>
-        <Button variant="outline" size="icon" :disabled="pageInfo().current === pageInfo().last" @click="go(pageInfo().current + 1)">
           <ChevronLeft class="size-4 rtl:hidden" /><ChevronRight class="size-4 hidden rtl:block" />
         </Button>
+        <Button variant="outline" size="icon" :disabled="pageInfo().current === pageInfo().last" @click="go(pageInfo().current + 1)">
+          <ChevronRight class="size-4 rtl:hidden" /><ChevronLeft class="size-4 hidden rtl:block" />
+        </Button>
         <Button variant="outline" size="icon" :disabled="pageInfo().current === pageInfo().last" @click="go(pageInfo().last)">
-          <ChevronsLeft class="size-4 rtl:hidden" /><ChevronsRight class="size-4 hidden rtl:block" />
+          <ChevronsRight class="size-4 rtl:hidden" /><ChevronsLeft class="size-4 hidden rtl:block" />
         </Button>
       </div>
     </div>

@@ -124,20 +124,20 @@ defineExpose({ table })
               />
             </div>
           </div>
-          <!-- Label/value pairs cluster together at the inline-start (right
-               in RTL): label first, then the value next to it with a small
-               gap. No justify-between — both sit on the same edge. -->
-          <dl v-if="secondaryCells(row).length" class="space-y-1 text-xs border-t border-border-default pt-2">
-            <div
-              v-for="cell in secondaryCells(row)"
-              :key="cell.id"
-              class="flex items-baseline gap-1.5"
-            >
-              <dt class="text-text-tertiary shrink-0">{{ cell.column.columnDef.meta?.label ?? '' }}:</dt>
-              <dd class="text-text-primary min-w-0 truncate font-medium">
+          <!-- Borderless table: 2-column grid keeps labels vertically aligned
+               in one column and values in the next. max-content sizes the
+               label column to the widest label; minmax(0, 1fr) lets values
+               truncate cleanly without overflowing the card. -->
+          <dl
+            v-if="secondaryCells(row).length"
+            class="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs border-t border-border-default pt-2"
+          >
+            <template v-for="cell in secondaryCells(row)" :key="cell.id">
+              <dt class="text-text-tertiary">{{ cell.column.columnDef.meta?.label ?? '' }}</dt>
+              <dd class="text-text-primary font-medium min-w-0 truncate">
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
               </dd>
-            </div>
+            </template>
           </dl>
         </div>
       </template>

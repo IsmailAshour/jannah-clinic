@@ -37,6 +37,36 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Unit');
 
+/**
+ * Creates an Appointment and (optionally) its single pivot row from a flat
+ * attribute array. Accepts the legacy `service_id` key for ergonomic test
+ * fixtures — when present, pops it out, creates the appointment, then
+ * attaches the service to `appointment_services` with `price_at_booking`
+ * (from attrs or the service's base price), `duration_minutes`, and
+ * `sort_order=0`. Keep using this for SINGLE-service test fixtures; tests
+ * exercising multi-service flows should construct the pivot rows directly.
+ */
+function mkAppointment(array $attrs): Appointment
+{
+    $svcId = $attrs['service_id'] ?? null;
+    unset($attrs['service_id']);
+    $appt = Appointment::create($attrs);
+    if ($svcId === null) {
+        return $appt;
+    }
+    $svc = Service::find($svcId);
+    if ($svc === null) {
+        return $appt;
+    }
+    $appt->services()->attach($svc->id, [
+        'price_at_booking' => $attrs['price_at_booking'] ?? $svc->base_price,
+        'duration_minutes' => $svc->duration_minutes,
+        'sort_order' => 0,
+    ]);
+
+    return $appt;
+}
+
 function enableDoctorSlots(DoctorProfile $doctor, int $weekday, array $starts): void
 {
     foreach ($starts as $s) {
@@ -68,7 +98,7 @@ function mkPaidPath(bool $loyaltyEnabled = true): array
         'loyalty_enabled' => $loyaltyEnabled,
     ]);
     $doctor->services()->attach($service->id);
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $customer->id, 'doctor_profile_id' => $doctor->id, 'service_id' => $service->id,
         'start_at' => now()->addDay(), 'end_at' => now()->addDay()->addMinutes(30),
         'status' => AppointmentStatus::Confirmed, 'price_at_booking' => '100.00',

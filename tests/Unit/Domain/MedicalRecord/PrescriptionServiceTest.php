@@ -22,7 +22,7 @@ beforeEach(function () {
     $svc = Service::create(['category_id' => $cat->id, 'name' => 's', 'base_price' => '100.00', 'duration_minutes' => 30, 'home_service_enabled' => false]);
     $doc = DoctorProfile::factory()->create();
     $doc->services()->attach($svc->id);
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $this->customer->id, 'doctor_profile_id' => $doc->id, 'service_id' => $svc->id,
         'start_at' => now()->subDay(), 'end_at' => now()->subDay()->addMinutes(30),
         'status' => AppointmentStatus::Completed, 'price_at_booking' => '100.00',

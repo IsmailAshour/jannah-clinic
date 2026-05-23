@@ -22,7 +22,7 @@ function mkPortalApp(User $customer, AppointmentStatus $status = AppointmentStat
     $doc = DoctorProfile::factory()->create();
     $doc->services()->attach($svc->id);
 
-    return Appointment::create([
+    return mkAppointment([
         'customer_id' => $customer->id, 'doctor_profile_id' => $doc->id, 'service_id' => $svc->id,
         'start_at' => now()->subDay(), 'end_at' => now()->subDay()->addMinutes(30),
         'status' => $status, 'price_at_booking' => '100.00',

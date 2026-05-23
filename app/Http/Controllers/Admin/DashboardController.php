@@ -46,7 +46,7 @@ class DashboardController extends Controller
                 'doctor.user:id,name',
             ])
             ->orderBy('start_at')
-            ->get(['id', 'customer_id', 'doctor_profile_id', 'service_id', 'start_at', 'status', 'delivery_mode']);
+            ->get(['id', 'customer_id', 'doctor_profile_id', 'start_at', 'status', 'delivery_mode']);
 
         return response()->json($appts->map(fn (Appointment $a) => [
             'id' => $a->id,

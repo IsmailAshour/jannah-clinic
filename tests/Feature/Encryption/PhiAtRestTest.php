@@ -24,7 +24,7 @@ function mkApptForPhi(): Appointment
     $doc->services()->attach($svc->id);
     $customer = User::factory()->create(['role' => UserRole::Customer]);
 
-    return Appointment::create([
+    return mkAppointment([
         'customer_id' => $customer->id, 'doctor_profile_id' => $doc->id, 'service_id' => $svc->id,
         'start_at' => now()->subDay(), 'end_at' => now()->subDay()->addMinutes(30),
         'status' => AppointmentStatus::Completed, 'price_at_booking' => '100.00',

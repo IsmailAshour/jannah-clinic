@@ -23,7 +23,7 @@ function aPortalApptWithPayment(): array
     $doc = DoctorProfile::factory()->create();
     $doc->services()->attach($svc->id);
     $cust = User::factory()->create(['role' => UserRole::Customer]);
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $cust->id, 'doctor_profile_id' => $doc->id, 'service_id' => $svc->id,
         'start_at' => now()->addDay(), 'end_at' => now()->addDay()->addMinutes(30),
         'status' => AppointmentStatus::Requested, 'price_at_booking' => '100.00',

@@ -19,7 +19,7 @@ function mkP3Appointment(User $customer, DoctorProfile $doctorProfile, Appointme
     ]);
     $doctorProfile->services()->attach($svc->id);
 
-    return Appointment::create([
+    return mkAppointment([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doctorProfile->id,
         'service_id' => $svc->id,

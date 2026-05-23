@@ -24,7 +24,7 @@ it('full doctor->customer medical record flow with audit trail', function () {
     ]);
     $doctorProfile->services()->attach($svc->id);
 
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doctorProfile->id,
         'service_id' => $svc->id,

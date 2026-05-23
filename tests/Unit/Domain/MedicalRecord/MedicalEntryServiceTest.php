@@ -23,7 +23,7 @@ function buildAppointmentForEntryService(User $customer): Appointment
     $doc = DoctorProfile::factory()->create();
     $doc->services()->attach($svc->id);
 
-    return Appointment::create([
+    return mkAppointment([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doc->id,
         'service_id' => $svc->id,

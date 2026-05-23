@@ -31,7 +31,7 @@ function mkOwnedPayment(): array
         'category_id' => $cat->id, 'name' => 's', 'base_price' => '100',
         'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true,
     ]);
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $customer->id, 'doctor_profile_id' => $doctor->id, 'service_id' => $service->id,
         'start_at' => now()->addDay(), 'end_at' => now()->addDay()->addMinutes(30),
         'status' => AppointmentStatus::Confirmed, 'price_at_booking' => '100.00',

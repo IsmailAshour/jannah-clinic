@@ -23,7 +23,7 @@ function makePortalApptFixture(): array
     $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
     $slot = $slots[0];
 
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doc->id,
         'service_id' => $svc->id,

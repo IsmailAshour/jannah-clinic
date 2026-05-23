@@ -46,10 +46,9 @@ class MedicalEntryFactory extends Factory
         $doc->services()->attach($svc->id);
         $cust = User::factory()->create(['role' => UserRole::Customer]);
 
-        return Appointment::create([
+        $appt = Appointment::create([
             'customer_id' => $cust->id,
             'doctor_profile_id' => $doc->id,
-            'service_id' => $svc->id,
             'start_at' => now()->subDay(),
             'end_at' => now()->subDay()->addMinutes(30),
             'status' => AppointmentStatus::Completed,
@@ -58,5 +57,12 @@ class MedicalEntryFactory extends Factory
             'home_surcharge_amount' => '0.00',
             'created_by_role' => UserRole::Customer,
         ]);
+        $appt->services()->attach($svc->id, [
+            'price_at_booking' => '100.00',
+            'duration_minutes' => 30,
+            'sort_order' => 0,
+        ]);
+
+        return $appt;
     }
 }

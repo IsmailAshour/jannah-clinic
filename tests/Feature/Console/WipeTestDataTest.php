@@ -38,7 +38,7 @@ it('wipes all customer + appointment data while preserving staff + services + do
 
     // ---- Test data (must die) ----
     $customer = User::factory()->create(['role' => UserRole::Customer]);
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doc->id,
         'service_id' => $svc->id,

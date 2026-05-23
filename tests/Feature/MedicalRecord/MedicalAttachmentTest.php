@@ -35,7 +35,7 @@ function mkAttachmentFixtures(): array
 
     // Appointment is Requested — no medical entry yet, intentionally —
     // so the tests prove attachments work BEFORE a structured record exists.
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doctor->id,
         'service_id' => $svc->id,

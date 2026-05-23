@@ -30,7 +30,7 @@ function mkLoyaltyFixtures(): array
         'loyalty_enabled' => true, 'loyalty_redemption_points' => 500,
     ]);
     $doctor->services()->attach($service->id);
-    $appt = Appointment::create([
+    $appt = mkAppointment([
         'customer_id' => $customer->id, 'doctor_profile_id' => $doctor->id, 'service_id' => $service->id,
         'start_at' => now()->subDay(), 'end_at' => now()->subDay()->addMinutes(30),
         'status' => AppointmentStatus::Completed, 'price_at_booking' => '100.00',

@@ -109,7 +109,7 @@ it('authed customer sees personalized greeting + upcoming appointments', functio
     $cat = ServiceCategory::create(['name' => 'c'.uniqid(), 'slug' => 'c'.uniqid(), 'color_variant' => 'brand']);
     $service = Service::create(['category_id' => $cat->id, 'name' => 's', 'base_price' => '50.00', 'duration_minutes' => 30, 'home_service_enabled' => false, 'is_active' => true]);
     $doctor->services()->attach($service->id);
-    Appointment::create([
+    mkAppointment([
         'customer_id' => $customer->id, 'doctor_profile_id' => $doctor->id, 'service_id' => $service->id,
         'start_at' => CarbonImmutable::now()->addDay(), 'end_at' => CarbonImmutable::now()->addDay()->addMinutes(30),
         'status' => AppointmentStatus::Confirmed, 'price_at_booking' => '50.00',

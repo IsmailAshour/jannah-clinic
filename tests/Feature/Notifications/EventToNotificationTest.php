@@ -26,7 +26,7 @@ function mkApptWithPayment(User $customer, DoctorProfile $doctor): Appointment
     ]);
     $doctor->services()->attach($svc->id);
 
-    $a = Appointment::create([
+    $a = mkAppointment([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doctor->id,
         'service_id' => $svc->id,

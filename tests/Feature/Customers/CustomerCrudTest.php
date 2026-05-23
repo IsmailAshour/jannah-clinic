@@ -144,8 +144,8 @@ it('includes appointment history and stats on the show page', function () {
         'home_surcharge_amount' => '0.00',
         'created_by_role' => UserRole::Customer,
     ];
-    Appointment::create($base + ['start_at' => now()->subDays(10), 'end_at' => now()->subDays(10)->addMinutes(30), 'status' => AppointmentStatus::Completed]);
-    Appointment::create($base + ['start_at' => now()->subDays(5), 'end_at' => now()->subDays(5)->addMinutes(30), 'status' => AppointmentStatus::NoShow]);
+    mkAppointment($base + ['start_at' => now()->subDays(10), 'end_at' => now()->subDays(10)->addMinutes(30), 'status' => AppointmentStatus::Completed]);
+    mkAppointment($base + ['start_at' => now()->subDays(5), 'end_at' => now()->subDays(5)->addMinutes(30), 'status' => AppointmentStatus::NoShow]);
 
     $resp = $this->actingAs($m)->get("/admin/customers/{$c->id}")->assertOk();
     $props = $resp->viewData('page')['props'];

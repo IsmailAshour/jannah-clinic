@@ -105,7 +105,7 @@ it('a 60-min confirmed appointment blocks the overlapping slot but a later slot 
     $wd = (int) $date->dayOfWeek;
     // 09:00..11:00 (5 grid starts) so a 10:00–11:00 block (10:00 + 10:30) is valid
     enableDoctorSlots($doc, $wd, slotRange('09:00', 5));
-    Appointment::create([
+    mkAppointment([
         'customer_id' => User::factory()->create()->id,
         'doctor_profile_id' => $doc->id,
         'service_id' => $svc->id,
@@ -130,7 +130,7 @@ it('a cancelled appointment does not block its slot', function () {
     $date = CarbonImmutable::parse('next monday');
     $wd = (int) $date->dayOfWeek;
     enableDoctorSlots($doc, $wd, ['09:00']);
-    Appointment::create([
+    mkAppointment([
         'customer_id' => User::factory()->create()->id,
         'doctor_profile_id' => $doc->id,
         'service_id' => $svc->id,

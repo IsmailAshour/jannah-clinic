@@ -24,7 +24,7 @@ function mkApptForNotifTest(User $customer, DoctorProfile $doctor, AppointmentSt
     ]);
     $doctor->services()->attach($svc->id);
 
-    return Appointment::create([
+    return mkAppointment([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doctor->id,
         'service_id' => $svc->id,

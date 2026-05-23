@@ -223,13 +223,28 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
 
       <!-- Compact hero strip -->
       <header class="bg-surface-card rounded-2xl ring-1 ring-border-default p-4 sm:p-5 flex items-start justify-between gap-3 flex-wrap">
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
           <p class="text-xs font-bold text-brand">موعد #{{ appointment.id }}</p>
-          <h1 class="text-xl sm:text-2xl font-extrabold text-text-primary truncate">{{ appointment.service.name }}</h1>
-          <p class="text-sm text-text-secondary mt-0.5 inline-flex items-center gap-1.5">
+          <h1 class="text-xl sm:text-2xl font-extrabold text-text-primary">
+            {{ (appointment.services ?? []).map(s => s.name).join(' + ') || '—' }}
+          </h1>
+          <p class="text-sm text-text-secondary mt-0.5 inline-flex items-center gap-1.5 flex-wrap">
             <Calendar class="w-3.5 h-3.5" aria-hidden="true" />
-            {{ formatDateTime(appointment.start_at) }} · {{ appointment.service.duration_minutes }} د
+            {{ formatDateTime(appointment.start_at) }}
+            <span v-if="(appointment.services ?? []).length > 0" aria-hidden="true">·</span>
+            <span v-if="(appointment.services ?? []).length > 0">
+              {{ (appointment.services ?? []).reduce((acc, s) => acc + (s.duration_minutes || 0), 0) }} د
+            </span>
           </p>
+          <ul v-if="(appointment.services ?? []).length > 1" class="mt-2 flex flex-wrap gap-1.5">
+            <li
+              v-for="s in appointment.services"
+              :key="s.id"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/5 text-brand text-xs font-bold"
+            >
+              {{ s.name }} ({{ s.price_at_booking }} ₪)
+            </li>
+          </ul>
         </div>
         <StatusBadge :type="apptStatusMap[appointment.status]?.variant ?? 'info'" :label="apptStatusMap[appointment.status]?.label ?? appointment.status" />
       </header>

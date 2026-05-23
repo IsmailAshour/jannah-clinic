@@ -41,7 +41,7 @@ class DashboardController extends Controller
             ])
             ->with([
                 'customer:id,name',
-                'service:id,name',
+                'services:id,name',
                 'doctor:id,user_id',
                 'doctor.user:id,name',
             ])
@@ -57,7 +57,7 @@ class DashboardController extends Controller
             'delivery_mode' => $a->delivery_mode->value,
             'customer_name' => $a->customer->name,
             'doctor_name' => $a->doctor->user->name,
-            'service_name' => $a->service->name,
+            'service_name' => $a->services->pluck('name')->join(' + ') ?: '—',
         ])->values());
     }
 }

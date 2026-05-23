@@ -23,7 +23,7 @@ class AppointmentController extends Controller
     public function index(Request $request): Response
     {
         $query = Appointment::query()
-            ->with(['customer:id,name', 'doctor.user:id,name', 'service:id,name', 'serviceAddress'])
+            ->with(['customer:id,name', 'doctor.user:id,name', 'services:id,name', 'serviceAddress'])
             ->orderByDesc('start_at');
 
         if ($request->filled('status') && in_array($request->input('status'), array_column(AppointmentStatus::cases(), 'value'), true)) {
@@ -75,7 +75,7 @@ class AppointmentController extends Controller
             'customer:id,name,email,phone',
             'doctor:id,user_id,specialty',
             'doctor.user:id,name',
-            'service:id,name,duration_minutes',
+            'services:id,name',
             'serviceAddress',
             'payment.receipts' => fn ($q) => $q->orderByDesc('id'),
             'photos.uploader:id,name',
@@ -172,11 +172,7 @@ class AppointmentController extends Controller
                     'name' => $appointment->doctor->user->name,
                     'specialty' => $appointment->doctor->specialty,
                 ],
-                'service' => [
-                    'id' => $appointment->service->id,
-                    'name' => $appointment->service->name,
-                    'duration_minutes' => $appointment->service->duration_minutes,
-                ],
+                'services' => $this->serializeAppointmentServices($appointment),
                 'service_address' => $this->serializeAddress($appointment),
             ],
             'payment' => $appointment->payment ? [
@@ -196,6 +192,27 @@ class AppointmentController extends Controller
             'canWriteMedical' => $canWriteMedical,
             'canViewMedical' => $canWriteMedical,
         ]);
+    }
+
+    /**
+     * @return list<array{id:int,name:string,duration_minutes:int,price_at_booking:string}>
+     */
+    private function serializeAppointmentServices(Appointment $appointment): array
+    {
+        $out = [];
+        foreach ($appointment->appointmentServices()->with('service:id,name')->get() as $row) {
+            /** @var \App\Models\AppointmentService $row */
+            /** @var \App\Models\Service $svc */
+            $svc = $row->service;
+            $out[] = [
+                'id' => $row->service_id,
+                'name' => $svc->name,
+                'duration_minutes' => (int) $row->duration_minutes,
+                'price_at_booking' => (string) $row->price_at_booking,
+            ];
+        }
+
+        return $out;
     }
 
     /**

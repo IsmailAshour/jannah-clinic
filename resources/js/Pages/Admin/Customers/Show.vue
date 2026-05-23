@@ -178,9 +178,14 @@ const apptColumns = [
     meta: { label: 'الطبيب' },
   },
   {
-    accessorKey: 'service',
+    accessorKey: 'services',
     header: ({ column }) => h(AdminDataTableColumnHeader, { column, title: 'الخدمة' }),
-    cell: ({ row }) => row.original.service?.name ?? '—',
+    cell: ({ row }) => {
+      const services = row.original.services ?? []
+      if (services.length === 0) return '—'
+      if (services.length === 1) return services[0].name
+      return `${services[0].name} +${services.length - 1}`
+    },
     meta: { label: 'الخدمة' },
   },
   {

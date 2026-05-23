@@ -77,7 +77,7 @@ class CustomerController extends Controller
 
         $appointments = Appointment::query()
             ->where('customer_id', $customer->id)
-            ->with(['service:id,name', 'doctor.user:id,name'])
+            ->with(['services:id,name', 'doctor.user:id,name'])
             ->orderByDesc('start_at')
             ->paginate(15);
 
@@ -102,13 +102,13 @@ class CustomerController extends Controller
                 ->where('doctor_profile_id', $request->user()->doctorProfile->id)
                 ->where('status', AppointmentStatus::Completed)
                 ->whereDoesntHave('medicalEntry')
-                ->with('service:id,name')
+                ->with('services:id,name')
                 ->orderByDesc('start_at')
                 ->get()
                 ->map(fn ($a) => [
                     'id' => $a->id,
                     'start_at' => $a->start_at->toIso8601String(),
-                    'service' => $a->service->name,
+                    'service' => $a->services->pluck('name')->join(' + ') ?: '—',
                 ])
                 ->all();
         }

@@ -285,7 +285,7 @@ function submitReschedule() {
             <!-- Service + doctor + meta -->
             <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between gap-2">
-                <h3 class="text-base font-extrabold text-text-primary truncate">{{ appt.service?.name }}</h3>
+                <h3 class="text-base font-extrabold text-text-primary">{{ (appt.services ?? []).map(s => s.name).join(' + ') || appt.service?.name || '—' }}</h3>
                 <StatusBadge :type="statusVariant(appt.status)" :label="statusLabel(appt.status)" />
               </div>
               <p class="mt-0.5 text-sm text-text-secondary truncate">{{ appt.doctor?.user?.name }}</p>

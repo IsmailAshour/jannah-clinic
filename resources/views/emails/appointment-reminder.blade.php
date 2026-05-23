@@ -40,10 +40,17 @@
               مرحبًا {{ $recipientName }}، نُذكّرك بموعدك القادم:
             </p>
 
+            @php
+                $serviceNames = $appointment->services->pluck('name')->implode(' + ');
+                if ($serviceNames === '') {
+                    $serviceNames = $appointment->service?->name ?? '—';
+                }
+                $serviceLabel = $appointment->services->count() > 1 ? 'الخدمات' : 'الخدمة';
+            @endphp
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;font-size:14px;">
               <tr>
-                <td style="padding:6px 0;color:#6b7280;width:120px;">الخدمة</td>
-                <td style="padding:6px 0;font-weight:600;">{{ $appointment->service->name }}</td>
+                <td style="padding:6px 0;color:#6b7280;width:120px;">{{ $serviceLabel }}</td>
+                <td style="padding:6px 0;font-weight:600;">{{ $serviceNames }}</td>
               </tr>
               <tr>
                 <td style="padding:6px 0;color:#6b7280;">الطبيب</td>

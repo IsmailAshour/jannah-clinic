@@ -191,7 +191,8 @@ class DoctorScheduleController extends Controller
             ->whereBetween('start_at', [$date->startOfDay(), $date->endOfDay()])
             ->with([
                 'customer:id,name,phone,email',
-                'service:id,name,duration_minutes',
+                'services:id,name',
+                'appointmentServices.service:id,name',
                 'photos' => fn ($q) => $q->orderBy('id'),
                 'photos.uploader:id,name',
             ])
@@ -232,10 +233,22 @@ class DoctorScheduleController extends Controller
                     'phone' => $a->customer->phone,
                     'email' => $a->customer->email,
                 ],
-                'service' => [
-                    'name' => $a->service->name,
-                    'duration_minutes' => $a->service->duration_minutes,
-                ],
+                'services' => (function () use ($a) {
+                    $arr = [];
+                    foreach ($a->appointmentServices as $row) {
+                        /** @var \App\Models\AppointmentService $row */
+                        /** @var \App\Models\Service $svc */
+                        $svc = $row->service;
+                        $arr[] = [
+                            'id' => $row->service_id,
+                            'name' => $svc->name,
+                            'duration_minutes' => (int) $row->duration_minutes,
+                        ];
+                    }
+
+                    return $arr;
+                })(),
+                'total_duration_minutes' => (int) $a->appointmentServices->sum('duration_minutes'),
                 'photos' => $photos,
             ];
         }

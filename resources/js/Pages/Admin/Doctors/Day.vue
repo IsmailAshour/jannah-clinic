@@ -181,12 +181,14 @@ function partitionPhotos(photos) {
             <!-- Time block -->
             <div class="shrink-0 w-16 rounded-xl bg-brand/10 ring-1 ring-brand/15 text-center py-2">
               <div class="text-lg font-extrabold text-brand leading-none" dir="ltr">{{ a.time }}</div>
-              <div class="text-[10px] text-text-tertiary mt-0.5">{{ a.service.duration_minutes }} د</div>
+              <div class="text-[10px] text-text-tertiary mt-0.5">{{ a.total_duration_minutes ?? 0 }} د</div>
             </div>
 
             <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between gap-2 flex-wrap">
-                <h3 class="text-base font-extrabold text-text-primary truncate">{{ a.service.name }}</h3>
+                <h3 class="text-base font-extrabold text-text-primary">
+                  {{ (a.services ?? []).map(s => s.name).join(' + ') || '—' }}
+                </h3>
                 <StatusBadge :type="statusMap[a.status]?.variant ?? 'info'" :label="statusMap[a.status]?.label ?? a.status" />
               </div>
               <div class="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-xs text-text-secondary">

@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
 use App\Http\Controllers\Admin\ServiceController;
+use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Booking\AvailabilityController;
 use App\Http\Controllers\Booking\AvailableDaysController;
 use Illuminate\Support\Facades\Route;
@@ -146,6 +147,14 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
             // Contact messages — manager only mutations
             Route::post('messages/{message}/status', [ContactMessageController::class, 'updateStatus'])->name('messages.status');
             Route::delete('messages/{message}', [ContactMessageController::class, 'destroy'])->name('messages.destroy');
+
+            // Staff (manager + receptionist) — manager only
+            Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+            Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
+            Route::put('staff/{user}', [StaffController::class, 'update'])->name('staff.update');
+            Route::post('staff/{user}/toggle-active', [StaffController::class, 'toggleActive'])->name('staff.toggle-active');
+            Route::post('staff/{user}/reset-password', [StaffController::class, 'resetPassword'])->name('staff.reset-password');
+            Route::delete('staff/{user}', [StaffController::class, 'destroy'])->name('staff.destroy');
         });
 
         // P3 — Medical record writes (manager + doctor; gate refined in Policy)

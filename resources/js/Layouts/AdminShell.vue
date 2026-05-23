@@ -84,6 +84,7 @@ const nav = [
     children: [
       { label: 'العملاء', href: '/admin/customers', icon: Contact2 },
       { label: 'الفريق الطبي', href: '/admin/doctors', icon: Users },
+      { label: 'الفريق الإداري', href: '/admin/staff', icon: UserIcon },
       { label: 'المواعيد', href: '/admin/appointments', icon: CalendarDays },
       { label: 'المدفوعات', href: '/admin/payments', icon: Receipt, badgeKey: 'submitted_payments' },
       { label: 'حجز موعد  لعميل', href: '/admin/booking', icon: CalendarPlus },

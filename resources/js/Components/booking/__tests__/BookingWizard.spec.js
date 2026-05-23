@@ -148,7 +148,7 @@ describe('BookingWizard', () => {
     wrapper.vm.doctorId = 1
     await wrapper.vm.$nextTick()
 
-    const serviceOptions = wrapper.findAll('#service option').filter(o => o.element.value !== '')
+    const serviceOptions = wrapper.findAll('[data-testid="service-option"]')
     expect(serviceOptions).toHaveLength(1)
     expect(wrapper.text()).toContain('استشارة عامة')
     expect(wrapper.text()).not.toContain('فحص خاص')
@@ -181,20 +181,20 @@ describe('BookingWizard', () => {
     wrapper.vm.step = 2
     await wrapper.vm.$nextTick()
 
-    // Pick doctor 1 (UI is now a grid of button cards, not a <select>)
+    // Pick doctor 1 — services are now checkbox cards (multi-select)
     wrapper.vm.doctorId = 1
     await wrapper.vm.$nextTick()
 
-    const serviceOptions = wrapper.findAll('#service option').filter(o => o.element.value !== '')
+    const serviceOptions = wrapper.findAll('[data-testid="service-option"]')
     expect(serviceOptions).toHaveLength(2)
     expect(wrapper.text()).toContain('استشارة عامة')
     expect(wrapper.text()).toContain('فحص خاص')
 
-    // Switch to doctor 2 (watcher clears serviceId — fine here)
+    // Switch to doctor 2 (watcher clears selectedServiceIds — fine here)
     wrapper.vm.doctorId = 2
     await wrapper.vm.$nextTick()
 
-    const serviceOptions2 = wrapper.findAll('#service option').filter(o => o.element.value !== '')
+    const serviceOptions2 = wrapper.findAll('[data-testid="service-option"]')
     expect(serviceOptions2).toHaveLength(1)
     expect(wrapper.text()).toContain('استشارة متخصصة')
   })
@@ -212,7 +212,7 @@ describe('BookingWizard', () => {
     wrapper.vm.doctorId = 1
     await wrapper.vm.$nextTick()
 
-    const serviceOptions = wrapper.findAll('#service option').filter(o => o.element.value !== '')
+    const serviceOptions = wrapper.findAll('[data-testid="service-option"]')
     expect(serviceOptions).toHaveLength(1)
     expect(wrapper.text()).toContain('استشارة عامة')
     expect(wrapper.text()).not.toContain('فحص خاص')

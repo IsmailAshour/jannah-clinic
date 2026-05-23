@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Home, MapPin, MessageCircle, Search, Stethoscope, User as UserIcon, Video, X } from 'lucide-vue-next'
 import { FormGroup, PageStates, MonthCalendar, PaymentMethodPicker } from '@/Components/foundation'
@@ -123,9 +123,18 @@ watch(newCustomerPhone, (p) => {
   }
 })
 
-// Step 2: doctor + service
+// Step 2: doctor + services (multi-select)
 const doctorId = ref(null)
-const serviceId = ref(null)
+// Multi-service: array of selected service IDs in user-chosen order
+const selectedServiceIds = ref([])
+
+// Legacy single-service alias — getter returns the first selected ID,
+// setter wraps a single value into the array. Keeps existing test code
+// using wrapper.vm.serviceId working.
+const serviceId = computed({
+  get: () => selectedServiceIds.value[0] ?? null,
+  set: (v) => { selectedServiceIds.value = v === null || v === undefined ? [] : [v] },
+})
 
 const selectedDoctor = computed(() => props.doctors.find(d => d.id === doctorId.value) ?? null)
 
@@ -138,13 +147,48 @@ const filteredServices = computed(() => {
   })
 })
 
-const selectedService = computed(() => {
-  if (!serviceId.value || !selectedDoctor.value) return null
-  return selectedDoctor.value.services.find(s => s.id === serviceId.value) ?? null
+const selectedServices = computed(() => {
+  if (!selectedDoctor.value) return []
+  return selectedServiceIds.value
+    .map(id => selectedDoctor.value.services.find(s => s.id === id))
+    .filter(Boolean)
 })
 
-watch(doctorId, () => { serviceId.value = null })
-watch(deliveryMode, () => { serviceId.value = null })
+// Back-compat for templates that referenced the single "selectedService" —
+// resolves to the first one in the selection.
+const selectedService = computed(() => selectedServices.value[0] ?? null)
+
+function toggleService(id) {
+  const idx = selectedServiceIds.value.indexOf(id)
+  if (idx === -1) selectedServiceIds.value = [...selectedServiceIds.value, id]
+  else selectedServiceIds.value = selectedServiceIds.value.filter(x => x !== id)
+}
+
+// Total duration across all picked services — used by the calendar/slot
+// fetch on the URL side (server sums internally too, this is just for
+// summary display).
+const totalDurationMinutes = computed(() => {
+  return selectedServices.value.reduce((acc, s) => acc + (Number(s.duration_minutes) || 0), 0)
+})
+
+// When the doctor or the delivery mode changes, drop any services that
+// no longer belong to the new doctor / aren't eligible for the new mode.
+watch(doctorId, () => { selectedServiceIds.value = [] })
+watch(deliveryMode, () => {
+  if (selectedServiceIds.value.length === 0) return
+  const eligibleIds = new Set(filteredServices.value.map(s => s.id))
+  selectedServiceIds.value = selectedServiceIds.value.filter(id => eligibleIds.has(id))
+})
+
+// servicesQuery is a URLSearchParams fragment "services[]=1&services[]=2"
+// used by the availability + days endpoints when multiple services are
+// picked. The backend also accepts the legacy "service=ID" (which we no
+// longer emit) for transitional safety.
+function servicesQuery() {
+  return selectedServiceIds.value
+    .map(id => `services%5B%5D=${id}`)
+    .join('&')
+}
 
 // Step 3: date + slot
 const paymentMethod = ref('cash')
@@ -162,12 +206,12 @@ const daysError = ref(false)
 const calMonth = ref(null) // { from, to } of the visible month
 
 async function fetchDays() {
-  if (!doctorId.value || !serviceId.value || !calMonth.value) return
+  if (!doctorId.value || selectedServiceIds.value.length === 0 || !calMonth.value) return
   daysLoading.value = true
   daysError.value = false
   try {
     const { from, to } = calMonth.value
-    const url = `${props.availabilityDaysUrl}?doctor=${doctorId.value}&service=${serviceId.value}&from=${from}&to=${to}`
+    const url = `${props.availabilityDaysUrl}?doctor=${doctorId.value}&${servicesQuery()}&from=${from}&to=${to}`
     const res = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
@@ -193,19 +237,19 @@ function onCalendarSelect(date) {
 watch(step, (s) => {
   if (s === 3) fetchDays()
 })
-watch([doctorId, serviceId], () => {
+watch([doctorId, selectedServiceIds], () => {
   if (step.value === 3) fetchDays()
-})
+}, { deep: true })
 
 async function fetchSlots() {
-  if (!doctorId.value || !serviceId.value || !selectedDate.value) return
+  if (!doctorId.value || selectedServiceIds.value.length === 0 || !selectedDate.value) return
   slotsLoading.value = true
   slotsEmpty.value = false
   slotsError.value = false
   slots.value = []
   selectedStart.value = null
   try {
-    const url = `${props.availabilityUrl}?doctor=${doctorId.value}&service=${serviceId.value}&date=${selectedDate.value}`
+    const url = `${props.availabilityUrl}?doctor=${doctorId.value}&${servicesQuery()}&date=${selectedDate.value}`
     const res = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
@@ -222,7 +266,7 @@ async function fetchSlots() {
 
 watch(selectedDate, fetchSlots)
 
-watch(serviceId, () => {
+watch(selectedServiceIds, () => {
   selectedDate.value = ''
   slots.value = []
   slotsEmpty.value = false
@@ -230,34 +274,43 @@ watch(serviceId, () => {
   selectedStart.value = null
   availableDays.value = []
   daysError.value = false
-})
+}, { deep: true })
 
 // Expose internals for testing
 defineExpose({
-  step, doctorId, serviceId, deliveryMode, selectedDate,
+  step, doctorId, serviceId, selectedServiceIds, deliveryMode, selectedDate,
   slots, slotsEmpty, slotsLoading, slotsError, selectedStart,
   availableDays, daysLoading, daysError, calMonth,
   fetchSlots, fetchDays,
-  // Test helper: call fetchSlots with pre-set values
+  // Test helper: call fetchSlots with pre-set values. There's a chain of
+  // dependent watchers (doctorId resets selectedServiceIds; selectedServiceIds
+  // resets selectedDate; etc), so each ref is set then awaited before the
+  // next is touched.
   async fetchSlotsForTest(dId, sId, date) {
     doctorId.value = dId
+    await nextTick()
     serviceId.value = sId
+    await nextTick()
     selectedDate.value = date
     await fetchSlots()
   },
-  // Test helper: set doctor/service + visible month, then fetch days
   async fetchDaysForTest(dId, sId, range) {
     doctorId.value = dId
+    await nextTick()
     serviceId.value = sId
+    await nextTick()
     calMonth.value = range
     await fetchDays()
   },
 })
 
-// Price preview
+// Price preview — sum of all selected services + home surcharge.
 const previewPrice = computed(() => {
-  if (!selectedService.value) return null
-  const base = Number(selectedService.value.price_override ?? selectedService.value.base_price)
+  if (selectedServices.value.length === 0) return null
+  const base = selectedServices.value.reduce(
+    (acc, s) => acc + Number(s.price_override ?? s.base_price),
+    0,
+  )
   if (deliveryMode.value === 'home') {
     const surcharge = Math.round(base * Number(props.homeSurchargePct) / 100)
     return { base, surcharge, total: base + surcharge }
@@ -283,7 +336,7 @@ function canAdvanceStep1() {
 }
 
 function canAdvanceStep2() {
-  return !!doctorId.value && !!serviceId.value
+  return !!doctorId.value && selectedServiceIds.value.length > 0
 }
 
 function canAdvanceStep3() {
@@ -367,7 +420,7 @@ function formatSelectedTime(iso) {
 function handleSubmit() {
   const payload = {
     doctor: doctorId.value,
-    service: serviceId.value,
+    services: [...selectedServiceIds.value],
     start: selectedStart.value,
     delivery_mode: deliveryMode.value,
     payment_method: paymentMethod.value,
@@ -751,21 +804,43 @@ function handleSubmit() {
         </div>
       </div>
 
-      <FormGroup label="الخدمة" name="service" required>
-        <template #default="{ describedby }">
-          <select
-            id="service"
-            v-model="serviceId"
-            name="service"
-            :aria-describedby="describedby"
-            :disabled="!doctorId"
-            class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
-          >
-            <option value="" disabled selected>اختر الخدمة...</option>
-            <option v-for="s in filteredServices" :key="s.id" :value="s.id">
-              {{ s.name }} — {{ s.price_override ?? s.base_price }} ₪
-            </option>
-          </select>
+      <FormGroup label="الخدمات" name="services" required>
+        <template #default>
+          <p class="text-xs text-text-tertiary mb-2">يمكنك اختيار أكثر من خدمة في الموعد ذاته — المدّة والسعر يَتجمَّعان.</p>
+          <ul v-if="doctorId && filteredServices.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <li v-for="s in filteredServices" :key="s.id" data-testid="service-option">
+              <label
+                :class="[
+                  'flex items-start gap-2 p-3 rounded-lg border-2 cursor-pointer transition',
+                  selectedServiceIds.includes(s.id)
+                    ? 'border-brand bg-brand/5 ring-2 ring-brand/15'
+                    : 'border-border-default hover:border-brand/40',
+                ]"
+              >
+                <input
+                  type="checkbox"
+                  :value="s.id"
+                  :checked="selectedServiceIds.includes(s.id)"
+                  class="h-4 w-4 mt-0.5"
+                  @change="toggleService(s.id)"
+                />
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-bold text-text-primary truncate">{{ s.name }}</p>
+                  <p class="text-xs text-text-tertiary">
+                    {{ s.price_override ?? s.base_price }} ₪ · {{ s.duration_minutes }} د
+                  </p>
+                </div>
+              </label>
+            </li>
+          </ul>
+          <p v-else-if="doctorId" class="text-sm text-text-secondary">
+            اختر الطبيب أوّلًا لعرض خدماته.
+          </p>
+          <div v-if="selectedServiceIds.length > 0" class="mt-3 inline-flex items-center gap-2 text-xs font-bold text-brand bg-brand/5 px-3 py-1.5 rounded-md">
+            <span>{{ selectedServiceIds.length }} خدمة</span>
+            <span aria-hidden="true">·</span>
+            <span>المدّة الكاملة: {{ totalDurationMinutes }} دقيقة</span>
+          </div>
         </template>
       </FormGroup>
 

@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Heart,
   CalendarPlus,
+  LayoutDashboard,
   LogIn,
   LogOut,
 } from 'lucide-vue-next'
@@ -127,6 +128,15 @@ function isActive(href) {
                 >
                   <User class="w-4 h-4 text-text-secondary" aria-hidden="true" />
                   <span>البروفايل</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem v-if="authedUser?.role === 'manager'" as-child>
+                <Link
+                  href="/admin"
+                  class="flex items-center gap-2 w-full cursor-pointer rounded-md px-2 py-2 text-sm text-text-primary hover:bg-brand/5 hover:text-brand transition"
+                >
+                  <LayoutDashboard class="w-4 h-4 text-text-secondary" aria-hidden="true" />
+                  <span>لوحة التحكم</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

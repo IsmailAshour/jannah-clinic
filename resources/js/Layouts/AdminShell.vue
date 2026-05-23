@@ -91,11 +91,18 @@ const nav = [
     ],
   },
   { type: 'leaf', label: 'الرسائل', href: '/admin/messages', icon: MailOpen },
-  { type: 'leaf', label: 'التقارير', href: '/admin/reports', icon: BarChart3 },
+  { type: 'leaf', label: 'التقارير', href: '/admin/reports', icon: BarChart3, managerOnly: true },
   { type: 'leaf', label: 'مناطق التغطية', href: '/admin/coverage', icon: MapPin },
   { type: 'leaf', label: 'الإعدادات', href: '/admin/settings', icon: Settings },
 ]
 const page = usePage()
+// Filter manager-only entries when the current user is not a manager. Mirrors
+// the backend role:manager gate on /admin/reports — sidebar hides what the
+// backend would refuse anyway.
+const visibleNav = computed(() => {
+  const isManager = page.props?.auth?.user?.role === 'manager'
+  return nav.filter((item) => !item.managerOnly || isManager)
+})
 function isActive(href) {
   const current = page.url
   if (href === '/admin') return current === '/admin' || current === '/admin/'
@@ -195,7 +202,7 @@ const NavLink = defineComponent({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <template v-for="n in nav" :key="n.label">
+              <template v-for="n in visibleNav" :key="n.label">
                 <!-- Leaf entry: tooltip prop is what makes the Arabic label
                      appear on hover when the sidebar is in icon-collapsed
                      mode (TooltipContent is :hidden="state !== 'collapsed'"

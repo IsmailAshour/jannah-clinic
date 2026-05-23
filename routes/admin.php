@@ -29,8 +29,11 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         Route::get('/', fn () => Inertia::render('Admin/Dashboard'))->name('dashboard');
         // JSON feed for the dashboard calendar (per-month appointment list).
         Route::get('dashboard/calendar', [DashboardController::class, 'calendar'])->name('dashboard.calendar');
-        // Analytics & reports
-        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        // Analytics & reports — manager-only: page exposes clinic-wide revenue,
+        // no-show rate, top-doctor rankings. Receptionist + doctor are blocked.
+        Route::get('reports', [ReportController::class, 'index'])
+            ->middleware('role:manager')
+            ->name('reports.index');
 
         // Catalog index – readable by all staff
         Route::get('catalog/categories', [ServiceCategoryController::class, 'index'])->name('catalog.categories');

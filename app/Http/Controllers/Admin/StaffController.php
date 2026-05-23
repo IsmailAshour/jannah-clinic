@@ -28,10 +28,31 @@ class StaffController extends Controller
 {
     private const MANAGEABLE_ROLES = ['manager', 'receptionist'];
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $staff = User::query()
-            ->whereIn('role', self::MANAGEABLE_ROLES)
+        $q = trim((string) $request->input('q', ''));
+        $roleFilter = (string) $request->input('role', '');
+        $statusFilter = (string) $request->input('status', '');
+
+        $query = User::query()->whereIn('role', self::MANAGEABLE_ROLES);
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q): void {
+                $w->where('name', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%")
+                    ->orWhere('phone', 'like', "%{$q}%");
+            });
+        }
+        if (in_array($roleFilter, self::MANAGEABLE_ROLES, true)) {
+            $query->where('role', $roleFilter);
+        }
+        if ($statusFilter === 'active') {
+            $query->where('is_active', true);
+        } elseif ($statusFilter === 'inactive') {
+            $query->where('is_active', false);
+        }
+
+        $staff = $query
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'phone', 'role', 'is_active', 'created_at']);
 
@@ -45,9 +66,33 @@ class StaffController extends Controller
             'created_at' => $u->created_at?->toIso8601String(),
         ])->all();
 
+        $totals = User::query()
+            ->whereIn('role', self::MANAGEABLE_ROLES)
+            ->selectRaw("role, count(*) as total, sum(case when is_active then 1 else 0 end) as active_count")
+            ->groupBy('role')
+            ->get()
+            ->keyBy('role');
+
+        $managerCount = (int) ($totals['manager']->total ?? 0);
+        $receptionistCount = (int) ($totals['receptionist']->total ?? 0);
+        $activeCount = (int) (($totals['manager']->active_count ?? 0) + ($totals['receptionist']->active_count ?? 0));
+        $total = $managerCount + $receptionistCount;
+
         return Inertia::render('Admin/Staff/Index', [
             'staff' => $rows,
-            'authedUserId' => request()->user()->id,
+            'authedUserId' => $request->user()->id,
+            'filters' => [
+                'q' => $q,
+                'role' => $roleFilter,
+                'status' => $statusFilter,
+            ],
+            'stats' => [
+                'total' => $total,
+                'managers' => $managerCount,
+                'receptionists' => $receptionistCount,
+                'active' => $activeCount,
+                'inactive' => $total - $activeCount,
+            ],
         ]);
     }
 

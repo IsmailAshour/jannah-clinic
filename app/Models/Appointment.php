@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -55,6 +56,28 @@ class Appointment extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    /**
+     * Multi-service line items. Reflects ALL services rendered at the
+     * visit. During the migration transition the first pivot row is
+     * always the same as $appointment->service (kept in sync by
+     * BookingService).
+     */
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'appointment_services')
+            ->withPivot(['price_at_booking', 'duration_minutes', 'sort_order'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order')
+            ->orderByPivot('id');
+    }
+
+    public function appointmentServices(): HasMany
+    {
+        return $this->hasMany(AppointmentService::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function serviceAddress(): HasOne

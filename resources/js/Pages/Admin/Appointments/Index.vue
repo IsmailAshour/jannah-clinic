@@ -1,7 +1,7 @@
 <script setup>
 import { ref, h } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
-import { Ban, Check, CheckCircle2, Eye, UserX, X } from 'lucide-vue-next'
+import { Ban, CalendarPlus, Check, CheckCircle2, Eye, UserX, X } from 'lucide-vue-next'
 import AdminShell from '@/Layouts/AdminShell.vue'
 import {
   PageHeader,
@@ -242,7 +242,16 @@ const columns = [
 <template>
   <AdminShell>
     <div class="p-4 sm:p-6 space-y-6">
-      <PageHeader title="المواعيد" description="متابعة طلبات الحجز وحالاتها." />
+      <PageHeader title="المواعيد" description="متابعة طلبات الحجز وحالاتها.">
+        <template #action>
+          <Button as-child>
+            <a href="/admin/booking">
+              <CalendarPlus class="h-4 w-4" aria-hidden="true" />
+              <span>حجز موعد</span>
+            </a>
+          </Button>
+        </template>
+      </PageHeader>
 
       <div
         v-if="errors.appointment"

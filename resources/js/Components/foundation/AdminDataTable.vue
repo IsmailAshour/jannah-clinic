@@ -124,15 +124,18 @@ defineExpose({ table })
               />
             </div>
           </div>
-          <!-- Label/value pairs for the remaining columns -->
+          <!-- Label/value pairs for the remaining columns. flex-row-reverse +
+               justify-between in an RTL document puts the value at the
+               inline-start (visually right) and the label at the inline-end
+               (visually left), so the eye lands on the value first. -->
           <dl v-if="secondaryCells(row).length" class="space-y-1 text-xs border-t border-border-default pt-2">
             <div
               v-for="cell in secondaryCells(row)"
               :key="cell.id"
-              class="flex items-baseline justify-between gap-3"
+              class="flex flex-row-reverse items-baseline justify-between gap-3"
             >
               <dt class="text-text-tertiary shrink-0">{{ cell.column.columnDef.meta?.label ?? '' }}</dt>
-              <dd class="text-text-primary text-end min-w-0 truncate">
+              <dd class="text-text-primary text-start min-w-0 truncate font-medium">
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
               </dd>
             </div>

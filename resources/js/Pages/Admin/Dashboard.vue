@@ -139,40 +139,41 @@ function formatSelectedDateAr() {
           </div>
 
           <ul v-else class="space-y-3 max-h-[28rem] overflow-y-auto pe-1">
-            <li
-              v-for="a in appointmentsForSelectedDay"
-              :key="a.id"
-              class="rounded-xl border border-border-default p-3 space-y-1.5 hover:border-brand/40 transition"
-            >
-              <div class="flex items-start justify-between gap-2">
-                <p class="text-sm font-extrabold text-text-primary inline-flex items-center gap-1.5">
-                  <Clock class="w-3.5 h-3.5 text-brand" aria-hidden="true" />
-                  <span dir="ltr">{{ formatTime(a.start_at) }}</span>
-                </p>
-                <StatusBadge
-                  :type="statusMap[a.status]?.variant ?? 'info'"
-                  :label="statusMap[a.status]?.label ?? a.status"
-                />
-              </div>
-              <p class="text-sm text-text-primary font-bold truncate">{{ a.service_name }}</p>
-              <div class="text-xs text-text-secondary space-y-0.5">
-                <p class="inline-flex items-center gap-1.5">
-                  <UserIcon class="w-3 h-3" aria-hidden="true" />
-                  {{ a.customer_name }}
-                </p>
-                <p class="inline-flex items-center gap-1.5">
-                  <Stethoscope class="w-3 h-3" aria-hidden="true" />
-                  {{ a.doctor_name }}
-                </p>
-                <p class="inline-flex items-center gap-1.5">
-                  <component
-                    :is="a.delivery_mode === 'home' ? Home : (a.delivery_mode === 'online' ? Video : MapPin)"
-                    class="w-3 h-3"
-                    aria-hidden="true"
+            <li v-for="a in appointmentsForSelectedDay" :key="a.id">
+              <Link
+                :href="`/admin/appointments/${a.id}`"
+                class="block rounded-xl border border-border-default p-3 space-y-1.5 hover:border-brand/40 hover:bg-brand/5 transition cursor-pointer"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-extrabold text-text-primary inline-flex items-center gap-1.5">
+                    <Clock class="w-3.5 h-3.5 text-brand" aria-hidden="true" />
+                    <span dir="ltr">{{ formatTime(a.start_at) }}</span>
+                  </p>
+                  <StatusBadge
+                    :type="statusMap[a.status]?.variant ?? 'info'"
+                    :label="statusMap[a.status]?.label ?? a.status"
                   />
-                  {{ a.delivery_mode === 'home' ? 'منزليّة' : (a.delivery_mode === 'online' ? 'أونلاين' : 'في المركز') }}
-                </p>
-              </div>
+                </div>
+                <p class="text-sm text-text-primary font-bold truncate">{{ a.service_name }}</p>
+                <div class="text-xs text-text-secondary space-y-0.5">
+                  <p class="inline-flex items-center gap-1.5">
+                    <UserIcon class="w-3 h-3" aria-hidden="true" />
+                    {{ a.customer_name }}
+                  </p>
+                  <p class="inline-flex items-center gap-1.5">
+                    <Stethoscope class="w-3 h-3" aria-hidden="true" />
+                    {{ a.doctor_name }}
+                  </p>
+                  <p class="inline-flex items-center gap-1.5">
+                    <component
+                      :is="a.delivery_mode === 'home' ? Home : (a.delivery_mode === 'online' ? Video : MapPin)"
+                      class="w-3 h-3"
+                      aria-hidden="true"
+                    />
+                    {{ a.delivery_mode === 'home' ? 'منزليّة' : (a.delivery_mode === 'online' ? 'أونلاين' : 'في المركز') }}
+                  </p>
+                </div>
+              </Link>
             </li>
           </ul>
 

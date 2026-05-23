@@ -153,8 +153,8 @@ it('excludes slots that start in the past', function () {
     // unambiguous: 12:00 local on a known weekday. With "now" at noon, an
     // 08:00 slot is definitely past and a 21:30 slot is definitely future,
     // regardless of when the suite actually runs (CI midnight included).
-    // App timezone is Asia/Hebron (config/app.php).
-    $now = CarbonImmutable::parse('2026-05-19 12:00:00', 'Asia/Hebron');
+    // App timezone is Asia/Gaza (config/app.php).
+    $now = CarbonImmutable::parse('2026-05-19 12:00:00', 'Asia/Gaza');
     CarbonImmutable::setTestNow($now);
     Carbon::setTestNow($now);
 

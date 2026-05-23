@@ -27,8 +27,10 @@ function clearFilePick() {
   if (attachmentInputEl.value) attachmentInputEl.value.value = ''
 }
 function uploadAttachment() {
-  if (!props.entry?.id || !attachmentForm.file) return
-  attachmentForm.post(`/admin/medical-entries/${props.entry.id}/attachments`, {
+  if (!attachmentForm.file) return
+  // Attachments are now bound to the appointment, not the medical entry,
+  // so we can upload even before the entry is saved.
+  attachmentForm.post(`/admin/appointments/${props.appointment.id}/medical-attachments`, {
     forceFormData: true,
     preserveScroll: true,
     onSuccess: () => {
@@ -46,7 +48,7 @@ function askDelete(att) {
 }
 function doDeleteAttachment() {
   if (!deleteTarget.value) return
-  router.delete(`/admin/medical-entries/${props.entry.id}/attachments/${deleteTarget.value.id}`, {
+  router.delete(`/admin/appointments/${props.appointment.id}/medical-attachments/${deleteTarget.value.id}`, {
     preserveScroll: true,
     onFinish: () => { confirmDelete.value = false; deleteTarget.value = null },
   })
@@ -129,7 +131,7 @@ function formatDate(dt) {
           </FormGroup>
         </FormSection>
 
-        <FormSection v-if="entry?.id" title="الملفّات المرفقة" description="تحاليل / أشعّة / صور وصفات قديمة — PDF أو صورة، حدّ أقصى 10MB.">
+        <FormSection title="الملفّات المرفقة" description="تحاليل / أشعّة / صور وصفات قديمة — PDF أو صورة، حدّ أقصى 10MB.">
           <div class="space-y-3">
             <ul v-if="attachments.length" class="space-y-2">
               <li

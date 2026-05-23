@@ -412,9 +412,18 @@ const columns = [
                 <Input id="base_price" v-model.number="form.base_price" type="number" name="base_price" min="0" step="0.01" :aria-describedby="describedby" />
               </template>
             </FormGroup>
-            <FormGroup label="المدة (دقيقة)" name="duration_minutes" :error="form.errors.duration_minutes" required>
+            <FormGroup label="المدة" name="duration_minutes" :error="form.errors.duration_minutes" required>
               <template #default="{ describedby }">
-                <Input id="duration_minutes" v-model.number="form.duration_minutes" type="number" name="duration_minutes" min="1" :aria-describedby="describedby" />
+                <select
+                  id="duration_minutes"
+                  v-model.number="form.duration_minutes"
+                  name="duration_minutes"
+                  :aria-describedby="describedby"
+                  class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
+                >
+                  <option :value="30">30 دقيقة</option>
+                  <option :value="60">60 دقيقة (ساعة)</option>
+                </select>
               </template>
             </FormGroup>
           </div>

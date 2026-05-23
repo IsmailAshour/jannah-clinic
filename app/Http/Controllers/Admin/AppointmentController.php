@@ -81,6 +81,7 @@ class AppointmentController extends Controller
             'photos.uploader:id,name',
             'medicalEntry.prescriptions',
             'medicalEntry.author:id,name',
+            'reminders' => fn ($q) => $q->orderBy('sent_at'),
         ]);
 
         /** @var \App\Models\User $authedUser */
@@ -188,6 +189,8 @@ class AppointmentController extends Controller
             ] : null,
             'photos' => $photos,
             'medicalEntry' => $medicalEntryData,
+            'reminders' => $this->serializeReminders($appointment),
+            'customerHasEmail' => $appointment->customer->email !== null && $appointment->customer->email !== '',
             'canWriteMedical' => $canWriteMedical,
             'canViewMedical' => $canWriteMedical,
         ]);
@@ -210,6 +213,26 @@ class AppointmentController extends Controller
             'lat' => $addr->lat !== null ? (float) $addr->lat : null,
             'lng' => $addr->lng !== null ? (float) $addr->lng : null,
         ];
+    }
+
+    /**
+     * @return list<array{id:int,kind:string,kind_label:string,sent_at:string,recipient_email:string}>
+     */
+    private function serializeReminders(Appointment $appointment): array
+    {
+        $out = [];
+        foreach ($appointment->reminders as $r) {
+            /** @var \App\Models\AppointmentReminder $r */
+            $out[] = [
+                'id' => $r->id,
+                'kind' => $r->kind->value,
+                'kind_label' => $r->kind->labelAr(),
+                'sent_at' => $r->sent_at->toIso8601String(),
+                'recipient_email' => $r->recipient_email,
+            ];
+        }
+
+        return $out;
     }
 
     public function transition(Request $request, Appointment $appointment): RedirectResponse

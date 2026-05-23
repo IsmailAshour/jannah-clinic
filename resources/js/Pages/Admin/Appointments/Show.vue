@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import {
-  AlertCircle, ArrowLeft, BadgeCheck, BadgeX, Calendar, Check, Clock,
+  AlertCircle, ArrowLeft, BadgeCheck, BadgeX, Bell, Calendar, Check, Clock,
   CreditCard, FileText, Home, ImagePlus, Mail, MapPin, MessageCircle, NotebookPen, Pencil,
   Phone, Pill, Plus, Receipt, RotateCcw, Stethoscope, Trash2, User as UserIcon, Video, X,
 } from 'lucide-vue-next'
@@ -16,8 +16,21 @@ const props = defineProps({
   payment: { type: Object, default: null },
   photos: { type: Array, default: () => [] },
   medicalEntry: { type: Object, default: null },
+  reminders: { type: Array, default: () => [] },
+  customerHasEmail: { type: Boolean, default: false },
   canWriteMedical: { type: Boolean, default: false },
   canViewMedical: { type: Boolean, default: false },
+})
+
+const reminderKindsAll = [
+  { kind: 'before_24h', label: 'قبل 24 ساعة' },
+  { kind: 'before_2h', label: 'قبل ساعتين' },
+]
+const reminderRows = computed(() => {
+  return reminderKindsAll.map((k) => {
+    const sent = props.reminders.find((r) => r.kind === k.kind)
+    return { ...k, sent }
+  })
 })
 
 const page = usePage()
@@ -494,6 +507,31 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
                 تواصل عبر واتساب
               </a>
             </div>
+          </section>
+
+          <!-- Reminders sent -->
+          <section class="bg-surface-card rounded-2xl ring-1 ring-border-default p-5 space-y-2.5">
+            <h3 class="text-sm font-bold text-text-primary inline-flex items-center gap-1.5">
+              <Bell class="w-4 h-4 text-brand" aria-hidden="true" />
+              التذكيرات
+            </h3>
+            <div v-if="!customerHasEmail" class="rounded-md bg-warning/5 border border-warning/30 px-3 py-2 text-xs text-warning">
+              لا يوجد بريد إلكتروني للعميل — لن تُرسَل تذكيرات تلقائيًا.
+            </div>
+            <ul v-else class="space-y-1.5 text-xs">
+              <li
+                v-for="row in reminderRows"
+                :key="row.kind"
+                class="flex items-baseline justify-between gap-2"
+              >
+                <span class="text-text-secondary">{{ row.label }}</span>
+                <span v-if="row.sent" class="inline-flex items-center gap-1 text-success font-bold">
+                  <Check class="w-3.5 h-3.5" aria-hidden="true" />
+                  {{ formatDateTime(row.sent.sent_at) }}
+                </span>
+                <span v-else class="text-text-tertiary">لم يُرسَل بعد</span>
+              </li>
+            </ul>
           </section>
         </aside>
       </div>

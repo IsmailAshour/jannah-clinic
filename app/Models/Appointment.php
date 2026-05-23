@@ -81,4 +81,9 @@ class Appointment extends Model
     {
         return $this->hasMany(AppointmentPhoto::class);
     }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(AppointmentReminder::class);
+    }
 }

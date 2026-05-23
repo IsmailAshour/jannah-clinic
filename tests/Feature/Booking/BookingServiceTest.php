@@ -30,7 +30,7 @@ function bookingFixture(bool $home = false): array
 it('books a centre appointment at requested status with computed price', function () {
     ['s' => $s,'d' => $d,'date' => $date,'cust' => $cust] = bookingFixture();
     $appt = app(BookingService::class)->book(new BookingData(
-        customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s->id,
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
         startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center, createdByRole: UserRole::Customer,
     ));
     expect($appt->status)->toBe(AppointmentStatus::Requested);
@@ -42,7 +42,7 @@ it('books a home appointment with a ServiceAddress and surcharge', function () {
     ['s' => $s,'d' => $d,'date' => $date,'cust' => $cust] = bookingFixture(home: true);
     $area = HomeServiceCoverageArea::create(['name' => 'رام الله', 'is_active' => true]);
     $appt = app(BookingService::class)->book(new BookingData(
-        customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s->id,
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
         startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Home, createdByRole: UserRole::Customer,
         coverageAreaId: $area->id, addressText: 'شارع 1',
     ));
@@ -55,14 +55,14 @@ it('books a home appointment with a ServiceAddress and surcharge', function () {
 it('rejects booking a slot that is not available', function () {
     ['s' => $s,'d' => $d,'date' => $date,'cust' => $cust] = bookingFixture();
     expect(fn () => app(BookingService::class)->book(new BookingData(
-        customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s->id,
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
         startAt: $date->setTime(15, 0), deliveryMode: DeliveryMode::Center, createdByRole: UserRole::Customer,
     )))->toThrow(SlotUnavailableException::class);
 });
 
 it('prevents double-booking the same slot', function () {
     ['s' => $s,'d' => $d,'date' => $date,'cust' => $cust] = bookingFixture();
-    $data = fn () => new BookingData(customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s->id, startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center, createdByRole: UserRole::Customer);
+    $data = fn () => new BookingData(customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id], startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center, createdByRole: UserRole::Customer);
     app(BookingService::class)->book($data());
     expect(fn () => app(BookingService::class)->book($data()))->toThrow(SlotUnavailableException::class);
 });
@@ -72,7 +72,7 @@ it('rejects a service the doctor does not offer', function () {
     $c2 = ServiceCategory::create(['name' => 'y', 'slug' => uniqid(), 'color_variant' => 'brand']);
     $s2 = Service::create(['category_id' => $c2->id, 'name' => 's2', 'base_price' => 50, 'duration_minutes' => 30, 'home_service_enabled' => false]);
     expect(fn () => app(BookingService::class)->book(new BookingData(
-        customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s2->id,
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s2->id],
         startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center, createdByRole: UserRole::Customer,
     )))->toThrow(InvalidBookingException::class);
 });
@@ -81,7 +81,7 @@ it('rejects a home booking for a service not enabled for home', function () {
     ['s' => $s,'d' => $d,'date' => $date,'cust' => $cust] = bookingFixture(home: false);
     $area = HomeServiceCoverageArea::create(['name' => 'نابلس', 'is_active' => true]);
     expect(fn () => app(BookingService::class)->book(new BookingData(
-        customerId: $cust->id, doctorProfileId: $d->id, serviceId: $s->id,
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
         startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Home, createdByRole: UserRole::Customer,
         coverageAreaId: $area->id, addressText: 'شارع 2',
     )))->toThrow(InvalidBookingException::class);

@@ -93,9 +93,17 @@ class BookingController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // The wizard sends either 'service' (single, legacy) or 'services[]'
+        // (multi). Normalise BEFORE validating so both shapes use the same
+        // rule set.
+        if ($request->has('service') && ! $request->has('services')) {
+            $request->merge(['services' => [$request->input('service')]]);
+        }
+
         $rules = [
             'doctor' => ['required', 'exists:doctor_profiles,id'],
-            'service' => ['required', 'exists:services,id'],
+            'services' => ['required', 'array', 'min:1'],
+            'services.*' => ['integer', 'distinct', 'exists:services,id'],
             'start' => ['required', 'date'],
             'delivery_mode' => ['required', 'in:center,home,online'],
             'payment_method' => ['sometimes', 'string', 'in:cash,loyalty_points'],
@@ -127,7 +135,7 @@ class BookingController extends Controller
         $data = new BookingData(
             customerId: $request->user()->id,
             doctorProfileId: (int) $v['doctor'],
-            serviceId: (int) $v['service'],
+            serviceIds: array_map('intval', $v['services']),
             startAt: CarbonImmutable::parse($v['start']),
             deliveryMode: DeliveryMode::from($v['delivery_mode']),
             createdByRole: UserRole::Customer,

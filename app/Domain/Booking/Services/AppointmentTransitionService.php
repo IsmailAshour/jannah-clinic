@@ -78,10 +78,18 @@ class AppointmentTransitionService
             if ($paymentMethod === PaymentMethod::LoyaltyPoints) {
                 $this->loyalty->reverseRedemption($old);
             }
+            // Carry every service from the old appointment to the new one.
+            // The pivot is the canonical source; fall back to old->service_id
+            // for legacy appointments created before the multi-service
+            // refactor.
+            $serviceIds = $old->appointmentServices()->orderBy('sort_order')->pluck('service_id')->all();
+            if ($serviceIds === []) {
+                $serviceIds = [(int) $old->service_id];
+            }
             $new = $this->booking->book(new BookingData(
                 customerId: $old->customer_id,
                 doctorProfileId: $old->doctor_profile_id,
-                serviceId: $old->service_id,
+                serviceIds: array_map('intval', $serviceIds),
                 startAt: $newStart,
                 deliveryMode: $old->delivery_mode,
                 createdByRole: $old->created_by_role,

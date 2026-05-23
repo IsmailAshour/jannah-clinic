@@ -17,7 +17,7 @@ it('booking with payment_method=loyalty_points creates appointment WITHOUT a Pay
     $appt = app(BookingService::class)->book(new BookingData(
         customerId: $f['customer']->id,
         doctorProfileId: $f['doctor']->id,
-        serviceId: $f['service']->id,
+        serviceIds: [$f['service']->id],
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,
@@ -39,7 +39,7 @@ it('booking with insufficient balance throws and creates nothing', function () {
     expect(fn () => app(BookingService::class)->book(new BookingData(
         customerId: $f['customer']->id,
         doctorProfileId: $f['doctor']->id,
-        serviceId: $f['service']->id,
+        serviceIds: [$f['service']->id],
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,
@@ -56,7 +56,7 @@ it('booking with payment_method=cash still creates Payment row and earns nothing
     $appt = app(BookingService::class)->book(new BookingData(
         customerId: $f['customer']->id,
         doctorProfileId: $f['doctor']->id,
-        serviceId: $f['service']->id,
+        serviceIds: [$f['service']->id],
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,

@@ -37,14 +37,36 @@ class BookingService
             // test proves the re-check logic, not the lock itself; production
             // correctness depends on PostgreSQL row-level locking. Do not remove.
             $doctor = DoctorProfile::query()->lockForUpdate()->findOrFail($d->doctorProfileId);
-            $service = Service::query()->findOrFail($d->serviceId);
 
-            if (! $doctor->services()->where('services.id', $service->id)->exists()) {
-                throw new InvalidBookingException('الطبيب لا يقدّم هذه الخدمة.');
+            if ($d->serviceIds === []) {
+                throw new InvalidBookingException('يجب اختيار خدمة واحدة على الأقلّ.');
             }
+            if (count($d->serviceIds) !== count(array_unique($d->serviceIds))) {
+                throw new InvalidBookingException('لا يمكن اختيار الخدمة نفسها مرّتين في الموعد.');
+            }
+
+            $servicesById = Service::query()->whereIn('id', $d->serviceIds)->get()->keyBy('id');
+            if ($servicesById->count() !== count($d->serviceIds)) {
+                throw new InvalidBookingException('خدمة واحدة أو أكثر غير موجودة.');
+            }
+            $orderedServices = [];
+            foreach ($d->serviceIds as $sid) {
+                $orderedServices[] = $servicesById[$sid];
+            }
+
+            // All services must be linked to this doctor.
+            $linkedCount = (int) $doctor->services()->whereIn('services.id', $d->serviceIds)->count();
+            if ($linkedCount !== count($d->serviceIds)) {
+                throw new InvalidBookingException('الطبيب لا يقدّم واحدة أو أكثر من الخدمات المختارة.');
+            }
+
+            // Delivery-mode eligibility — every service in the booking must
+            // support the chosen mode.
             if ($d->deliveryMode === DeliveryMode::Home) {
-                if (! $service->home_service_enabled) {
-                    throw new InvalidBookingException('الخدمة غير متاحة كزيارة منزلية.');
+                foreach ($orderedServices as $svc) {
+                    if (! $svc->home_service_enabled) {
+                        throw new InvalidBookingException("الخدمة «{$svc->name}» غير متاحة كزيارة منزلية.");
+                    }
                 }
                 $area = HomeServiceCoverageArea::query()->where('is_active', true)->find($d->coverageAreaId);
                 if (! $area || ! $d->addressText) {
@@ -52,26 +74,30 @@ class BookingService
                 }
             }
             if ($d->deliveryMode === DeliveryMode::Online) {
-                if (! $service->online_service_enabled) {
-                    throw new InvalidBookingException('الخدمة غير متاحة كموعد أونلاين.');
+                foreach ($orderedServices as $svc) {
+                    if (! $svc->online_service_enabled) {
+                        throw new InvalidBookingException("الخدمة «{$svc->name}» غير متاحة كموعد أونلاين.");
+                    }
                 }
                 if ($d->whatsappPhone === null || trim($d->whatsappPhone) === '') {
                     throw new InvalidBookingException('رقم واتساب مطلوب لمواعيد الأونلاين.');
                 }
             }
 
-            $available = collect($this->availability->slotsFor($doctor, $service, $d->startAt))
+            $available = collect($this->availability->slotsForServices($doctor, $orderedServices, $d->startAt))
                 ->first(fn ($s) => $s['start']->equalTo($d->startAt));
             if (! $available) {
                 throw new SlotUnavailableException('الفترة لم تعد متاحة، اختر فترة أخرى.');
             }
 
-            $quote = $this->pricing->quote($doctor, $service, $d->deliveryMode);
+            $quote = $this->pricing->quoteMulti($doctor, $orderedServices, $d->deliveryMode);
 
             $apptAttrs = [
                 'customer_id' => $d->customerId,
                 'doctor_profile_id' => $doctor->id,
-                'service_id' => $service->id,
+                // Phase 3: service_id still kept on appointments — points at
+                // the FIRST service in the visit. Phase 5 will drop it.
+                'service_id' => $orderedServices[0]->id,
                 'start_at' => $available['start'],
                 'end_at' => $available['end'],
                 'status' => AppointmentStatus::Requested,
@@ -82,32 +108,37 @@ class BookingService
                 'created_by_role' => $d->createdByRole,
                 'payment_method' => $d->paymentMethod,
             ];
+
             if ($d->paymentMethod === PaymentMethod::LoyaltyPoints) {
-                // Pre-flight check duplicates LoyaltyService::redeemForAppointment but
-                // is required HERE to safely populate loyalty_points_spent on the
-                // appointment row before insert (DB CHECK enforces consistency).
-                if (! $service->loyalty_enabled || ! $service->loyalty_redemption_points) {
-                    throw new InsufficientLoyaltyBalanceException('الخدمة غير متاحة للاستبدال بالنقاط.');
+                // Multi-service loyalty redemption: every service must be
+                // loyalty-enabled with a redemption value; cost = sum.
+                $totalPoints = 0;
+                foreach ($orderedServices as $svc) {
+                    if (! $svc->loyalty_enabled || ! $svc->loyalty_redemption_points) {
+                        throw new InsufficientLoyaltyBalanceException("الخدمة «{$svc->name}» غير متاحة للاستبدال بالنقاط.");
+                    }
+                    $totalPoints += (int) $svc->loyalty_redemption_points;
                 }
-                $apptAttrs['loyalty_points_spent'] = (int) $service->loyalty_redemption_points;
+                $apptAttrs['loyalty_points_spent'] = $totalPoints;
             }
+
             $appt = Appointment::create($apptAttrs);
 
-            // Phase 2 of the multi-service refactor: dual-write the pivot.
-            // Every booking continues to carry a single service today (the
-            // wizard still picks one), but the pivot is kept in sync so
-            // downstream surfaces can start reading from it. Price stored
-            // here is the BASE price — the visit-level surcharge stays on
-            // the appointment.
-            DB::table('appointment_services')->insert([
-                'appointment_id' => $appt->id,
-                'service_id' => $service->id,
-                'price_at_booking' => $quote['base'],
-                'duration_minutes' => $service->duration_minutes,
-                'sort_order' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Multi-service pivot — one row per service, in user-chosen order.
+            $now = now();
+            $rows = [];
+            foreach ($orderedServices as $i => $svc) {
+                $rows[] = [
+                    'appointment_id' => $appt->id,
+                    'service_id' => $svc->id,
+                    'price_at_booking' => $quote['lines'][$i]['base'],
+                    'duration_minutes' => $quote['lines'][$i]['duration_minutes'],
+                    'sort_order' => $i,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+            DB::table('appointment_services')->insert($rows);
 
             if ($d->deliveryMode === DeliveryMode::Home) {
                 $appt->serviceAddress()->create([
@@ -120,7 +151,8 @@ class BookingService
             }
 
             if ($d->paymentMethod === PaymentMethod::Cash) {
-                // P2: every cash Appointment gets a pending Payment created atomically.
+                // P2: every cash Appointment gets a pending Payment created
+                // atomically. amount = total of all services + surcharge.
                 Payment::create([
                     'appointment_id' => $appt->id,
                     'amount' => $quote['total'],

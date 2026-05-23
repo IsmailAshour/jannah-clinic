@@ -13,17 +13,43 @@ use Illuminate\Database\Eloquent\Collection;
 
 class AvailabilityService
 {
-    /** @return array<int,array{start:CarbonImmutable,end:CarbonImmutable}> */
+    /**
+     * Single-service back-compat — delegates to slotsForServices with a
+     * one-element array.
+     *
+     * @return array<int,array{start:CarbonImmutable,end:CarbonImmutable}>
+     */
     public function slotsFor(DoctorProfile $doctor, Service $service, CarbonImmutable $date): array
     {
+        return $this->slotsForServices($doctor, [$service], $date);
+    }
+
+    /**
+     * Multi-service slot search. Duration = sum of services'
+     * duration_minutes; slot count = ceil(totalDuration / slotMinutes).
+     *
+     * @param  iterable<Service>  $services
+     * @return array<int,array{start:CarbonImmutable,end:CarbonImmutable}>
+     */
+    public function slotsForServices(DoctorProfile $doctor, iterable $services, CarbonImmutable $date): array
+    {
+        $totalDuration = 0;
+        foreach ($services as $s) {
+            /** @var Service $s */
+            $totalDuration += (int) $s->duration_minutes;
+        }
+        if ($totalDuration <= 0) {
+            return [];
+        }
+        $slotMinutes = (int) config('clinic.slot_minutes', 30);
+        $need = max(1, (int) ceil($totalDuration / $slotMinutes));
+
         $date = $date->startOfDay();
         $enabled = $this->enabledFor($doctor, $date);
         if ($enabled === []) {
             return [];
         }
 
-        $need = max(1, $service->slotCount());
-        $duration = (int) $service->duration_minutes;
         $now = CarbonImmutable::now()->addMinutes((int) config('clinic.booking_lead_minutes', 0));
 
         /** @var Collection<int,Appointment> $taken */
@@ -50,7 +76,7 @@ class AvailabilityService
                 continue;
             }
             $start = $date->setTimeFromTimeString($s);
-            $end = $start->addMinutes($duration);
+            $end = $start->addMinutes($totalDuration);
             if ($start->lessThan($now)) {
                 continue;
             }
@@ -68,11 +94,25 @@ class AvailabilityService
     /** @return list<string> 'Y-m-d' dates in [$from,$to] (inclusive) that have >=1 bookable slot */
     public function availableDatesFor(DoctorProfile $doctor, Service $service, CarbonImmutable $from, CarbonImmutable $to): array
     {
+        return $this->availableDatesForServices($doctor, [$service], $from, $to);
+    }
+
+    /**
+     * @param  iterable<Service>  $services
+     * @return list<string>
+     */
+    public function availableDatesForServices(DoctorProfile $doctor, iterable $services, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        // iterable may be a generator — collect to a list once.
+        $svcList = [];
+        foreach ($services as $s) {
+            $svcList[] = $s;
+        }
         $from = $from->startOfDay();
         $to = $to->startOfDay();
         $out = [];
         for ($d = $from; $d->lessThanOrEqualTo($to); $d = $d->addDay()) {
-            if ($this->slotsFor($doctor, $service, $d) !== []) {
+            if ($this->slotsForServices($doctor, $svcList, $d) !== []) {
                 $out[] = $d->toDateString();
             }
         }

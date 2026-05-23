@@ -27,7 +27,7 @@ it('creates a pending Payment when an Appointment is booked', function () {
     $appt = app(BookingService::class)->book(new BookingData(
         customerId: $cust->id,
         doctorProfileId: $doc->id,
-        serviceId: $svc->id,
+        serviceIds: [$svc->id],
         startAt: $date->setTime(9, 0),
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,

@@ -15,7 +15,7 @@ it('cancelling a loyalty-redeemed appointment returns the points', function () {
     $appt = app(BookingService::class)->book(new BookingData(
         customerId: $f['customer']->id,
         doctorProfileId: $f['doctor']->id,
-        serviceId: $f['service']->id,
+        serviceIds: [$f['service']->id],
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,
@@ -34,7 +34,7 @@ it('rejecting a loyalty-redeemed Requested appointment returns the points', func
     $appt = app(BookingService::class)->book(new BookingData(
         customerId: $f['customer']->id,
         doctorProfileId: $f['doctor']->id,
-        serviceId: $f['service']->id,
+        serviceIds: [$f['service']->id],
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,
@@ -52,7 +52,7 @@ it('rescheduling a loyalty-redeemed appointment preserves balance', function () 
     $appt = app(BookingService::class)->book(new BookingData(
         customerId: $f['customer']->id,
         doctorProfileId: $f['doctor']->id,
-        serviceId: $f['service']->id,
+        serviceIds: [$f['service']->id],
         startAt: $f['start'],
         deliveryMode: DeliveryMode::Center,
         createdByRole: UserRole::Customer,

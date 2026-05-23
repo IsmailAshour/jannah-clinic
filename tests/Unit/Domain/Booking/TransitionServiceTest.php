@@ -156,7 +156,7 @@ it('reschedule of a home-delivery appointment carries the ServiceAddress to the 
     $oldAppt = app(BookingService::class)->book(new BookingData(
         customerId: $customer->id,
         doctorProfileId: $doc->id,
-        serviceId: $svc->id,
+        serviceIds: [$svc->id],
         startAt: $slots[0]['start'],
         deliveryMode: DeliveryMode::Home,
         createdByRole: UserRole::Customer,

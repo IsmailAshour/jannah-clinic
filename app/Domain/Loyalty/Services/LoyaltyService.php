@@ -77,11 +77,25 @@ class LoyaltyService
 
     public function redeemForAppointment(Appointment $appointment, User $customer): int
     {
-        $service = $appointment->service;
-        if (! $service->loyalty_enabled || $service->loyalty_redemption_points === null || $service->loyalty_redemption_points <= 0) {
-            throw new InsufficientLoyaltyBalanceException('الخدمة غير متاحة للاستبدال بالنقاط.');
+        // Multi-service redemption: every service in the visit must be
+        // loyalty-enabled; cost = sum of per-service redemption points.
+        // Falls back to the single appointment->service relation if the
+        // pivot is empty (legacy / mid-migration appointments).
+        $services = $appointment->services()->get();
+        if ($services->isEmpty() && $appointment->service !== null) {
+            $services = collect([$appointment->service]);
         }
-        $cost = (int) $service->loyalty_redemption_points;
+        if ($services->isEmpty()) {
+            throw new InsufficientLoyaltyBalanceException('لا توجد خدمات على هذا الموعد.');
+        }
+        $cost = 0;
+        foreach ($services as $service) {
+            /** @var \App\Models\Service $service */
+            if (! $service->loyalty_enabled || $service->loyalty_redemption_points === null || $service->loyalty_redemption_points <= 0) {
+                throw new InsufficientLoyaltyBalanceException("الخدمة «{$service->name}» غير متاحة للاستبدال بالنقاط.");
+            }
+            $cost += (int) $service->loyalty_redemption_points;
+        }
         $balance = $this->balance($customer);
         if ($balance < $cost) {
             throw new InsufficientLoyaltyBalanceException("رصيد النقاط غير كافٍ (المطلوب {$cost}، المتاح {$balance}).");

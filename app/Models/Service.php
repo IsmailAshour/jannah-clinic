@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['category_id', 'name', 'description', 'content', 'image_path', 'base_price', 'duration_minutes', 'home_service_enabled', 'online_service_enabled', 'is_featured', 'icon_key', 'is_active', 'display_order', 'loyalty_enabled', 'loyalty_redemption_points'])]
+#[Fillable(['category_id', 'name', 'description', 'content', 'image_path', 'base_price', 'duration_minutes', 'home_service_enabled', 'online_service_enabled', 'is_featured', 'is_active', 'display_order', 'loyalty_enabled', 'loyalty_redemption_points'])]
 class Service extends Model
 {
     protected $casts = [

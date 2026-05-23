@@ -82,7 +82,6 @@ const form = useForm({
   home_service_enabled: false,
   online_service_enabled: false,
   is_featured: false,
-  icon_key: '',
   is_active: true,
   display_order: 0,
   loyalty_enabled: true,
@@ -151,7 +150,6 @@ function openEdit(row) {
   form.home_service_enabled = row.home_service_enabled
   form.online_service_enabled = row.online_service_enabled ?? false
   form.is_featured = row.is_featured ?? false
-  form.icon_key = row.icon_key ?? ''
   form.is_active = row.is_active
   form.display_order = row.display_order
   form.loyalty_enabled = row.loyalty_enabled
@@ -464,18 +462,11 @@ const columns = [
         <!-- Section 5: Display + visibility -->
         <section class="space-y-4">
           <h3 class="text-sm font-bold text-text-primary border-b border-border-default pb-2">العَرض والتنظيم</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormGroup label="مفتاح الأيقونة" name="icon_key" :error="form.errors.icon_key">
-              <template #default="{ describedby }">
-                <Input id="icon_key" v-model="form.icon_key" name="icon_key" dir="ltr" :aria-describedby="describedby" />
-              </template>
-            </FormGroup>
-            <FormGroup label="الترتيب" name="display_order" :error="form.errors.display_order">
-              <template #default="{ describedby }">
-                <Input id="display_order" v-model.number="form.display_order" type="number" name="display_order" min="0" :aria-describedby="describedby" />
-              </template>
-            </FormGroup>
-          </div>
+          <FormGroup label="الترتيب" name="display_order" :error="form.errors.display_order" hint="رقم أصغر = يَظهر أوّلًا في القوائم.">
+            <template #default="{ describedby }">
+              <Input id="display_order" v-model.number="form.display_order" type="number" name="display_order" min="0" :aria-describedby="describedby" />
+            </template>
+          </FormGroup>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label
               :class="[

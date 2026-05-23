@@ -79,26 +79,35 @@ function locateMe() {
   }
   isLocating.value = true
   status.value = 'جارٍ تحديد موقعك...'
+
+  const onSuccess = (pos) => {
+    const lat = round(pos.coords.latitude)
+    const lng = round(pos.coords.longitude)
+    const latlng = [lat, lng]
+    if (map) {
+      map.setView(latlng, 16)
+      setMarker(latlng)
+    }
+    emit('update:modelValue', { lat, lng })
+    isLocating.value = false
+    status.value = ''
+  }
+
+  const onFinalError = (err) => {
+    isLocating.value = false
+    if (err.code === 1) status.value = 'تم رفض إذن الموقع. اختر النقطة يدويًا على الخريطة.'
+    else if (err.code === 2) status.value = 'تعذّر تحديد الموقع. اختر النقطة يدويًا على الخريطة.'
+    else status.value = 'تعذّر تحديد موقعك تلقائيًا — اختر النقطة يدويًا على الخريطة.'
+  }
+
+  // Single attempt — network-based geolocation with a 20s window. High
+  // accuracy is off because GPS often hangs past the timeout on desktop and
+  // indoors; for a clinic home visit network accuracy (~100m) is plenty,
+  // and the user can drag the pin to fine-tune.
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const lat = round(pos.coords.latitude)
-      const lng = round(pos.coords.longitude)
-      const latlng = [lat, lng]
-      if (map) {
-        map.setView(latlng, 16)
-        setMarker(latlng)
-      }
-      emit('update:modelValue', { lat, lng })
-      isLocating.value = false
-      status.value = ''
-    },
-    (err) => {
-      isLocating.value = false
-      if (err.code === 1) status.value = 'تم رفض إذن الموقع. اختر النقطة يدويًا على الخريطة.'
-      else if (err.code === 2) status.value = 'تعذّر تحديد الموقع. اختر النقطة يدويًا.'
-      else status.value = 'انتهت مهلة تحديد الموقع.'
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    onSuccess,
+    onFinalError,
+    { enableHighAccuracy: false, timeout: 20000, maximumAge: 300000 },
   )
 }
 

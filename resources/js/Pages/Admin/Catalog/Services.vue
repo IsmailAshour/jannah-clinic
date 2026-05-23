@@ -331,7 +331,7 @@ const columns = [
                   v-model="form.category_id"
                   name="category_id"
                   :aria-describedby="describedby"
-                  class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
+                  class="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-base md:text-sm"
                 >
                   <option value="" disabled>اختر الفئة</option>
                   <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
@@ -417,7 +417,7 @@ const columns = [
                   v-model.number="form.duration_minutes"
                   name="duration_minutes"
                   :aria-describedby="describedby"
-                  class="w-full rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm"
+                  class="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-base md:text-sm"
                 >
                   <option :value="30">30 دقيقة</option>
                   <option :value="60">60 دقيقة (ساعة)</option>

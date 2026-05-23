@@ -34,12 +34,13 @@ class MedicalEntryController extends Controller
             'prescriptions.*.frequency' => 'required|string|max:255',
             'prescriptions.*.duration' => 'required|string|max:255',
             'prescriptions.*.notes' => 'nullable|string',
+            'return_to' => 'nullable|string|max:1024',
         ]);
 
         $entry = $entries->create($appointment, $request->user(), $data);
         $prescriptions->syncForEntry($entry, $data['prescriptions'] ?? []);
 
-        return redirect()->route('admin.medical-entries.edit', $entry)
+        return $this->redirectAfterSave($data['return_to'] ?? null, $entry)
             ->with('success', 'تم حفظ السجل الطبي.');
     }
 
@@ -136,12 +137,33 @@ class MedicalEntryController extends Controller
             'prescriptions.*.frequency' => 'required|string|max:255',
             'prescriptions.*.duration' => 'required|string|max:255',
             'prescriptions.*.notes' => 'nullable|string',
+            'return_to' => 'nullable|string|max:1024',
         ]);
 
         $entries->update($entry, $data);
         $prescriptions->syncForEntry($entry, $data['prescriptions'] ?? []);
 
-        return redirect()->route('admin.medical-entries.edit', $entry)
+        return $this->redirectAfterSave($data['return_to'] ?? null, $entry)
             ->with('success', 'تم تحديث السجل الطبي.');
+    }
+
+    /**
+     * Honour the form's optional return_to ONLY if it's a same-origin path
+     * (starts with a single `/`, never `//` which would be protocol-relative).
+     * Anything else falls back to the canonical edit page. This blocks open
+     * redirects via crafted Referer / query-string values.
+     */
+    private function redirectAfterSave(?string $returnTo, MedicalEntry $entry): RedirectResponse
+    {
+        if (
+            is_string($returnTo)
+            && $returnTo !== ''
+            && str_starts_with($returnTo, '/')
+            && ! str_starts_with($returnTo, '//')
+        ) {
+            return redirect($returnTo);
+        }
+
+        return redirect()->route('admin.medical-entries.edit', $entry);
     }
 }

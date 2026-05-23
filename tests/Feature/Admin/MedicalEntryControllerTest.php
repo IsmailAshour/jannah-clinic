@@ -147,3 +147,31 @@ it('different doctor cannot update entry', function () {
         'prescriptions' => [],
     ])->assertForbidden();
 });
+
+it('save honours a same-origin return_to', function () {
+    $resp = $this->actingAs($this->doctorUser)->post("/admin/appointments/{$this->appt->id}/medical-entry", [
+        'visible_summary' => 'note',
+        'return_to' => "/admin/appointments/{$this->appt->id}",
+    ]);
+
+    $resp->assertRedirect("/admin/appointments/{$this->appt->id}");
+});
+
+it('save ignores a return_to pointing at another origin', function () {
+    $resp = $this->actingAs($this->doctorUser)->post("/admin/appointments/{$this->appt->id}/medical-entry", [
+        'visible_summary' => 'note',
+        'return_to' => 'https://evil.example.com/phish',
+    ]);
+
+    $resp->assertRedirect(); // falls back to the canonical edit page
+    expect($resp->headers->get('Location'))->not->toContain('evil.example.com');
+});
+
+it('save ignores a protocol-relative return_to (//evil.com)', function () {
+    $resp = $this->actingAs($this->doctorUser)->post("/admin/appointments/{$this->appt->id}/medical-entry", [
+        'visible_summary' => 'note',
+        'return_to' => '//evil.example.com/phish',
+    ]);
+
+    expect($resp->headers->get('Location'))->not->toContain('evil.example.com');
+});

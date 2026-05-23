@@ -253,7 +253,7 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
               <div class="flex items-center gap-2">
                 <Link
                   v-if="medicalEntry && canWriteMedical"
-                  :href="`/admin/medical-entries/${medicalEntry.id}/edit`"
+                  :href="`/admin/medical-entries/${medicalEntry.id}/edit?return_to=/admin/appointments/${appointment.id}`"
                   class="inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline"
                 >
                   <Pencil class="w-3.5 h-3.5" aria-hidden="true" />
@@ -261,7 +261,7 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
                 </Link>
                 <Link
                   v-else-if="!medicalEntry && canWriteMedical"
-                  :href="`/admin/appointments/${appointment.id}/medical-entry/create`"
+                  :href="`/admin/appointments/${appointment.id}/medical-entry/create?return_to=/admin/appointments/${appointment.id}`"
                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-xs font-bold hover:bg-brand-hover transition"
                 >
                   <Plus class="w-3.5 h-3.5" aria-hidden="true" />

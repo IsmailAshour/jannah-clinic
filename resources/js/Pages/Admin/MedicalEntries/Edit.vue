@@ -66,10 +66,19 @@ function fileIcon(mime) {
 
 const isNew = !props.entry?.id
 
+// Carry through ?return_to from the URL so save() redirects back to wherever
+// the user came from (e.g. the appointment show page).
+const returnTo = (() => {
+  try {
+    return new URLSearchParams(window.location.search).get('return_to') ?? ''
+  } catch { return '' }
+})()
+
 const form = useForm({
   visible_summary: props.entry?.visible_summary ?? '',
   staff_notes: props.entry?.staff_notes ?? '',
   prescriptions: props.prescriptions.map((p) => ({ ...p })),
+  return_to: returnTo,
 })
 
 function addPrescription() {

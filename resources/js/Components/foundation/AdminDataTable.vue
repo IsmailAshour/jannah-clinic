@@ -46,6 +46,40 @@ const table = useVueTable({
   },
 })
 
+// Mobile-card classifier: picks one "primary" cell (the heading), one
+// "actions" cell (rendered at the row's start in the card), one optional
+// "select" checkbox cell, and everything else becomes label/value pairs.
+// Consumers can hint via column meta:
+//   meta.primary: true   → forces this column to be the card heading
+//   meta.hideOnMobile: true → drops the column from the card entirely
+function isActions(col) {
+  return col.id === 'actions'
+}
+function isSelect(col) {
+  return col.id === 'select'
+}
+function primaryCell(row) {
+  const cells = row.getVisibleCells()
+  // 1. explicit opt-in via meta.primary
+  const explicit = cells.find((c) => c.column.columnDef.meta?.primary)
+  if (explicit) return explicit
+  // 2. fallback: first visible non-select, non-actions cell
+  return cells.find((c) => !isActions(c.column) && !isSelect(c.column)) ?? null
+}
+function actionsCell(row) {
+  return row.getVisibleCells().find((c) => isActions(c.column)) ?? null
+}
+function secondaryCells(row) {
+  const primaryId = primaryCell(row)?.id
+  return row.getVisibleCells().filter((c) => {
+    if (c.id === primaryId) return false
+    if (isActions(c.column)) return false
+    if (isSelect(c.column)) return false
+    if (c.column.columnDef.meta?.hideOnMobile) return false
+    return true
+  })
+}
+
 defineExpose({ table })
 </script>
 
@@ -63,9 +97,58 @@ defineExpose({ table })
         <AdminDataTableViewOptions :table="table" class="ms-auto" />
       </slot>
     </div>
-    <!-- Horizontal scroll on small screens so tables with many columns don't
-         force the whole admin page to overflow viewport width. -->
-    <div class="border rounded-md overflow-x-auto">
+    <!-- Mobile card-view (< md). Each row becomes a stacked card with the
+         primary column as the heading, actions in the top-end corner, and
+         remaining columns as compact label/value pairs. -->
+    <div class="md:hidden space-y-2">
+      <template v-if="table.getRowModel().rows?.length">
+        <div
+          v-for="row in table.getRowModel().rows"
+          :key="row.id"
+          :data-state="row.getIsSelected() ? 'selected' : undefined"
+          class="rounded-lg border border-border-default bg-surface-card p-3 space-y-2"
+        >
+          <!-- Heading row: primary cell + actions -->
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0 text-sm font-bold text-text-primary">
+              <FlexRender
+                v-if="primaryCell(row)"
+                :render="primaryCell(row).column.columnDef.cell"
+                :props="primaryCell(row).getContext()"
+              />
+            </div>
+            <div v-if="actionsCell(row)" class="shrink-0">
+              <FlexRender
+                :render="actionsCell(row).column.columnDef.cell"
+                :props="actionsCell(row).getContext()"
+              />
+            </div>
+          </div>
+          <!-- Label/value pairs for the remaining columns -->
+          <dl v-if="secondaryCells(row).length" class="space-y-1 text-xs border-t border-border-default pt-2">
+            <div
+              v-for="cell in secondaryCells(row)"
+              :key="cell.id"
+              class="flex items-baseline justify-between gap-3"
+            >
+              <dt class="text-text-tertiary shrink-0">{{ cell.column.columnDef.meta?.label ?? '' }}</dt>
+              <dd class="text-text-primary text-end min-w-0 truncate">
+                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </template>
+      <template v-else>
+        <div class="rounded-lg border border-border-default bg-surface-card p-6 text-center text-text-tertiary text-sm">
+          {{ emptyText }}
+        </div>
+      </template>
+    </div>
+
+    <!-- Desktop table (≥ md). Horizontal scroll kept as a safety net in case
+         a single cell is unusually wide. -->
+    <div class="hidden md:block border rounded-md overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow v-for="hg in table.getHeaderGroups()" :key="hg.id">

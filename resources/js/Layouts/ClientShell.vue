@@ -68,7 +68,7 @@ function isActive(href) {
        below so the rest of the page reads as a normal flat surface. -->
   <div
     class="min-h-screen flex flex-col"
-    :style="{ background: 'radial-gradient(140% 55% at 50% 0%, color-mix(in oklab, var(--color-brand) 15%, var(--color-surface-page)) 0%, color-mix(in oklab, var(--color-warning) 8%, var(--color-surface-page)) 35%, var(--color-surface-page) 75%)' }"
+    :style="{ background: 'radial-gradient(140% 55% at 50% 0%, color-mix(in srgb, var(--color-brand) 15%, var(--color-surface-page)) 0%, color-mix(in srgb, var(--color-warning) 8%, var(--color-surface-page)) 35%, var(--color-surface-page) 75%)' }"
   >
     <header class="h-14 flex items-center px-4 gap-2 max-w-3xl w-full mx-auto">
       <Link href="/" class="flex items-center gap-2 min-w-0">

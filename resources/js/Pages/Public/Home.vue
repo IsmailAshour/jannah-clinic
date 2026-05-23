@@ -121,7 +121,7 @@ const tipText = computed(() => {
         authed-href="/portal/booking"
         staff-href="/admin/booking"
         class="block relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ring-2 ring-warning/60"
-        :style="{ background: 'linear-gradient(135deg, color-mix(in oklab, var(--color-brand) 100%, black 10%) 0%, var(--color-brand) 60%, color-mix(in oklab, var(--color-brand) 80%, white 15%) 100%)' }"
+        :style="{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 100%, black 10%) 0%, var(--color-brand) 60%, color-mix(in srgb, var(--color-brand) 80%, white 15%) 100%)' }"
       >
         <!-- Decorative translucent orbs (inline-end side = left in RTL — matches reference) -->
         <span aria-hidden="true" class="pointer-events-none absolute -top-4 end-6 w-20 h-20 rounded-full bg-white/10" />
@@ -204,7 +204,7 @@ const tipText = computed(() => {
       <section
         v-if="isAuthed"
         class="relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ring-2 ring-warning/40"
-        :style="{ background: 'linear-gradient(120deg, color-mix(in oklab, var(--color-brand) 100%, black 18%) 0%, var(--color-brand) 55%, color-mix(in oklab, var(--color-brand) 70%, var(--color-warning) 40%) 100%)' }"
+        :style="{ background: 'linear-gradient(120deg, color-mix(in srgb, var(--color-brand) 100%, black 18%) 0%, var(--color-brand) 55%, color-mix(in srgb, var(--color-brand) 70%, var(--color-warning) 40%) 100%)' }"
       >
         <!-- Decorative star — inline-end side (left in RTL) so it sits opposite the text -->
         <Star

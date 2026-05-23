@@ -318,7 +318,7 @@ const columns = [
       </div>
     </div>
 
-    <Modal :open="showModal" :title="editingId ? 'تعديل الخدمة' : 'إضافة خدمة'" @update:open="showModal = $event">
+    <Modal :open="showModal" :title="editingId ? 'تعديل الخدمة' : 'إضافة خدمة'" size="xl" @update:open="showModal = $event">
       <form class="space-y-6" @submit.prevent="submitForm">
         <!-- Section 1: Basic info -->
         <section class="space-y-4">

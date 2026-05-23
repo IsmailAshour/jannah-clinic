@@ -93,6 +93,22 @@ class BookingService
             }
             $appt = Appointment::create($apptAttrs);
 
+            // Phase 2 of the multi-service refactor: dual-write the pivot.
+            // Every booking continues to carry a single service today (the
+            // wizard still picks one), but the pivot is kept in sync so
+            // downstream surfaces can start reading from it. Price stored
+            // here is the BASE price — the visit-level surcharge stays on
+            // the appointment.
+            DB::table('appointment_services')->insert([
+                'appointment_id' => $appt->id,
+                'service_id' => $service->id,
+                'price_at_booking' => $quote['base'],
+                'duration_minutes' => $service->duration_minutes,
+                'sort_order' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             if ($d->deliveryMode === DeliveryMode::Home) {
                 $appt->serviceAddress()->create([
                     'coverage_area_id' => $d->coverageAreaId,

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CustomerLoyaltyController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\DoctorScheduleController;
+use App\Http\Controllers\Admin\MedicalAttachmentController;
 use App\Http\Controllers\Admin\MedicalEntryController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\PaymentController;
@@ -82,6 +83,10 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
         // P3 — Medical Records read (all staff with view policy; receptionist blocked at policy layer)
         Route::get('medical-entries/{entry}/edit', [MedicalEntryController::class, 'edit'])
             ->name('medical-entries.edit');
+
+        // Medical attachment file stream — gated at controller via view policy
+        Route::get('medical-entries/{entry}/attachments/{attachment}/file', [MedicalAttachmentController::class, 'file'])
+            ->name('medical-entries.attachments.file');
 
         // P5a — Notifications (any staff role can read their own feed)
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
@@ -165,6 +170,12 @@ Route::middleware(['auth', 'role:manager,doctor,receptionist'])
                 ->name('appointments.medical-entry.create');
             Route::put('medical-entries/{entry}', [MedicalEntryController::class, 'update'])
                 ->name('medical-entries.update');
+
+            // Medical attachments (PDF/image) — upload + delete; gated further in policy.
+            Route::post('medical-entries/{entry}/attachments', [MedicalAttachmentController::class, 'store'])
+                ->name('medical-entries.attachments.store');
+            Route::delete('medical-entries/{entry}/attachments/{attachment}', [MedicalAttachmentController::class, 'destroy'])
+                ->name('medical-entries.attachments.destroy');
         });
 
         // P3 — Customer medical profile (manager + doctor)

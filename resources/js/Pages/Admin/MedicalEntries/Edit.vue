@@ -1,17 +1,66 @@
 <script setup>
-import { useForm, Link } from '@inertiajs/vue3'
+import { ref } from 'vue'
+import { useForm, Link, router } from '@inertiajs/vue3'
 import AdminShell from '@/Layouts/AdminShell.vue'
-import { PageHeader, FormSection, FormGroup } from '@/Components/foundation'
+import { PageHeader, FormSection, FormGroup, ConfirmModal } from '@/Components/foundation'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
-import { Trash2, Plus } from 'lucide-vue-next'
+import { Trash2, Plus, FileText, Download, Upload, Paperclip } from 'lucide-vue-next'
 
 const props = defineProps({
   entry: { type: Object, default: null },
   prescriptions: { type: Array, default: () => [] },
+  attachments: { type: Array, default: () => [] },
   appointment: { type: Object, required: true },
   customer: { type: Object, required: true },
 })
+
+// ---- Attachments upload ----
+const attachmentForm = useForm({ file: null, title: '' })
+const attachmentInputEl = ref(null)
+
+function onPickFile(e) {
+  attachmentForm.file = e.target.files?.[0] ?? null
+}
+function clearFilePick() {
+  attachmentForm.file = null
+  if (attachmentInputEl.value) attachmentInputEl.value.value = ''
+}
+function uploadAttachment() {
+  if (!props.entry?.id || !attachmentForm.file) return
+  attachmentForm.post(`/admin/medical-entries/${props.entry.id}/attachments`, {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      attachmentForm.reset()
+      clearFilePick()
+    },
+  })
+}
+
+const confirmDelete = ref(false)
+const deleteTarget = ref(null)
+function askDelete(att) {
+  deleteTarget.value = att
+  confirmDelete.value = true
+}
+function doDeleteAttachment() {
+  if (!deleteTarget.value) return
+  router.delete(`/admin/medical-entries/${props.entry.id}/attachments/${deleteTarget.value.id}`, {
+    preserveScroll: true,
+    onFinish: () => { confirmDelete.value = false; deleteTarget.value = null },
+  })
+}
+
+function humanSize(bytes) {
+  if (!bytes) return '—'
+  const kb = bytes / 1024
+  if (kb < 1024) return `${kb.toFixed(1)} KB`
+  return `${(kb / 1024).toFixed(1)} MB`
+}
+function fileIcon(mime) {
+  return (mime || '').startsWith('image/') ? FileText : FileText
+}
 
 const isNew = !props.entry?.id
 
@@ -80,6 +129,71 @@ function formatDate(dt) {
           </FormGroup>
         </FormSection>
 
+        <FormSection v-if="entry?.id" title="الملفّات المرفقة" description="تحاليل / أشعّة / صور وصفات قديمة — PDF أو صورة، حدّ أقصى 10MB.">
+          <div class="space-y-3">
+            <ul v-if="attachments.length" class="space-y-2">
+              <li
+                v-for="att in attachments"
+                :key="att.id"
+                class="flex items-center gap-3 p-3 rounded-md border border-border-default bg-surface-card"
+              >
+                <component :is="fileIcon(att.mime_type)" class="w-5 h-5 text-brand shrink-0" aria-hidden="true" />
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-text-primary truncate">{{ att.title || att.original_filename }}</p>
+                  <p class="text-xs text-text-tertiary">
+                    {{ humanSize(att.file_size) }} · رفع: {{ att.uploaded_by_name || '—' }}
+                  </p>
+                </div>
+                <a
+                  :href="att.file_url"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center gap-1 text-xs font-bold text-brand hover:underline"
+                >
+                  <Download class="w-3.5 h-3.5" aria-hidden="true" />
+                  تنزيل
+                </a>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center w-7 h-7 rounded-md text-danger hover:bg-danger/5"
+                  :aria-label="`حذف ${att.original_filename}`"
+                  @click="askDelete(att)"
+                >
+                  <Trash2 class="w-4 h-4" aria-hidden="true" />
+                </button>
+              </li>
+            </ul>
+            <p v-else class="text-xs text-text-tertiary">لا ملفّات مرفقة بعد.</p>
+
+            <div class="rounded-md border border-dashed border-border-default p-3 space-y-2">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                <div class="sm:col-span-2">
+                  <label class="block text-xs text-text-secondary mb-1">عنوان الملف (اختياري)</label>
+                  <Input v-model="attachmentForm.title" placeholder="مثلًا: تحليل دم 2026" />
+                </div>
+                <input
+                  ref="attachmentInputEl"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  class="block w-full text-xs text-text-secondary file:me-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-brand/10 file:text-brand file:font-medium hover:file:bg-brand/15"
+                  @change="onPickFile"
+                />
+              </div>
+              <p v-if="attachmentForm.errors.file" class="text-xs text-danger">{{ attachmentForm.errors.file }}</p>
+              <div class="flex justify-end">
+                <Button
+                  type="button"
+                  :disabled="!attachmentForm.file || attachmentForm.processing"
+                  @click="uploadAttachment"
+                >
+                  <Upload class="w-4 h-4 me-1" aria-hidden="true" />
+                  رفع الملف
+                </Button>
+              </div>
+            </div>
+          </div>
+        </FormSection>
+
         <FormSection title="الوصفات الطبية">
           <div class="space-y-3">
             <div
@@ -112,5 +226,15 @@ function formatDate(dt) {
         </div>
       </form>
     </div>
+
+    <ConfirmModal
+      :open="confirmDelete"
+      title="حذف الملف"
+      :message="`هل أنت متأكّد من حذف الملف «${deleteTarget?.title || deleteTarget?.original_filename}»؟ لا يمكن التراجع.`"
+      confirm-text="حذف"
+      cancel-text="إلغاء"
+      @update:open="confirmDelete = $event"
+      @confirm="doDeleteAttachment"
+    />
   </AdminShell>
 </template>

@@ -37,4 +37,22 @@ class MedicalEntryPolicy
         return $user->role === UserRole::Manager
             || ($user->role === UserRole::Doctor && $entry->author_id === $user->id);
     }
+
+    /**
+     * Attachment writes (upload + delete) follow the same audience as
+     * view/update: managers + doctors. Doctors don't need to be the
+     * entry's author — covering colleagues should be able to add a
+     * lab result to any record, matching the small-clinic policy
+     * already in `create`.
+     */
+    public function uploadAttachment(User $user, MedicalEntry $entry): bool
+    {
+        return in_array($user->role, [UserRole::Manager, UserRole::Doctor], true);
+    }
+
+    public function deleteAttachment(User $user, MedicalEntry $entry): bool
+    {
+        return $user->role === UserRole::Manager
+            || $user->role === UserRole::Doctor;
+    }
 }

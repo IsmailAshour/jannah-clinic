@@ -73,9 +73,29 @@ class MedicalEntryController extends Controller
     public function edit(MedicalEntry $entry, AuditLogger $audit): Response
     {
         Gate::authorize('view', $entry);
-        $entry->load(['appointment.customer', 'prescriptions']);
+        $entry->load(['appointment.customer', 'prescriptions', 'attachments.uploader:id,name']);
 
         $audit->record(MedicalAuditAction::EntryViewed, $entry, $entry->appointment->customer);
+
+        $attachments = [];
+        foreach ($entry->attachments as $a) {
+            /** @var \App\Models\MedicalAttachment $a */
+            /** @var \App\Models\User|null $uploader */
+            $uploader = $a->uploader;
+            $attachments[] = [
+                'id' => $a->id,
+                'title' => $a->title,
+                'original_filename' => $a->original_filename,
+                'mime_type' => $a->mime_type,
+                'file_size' => $a->file_size,
+                'file_url' => route('admin.medical-entries.attachments.file', [
+                    'entry' => $entry->id,
+                    'attachment' => $a->id,
+                ]),
+                'uploaded_by_name' => $uploader?->name,
+                'created_at' => $a->created_at?->toIso8601String(),
+            ];
+        }
 
         return Inertia::render('Admin/MedicalEntries/Edit', [
             'entry' => [
@@ -86,6 +106,7 @@ class MedicalEntryController extends Controller
             'prescriptions' => $entry->prescriptions->map->only([
                 'id', 'medication_name', 'dosage', 'frequency', 'duration', 'notes',
             ]),
+            'attachments' => $attachments,
             'appointment' => [
                 'id' => $entry->appointment->id,
                 'start_at' => $entry->appointment->start_at->toIso8601String(),

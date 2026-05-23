@@ -43,4 +43,9 @@ class MedicalEntry extends Model
     {
         return $this->hasMany(Prescription::class)->orderBy('created_at');
     }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(MedicalAttachment::class)->orderByDesc('created_at');
+    }
 }

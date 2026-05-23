@@ -13,6 +13,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,8 +40,8 @@ class ReportController extends Controller
         // ---- Fetch base data ----
         $appointments = Appointment::query()
             ->whereBetween('start_at', [$from, $to])
-            ->with(['service:id,name', 'doctor:id,user_id', 'doctor.user:id,name', 'customer:id'])
-            ->get(['id', 'customer_id', 'doctor_profile_id', 'service_id', 'start_at', 'status', 'delivery_mode', 'price_at_booking']);
+            ->with(['services:id,name', 'doctor:id,user_id', 'doctor.user:id,name', 'customer:id'])
+            ->get(['id', 'customer_id', 'doctor_profile_id', 'start_at', 'status', 'delivery_mode', 'price_at_booking']);
 
         $payments = Payment::query()
             ->whereBetween('created_at', [$from, $to])
@@ -95,18 +96,24 @@ class ReportController extends Controller
         $monthlyRevenue = array_values($monthlyRevenue);
 
         // ---- Top services (by booking count) ----
-        $topServices = $appointments
-            ->groupBy('service_id')
-            ->map(fn ($rows) => [
-                'id' => $rows->first()->service_id,
-                'name' => $rows->first()->service->name ?? '—',
-                'count' => $rows->count(),
-                'revenue' => (string) $rows->reduce(fn (string $c, $a) => bcadd($c, (string) $a->price_at_booking, 2), '0'),
-            ])
-            ->sortByDesc('count')
-            ->take(5)
-            ->values()
-            ->all();
+        // Multi-service: a single appointment with 3 services counts each
+        // service once (matches "how often was X rendered"). Revenue is
+        // per-line via the pivot's price_at_booking.
+        $topServicesRaw = DB::table('appointment_services as as_pv')
+            ->join('appointments as a', 'a.id', '=', 'as_pv.appointment_id')
+            ->join('services as s', 's.id', '=', 'as_pv.service_id')
+            ->whereBetween('a.start_at', [$from, $to])
+            ->groupBy('as_pv.service_id', 's.name')
+            ->select('as_pv.service_id as id', 's.name as name', DB::raw('count(*) as cnt'), DB::raw('sum(as_pv.price_at_booking) as revenue'))
+            ->orderByDesc('cnt')
+            ->limit(5)
+            ->get();
+        $topServices = $topServicesRaw->map(fn ($r) => [
+            'id' => (int) $r->id,
+            'name' => (string) $r->name,
+            'count' => (int) $r->cnt,
+            'revenue' => bcadd((string) $r->revenue, '0', 2),
+        ])->values()->all();
 
         // ---- Top team members (by booking count) ----
         $topDoctors = $appointments

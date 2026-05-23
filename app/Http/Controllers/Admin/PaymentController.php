@@ -24,7 +24,7 @@ class PaymentController extends Controller
         $query = Payment::query()
             ->with([
                 'appointment.customer:id,name,phone,email',
-                'appointment.service:id,name',
+                'appointment.services:id,name',
                 'appointment.doctor.user:id,name',
             ])
             ->orderByDesc('id');
@@ -52,7 +52,7 @@ class PaymentController extends Controller
     {
         $payment->load([
             'appointment.customer:id,name,phone,email',
-            'appointment.service:id,name',
+            'appointment.services:id,name',
             'appointment.doctor.user:id,name',
             'receipts.uploader:id,name',
             'receipts.rejector:id,name',

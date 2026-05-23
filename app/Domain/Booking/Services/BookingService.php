@@ -95,9 +95,6 @@ class BookingService
             $apptAttrs = [
                 'customer_id' => $d->customerId,
                 'doctor_profile_id' => $doctor->id,
-                // Phase 3: service_id still kept on appointments — points at
-                // the FIRST service in the visit. Phase 5 will drop it.
-                'service_id' => $orderedServices[0]->id,
                 'start_at' => $available['start'],
                 'end_at' => $available['end'],
                 'status' => AppointmentStatus::Requested,

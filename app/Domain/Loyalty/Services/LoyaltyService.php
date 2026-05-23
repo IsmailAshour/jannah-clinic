@@ -79,12 +79,7 @@ class LoyaltyService
     {
         // Multi-service redemption: every service in the visit must be
         // loyalty-enabled; cost = sum of per-service redemption points.
-        // Falls back to the single appointment->service relation if the
-        // pivot is empty (legacy / mid-migration appointments).
         $services = $appointment->services()->get();
-        if ($services->isEmpty() && $appointment->service !== null) {
-            $services = collect([$appointment->service]);
-        }
         if ($services->isEmpty()) {
             throw new InsufficientLoyaltyBalanceException('لا توجد خدمات على هذا الموعد.');
         }

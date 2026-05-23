@@ -30,7 +30,7 @@ class PaymentController extends Controller
         $payment = $appointment->payment()->with(['receipts' => fn ($q) => $q->orderByDesc('id')])->firstOrFail();
 
         return Inertia::render('Portal/Payments/Show', [
-            'appointment' => $appointment->load('service:id,name', 'doctor.user:id,name'),
+            'appointment' => $appointment->load('services:id,name', 'doctor.user:id,name'),
             'payment' => $payment,
             'bank' => [
                 'name' => $settings->get('bank_name', config('clinic.bank_name', '')),

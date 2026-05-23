@@ -44,9 +44,13 @@ it('receptionist can book on behalf of an existing customer', function () {
     $this->assertDatabaseHas('appointments', [
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doc->id,
-        'service_id' => $svc->id,
         'status' => AppointmentStatus::Requested->value,
         'created_by_role' => UserRole::Receptionist->value,
+    ]);
+    $appt = App\Models\Appointment::where('customer_id', $customer->id)->latest('id')->first();
+    $this->assertDatabaseHas('appointment_services', [
+        'appointment_id' => $appt->id,
+        'service_id' => $svc->id,
     ]);
 });
 
@@ -79,9 +83,13 @@ it('receptionist can quick-create a customer and book', function () {
     $this->assertDatabaseHas('appointments', [
         'customer_id' => $newUser->id,
         'doctor_profile_id' => $doc->id,
-        'service_id' => $svc->id,
         'status' => AppointmentStatus::Requested->value,
         'created_by_role' => UserRole::Receptionist->value,
+    ]);
+    $appt = App\Models\Appointment::where('customer_id', $newUser->id)->latest('id')->first();
+    $this->assertDatabaseHas('appointment_services', [
+        'appointment_id' => $appt->id,
+        'service_id' => $svc->id,
     ]);
 });
 

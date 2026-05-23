@@ -42,9 +42,13 @@ it('customer can book a valid centre appointment via portal', function () {
     $this->assertDatabaseHas('appointments', [
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doc->id,
-        'service_id' => $svc->id,
         'status' => AppointmentStatus::Requested->value,
         'created_by_role' => UserRole::Customer->value,
+    ]);
+    $appt = App\Models\Appointment::where('customer_id', $customer->id)->latest('id')->first();
+    $this->assertDatabaseHas('appointment_services', [
+        'appointment_id' => $appt->id,
+        'service_id' => $svc->id,
     ]);
 
     expect(session('success'))->not->toBeNull();
@@ -103,11 +107,10 @@ it('customer can book a valid home appointment via portal', function () {
     $appointment = Appointment::where([
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doc->id,
-        'service_id' => $svc->id,
         'delivery_mode' => 'home',
         'status' => AppointmentStatus::Requested->value,
         'created_by_role' => UserRole::Customer->value,
-    ])->first();
+    ])->whereHas('services', fn ($q) => $q->where('services.id', $svc->id))->first();
 
     expect($appointment)->not->toBeNull();
 
@@ -145,7 +148,6 @@ it('customer can book a valid online appointment via portal', function () {
     $this->assertDatabaseHas('appointments', [
         'customer_id' => $customer->id,
         'doctor_profile_id' => $doc->id,
-        'service_id' => $svc->id,
         'delivery_mode' => 'online',
         'whatsapp_phone' => '+970599123456',
         'status' => AppointmentStatus::Requested->value,

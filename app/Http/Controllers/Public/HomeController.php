@@ -54,7 +54,7 @@ class HomeController extends Controller
                 ->where('start_at', '>=', now())
                 ->orderBy('start_at')
                 ->limit(3)
-                ->with(['service:id,name', 'doctor.user:id,name', 'payment:id,appointment_id,status'])
+                ->with(['services:id,name', 'doctor.user:id,name', 'payment:id,appointment_id,status'])
                 ->get();
             $loyaltyBalance = $user->customerProfile
                 ? (int) $user->customerProfile->loyalty_balance

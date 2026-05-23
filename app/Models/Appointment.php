@@ -29,9 +29,50 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property Payment|null $payment
  * @property MedicalEntry|null $medicalEntry
  */
-#[Fillable(['customer_id', 'doctor_profile_id', 'service_id', 'start_at', 'end_at', 'status', 'price_at_booking', 'delivery_mode', 'whatsapp_phone', 'home_surcharge_amount', 'created_by_role', 'cancellation_reason', 'rescheduled_from_id', 'payment_method', 'loyalty_points_spent'])]
+#[Fillable(['customer_id', 'doctor_profile_id', 'start_at', 'end_at', 'status', 'price_at_booking', 'delivery_mode', 'whatsapp_phone', 'home_surcharge_amount', 'created_by_role', 'cancellation_reason', 'rescheduled_from_id', 'payment_method', 'loyalty_points_spent'])]
 class Appointment extends Model
 {
+    /**
+     * Transitional shim — captures legacy 'service_id' from fixtures that
+     * still pass it to ::create() (mostly tests + factories). Production
+     * code uses BookingService which writes to the pivot directly. Once
+     * every test fixture migrates to attaching via $appt->services(), this
+     * override + the created event below can both be removed.
+     */
+    private ?int $pendingServiceId = null;
+
+    public function fill(array $attributes): static
+    {
+        if (isset($attributes['service_id'])) {
+            $this->pendingServiceId = (int) $attributes['service_id'];
+            unset($attributes['service_id']);
+        }
+
+        return parent::fill($attributes);
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (self $appt): void {
+            if ($appt->pendingServiceId === null) {
+                return;
+            }
+            $svc = Service::find($appt->pendingServiceId);
+            $appt->pendingServiceId = null;
+            if ($svc === null) {
+                return;
+            }
+            if ($appt->services()->where('services.id', $svc->id)->exists()) {
+                return;
+            }
+            $appt->services()->attach($svc->id, [
+                'price_at_booking' => $svc->base_price,
+                'duration_minutes' => $svc->duration_minutes,
+                'sort_order' => 0,
+            ]);
+        });
+    }
+
     protected $casts = [
         'start_at' => 'datetime',
         'end_at' => 'datetime',
@@ -53,16 +94,8 @@ class Appointment extends Model
         return $this->belongsTo(DoctorProfile::class, 'doctor_profile_id');
     }
 
-    public function service(): BelongsTo
-    {
-        return $this->belongsTo(Service::class);
-    }
-
     /**
-     * Multi-service line items. Reflects ALL services rendered at the
-     * visit. During the migration transition the first pivot row is
-     * always the same as $appointment->service (kept in sync by
-     * BookingService).
+     * Multi-service line items rendered at this visit.
      */
     public function services(): BelongsToMany
     {

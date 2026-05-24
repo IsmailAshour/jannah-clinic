@@ -25,6 +25,9 @@ const form = useForm({
   customer_id: null,
   new_customer: null,
   payment_method: 'cash',
+  discount_type: null,
+  discount_value: null,
+  discount_reason: null,
 })
 
 function handleSubmit(payload) {
@@ -41,6 +44,9 @@ function handleSubmit(payload) {
   form.customer_id = payload.customer_id ?? null
   form.new_customer = payload.new_customer ?? null
   form.payment_method = payload.payment_method ?? 'cash'
+  form.discount_type = payload.discount_type ?? null
+  form.discount_value = payload.discount_value ?? null
+  form.discount_reason = payload.discount_reason ?? null
 
   form.post(route('admin.booking.store'))
 }

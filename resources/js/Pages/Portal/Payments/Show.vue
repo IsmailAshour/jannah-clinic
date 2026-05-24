@@ -138,6 +138,11 @@ const currentStepHint = computed(() => {
       <section class="rounded-2xl shadow-md text-white p-5 bg-gradient-to-bl from-brand/95 via-brand to-brand/80">
         <p class="text-xs font-bold text-white/80">المبلغ المستحقّ</p>
         <p class="mt-1 text-4xl font-extrabold leading-tight">{{ payment.amount }} <span class="text-base font-bold text-white/85">₪</span></p>
+        <p v-if="appointment.discount_amount" class="mt-1 text-xs text-warning font-bold">
+          ✓ تم تطبيق خصم {{ appointment.discount_amount }} ₪
+          <span v-if="appointment.discount_type === 'percent'">({{ appointment.discount_value }}%)</span>
+          — السعر الأصلي {{ appointment.price_at_booking }} ₪
+        </p>
         <div class="mt-3 flex items-center justify-between gap-2 flex-wrap">
           <StatusBadge
             :type="statusMap[payment.status]?.variant ?? 'info'"

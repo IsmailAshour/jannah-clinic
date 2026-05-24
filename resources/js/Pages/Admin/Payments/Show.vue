@@ -171,6 +171,18 @@ function formatDateTime(dt) {
                 <dt class="text-text-secondary">المبلغ</dt>
                 <dd class="text-lg font-bold">{{ payment.amount }} ₪</dd>
               </div>
+              <div v-if="payment.appointment?.discount_amount">
+                <dt class="text-text-secondary">خصم مطبَّق</dt>
+                <dd class="text-sm">
+                  <span class="text-danger font-bold">- {{ payment.appointment.discount_amount }} ₪</span>
+                  <span v-if="payment.appointment.discount_type === 'percent'" class="text-text-tertiary">
+                    ({{ payment.appointment.discount_value }}%)
+                  </span>
+                  <span v-if="payment.appointment.discount_reason" class="block text-xs text-text-tertiary mt-0.5">
+                    {{ payment.appointment.discount_reason }}
+                  </span>
+                </dd>
+              </div>
               <div>
                 <dt class="text-text-secondary">حالة الدفع</dt>
                 <dd>

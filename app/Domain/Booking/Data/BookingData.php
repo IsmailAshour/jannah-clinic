@@ -3,6 +3,7 @@
 namespace App\Domain\Booking\Data;
 
 use App\Enums\DeliveryMode;
+use App\Enums\DiscountType;
 use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use Carbon\CarbonImmutable;
@@ -30,6 +31,14 @@ final class BookingData
         public ?float $lng = null,
         public ?string $whatsappPhone = null,
         public PaymentMethod $paymentMethod = PaymentMethod::Cash,
+        // Staff-applied discount. discountValue is the raw user input as a
+        // numeric string (e.g. '10' for "10%" or '50' for "50₪"). Resolved
+        // to a ₪ figure inside BookingService::book() and clamped at the
+        // appointment's gross total. Customer-created bookings reject any
+        // discount at the controller layer.
+        public ?DiscountType $discountType = null,
+        public ?string $discountValue = null,
+        public ?string $discountReason = null,
     ) {}
 
     /**

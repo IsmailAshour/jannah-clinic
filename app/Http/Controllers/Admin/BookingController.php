@@ -9,6 +9,7 @@ use App\Domain\Booking\Exceptions\SlotUnavailableException;
 use App\Domain\Booking\Services\BookingService;
 use App\Domain\Settings\Services\SettingService;
 use App\Enums\DeliveryMode;
+use App\Enums\DiscountType;
 use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -110,6 +111,9 @@ class BookingController extends Controller
             'new_customer.name' => ['required_with:new_customer', 'string', 'max:255'],
             'new_customer.email' => ['nullable', 'email', 'max:255'],
             'new_customer.phone' => ['nullable', 'string', 'max:50'],
+            'discount_type' => ['nullable', 'in:percent,fixed'],
+            'discount_value' => ['nullable', 'required_with:discount_type', 'numeric', 'min:0.01'],
+            'discount_reason' => ['nullable', 'string', 'max:500'],
         ];
 
         if ($request->input('delivery_mode') === 'home') {
@@ -125,6 +129,19 @@ class BookingController extends Controller
         }
 
         $v = $request->validate($rules);
+
+        // Discount is a staff-only lever: manager + receptionist can apply it,
+        // doctor cannot. Customer-created bookings can't reach this route at
+        // all (Admin/Booking is admin-prefixed + role-gated), but BookingService
+        // refuses Customer-role bookings with a discount as defence in depth.
+        if (! empty($v['discount_type'])) {
+            if (! in_array($request->user()->role, [UserRole::Manager, UserRole::Receptionist], true)) {
+                return back()->withErrors(['discount_type' => 'لا تملك صلاحية تطبيق خصم.']);
+            }
+            if (($v['discount_type'] === 'percent') && (float) $v['discount_value'] > 100) {
+                return back()->withErrors(['discount_value' => 'نسبة الخصم لا يمكن أن تتجاوز 100%.']);
+            }
+        }
 
         if (isset($v['coverage_area_id'])) {
             $areaActive = HomeServiceCoverageArea::where('id', $v['coverage_area_id'])
@@ -177,6 +194,9 @@ class BookingController extends Controller
             lng: isset($v['lng']) ? (float) $v['lng'] : null,
             whatsappPhone: isset($v['whatsapp_phone']) ? PhoneNormalizer::toE164($v['whatsapp_phone']) : null,
             paymentMethod: PaymentMethod::from($v['payment_method'] ?? 'cash'),
+            discountType: ! empty($v['discount_type']) ? DiscountType::from($v['discount_type']) : null,
+            discountValue: ! empty($v['discount_type']) ? (string) $v['discount_value'] : null,
+            discountReason: ! empty($v['discount_type']) ? ($v['discount_reason'] ?? null) : null,
         );
 
         try {

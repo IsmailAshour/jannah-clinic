@@ -192,6 +192,15 @@ function servicesQuery() {
 
 // Step 3: date + slot
 const paymentMethod = ref('cash')
+
+// Admin-only staff discount (customerPicker === true). discount_type may
+// be 'percent' or 'fixed'; discount_value is the raw figure (10 = "10%"
+// or 50 = "50₪"). When the toggle is off, all three are nulled so the
+// payload never carries stale discount data.
+const discountEnabled = ref(false)
+const discountType = ref('percent')
+const discountValue = ref('')
+const discountReason = ref('')
 const selectedDate = ref('')
 const slots = ref([])
 const slotsLoading = ref(false)
@@ -302,6 +311,21 @@ defineExpose({
     calMonth.value = range
     await fetchDays()
   },
+})
+
+// Discount amount preview — mirrors BookingService::book() math so the
+// receptionist sees the same ₪ figure the backend will compute. Always
+// clamped at the gross total — a 200₪ fixed discount on a 150₪ visit
+// caps at 150 (free visit, never negative).
+const discountAmountPreview = computed(() => {
+  if (!discountEnabled.value || !previewPrice.value) return 0
+  const v = parseFloat(discountValue.value)
+  if (!Number.isFinite(v) || v <= 0) return 0
+  const total = previewPrice.value.total
+  const amount = discountType.value === 'percent'
+    ? Math.round((total * v) / 100)
+    : Math.round(v)
+  return Math.min(amount, total)
 })
 
 // Price preview — sum of all selected services + home surcharge.
@@ -438,6 +462,18 @@ function handleSubmit() {
 
   if (deliveryMode.value === 'online') {
     payload.whatsapp_phone = whatsappPhone.value
+  }
+
+  // Discount is admin-only (customerPicker) + cash-only. When the toggle
+  // is off or the value is invalid the payload omits the fields entirely
+  // so the backend treats it as "no discount" and stores NULLs.
+  if (props.customerPicker && discountEnabled.value && paymentMethod.value === 'cash') {
+    const v = parseFloat(discountValue.value)
+    if (Number.isFinite(v) && v > 0) {
+      payload.discount_type = discountType.value
+      payload.discount_value = v
+      payload.discount_reason = discountReason.value?.trim() || null
+    }
   }
 
   if (props.customerPicker) {
@@ -933,9 +969,76 @@ function handleSubmit() {
         </div>
         <div class="flex items-center justify-between pt-2 border-t border-brand/20">
           <span class="font-bold text-text-primary">الإجمالي</span>
-          <span class="text-lg font-extrabold text-brand">{{ previewPrice.total }} ₪</span>
+          <span :class="['text-lg font-extrabold', discountAmountPreview > 0 ? 'text-text-secondary line-through' : 'text-brand']">
+            {{ previewPrice.total }} ₪
+          </span>
+        </div>
+        <div v-if="discountAmountPreview > 0" class="flex items-center justify-between">
+          <span class="text-text-secondary">الخصم</span>
+          <span class="font-bold text-danger">- {{ discountAmountPreview }} ₪</span>
+        </div>
+        <div v-if="discountAmountPreview > 0" class="flex items-center justify-between pt-2 border-t border-brand/20">
+          <span class="font-bold text-text-primary">المبلغ المستحقّ</span>
+          <span class="text-lg font-extrabold text-brand">{{ previewPrice.total - discountAmountPreview }} ₪</span>
         </div>
         <p class="text-[11px] text-text-tertiary pt-1">* السعر النهائي يحتسبه النظام عند تأكيد الحجز.</p>
+      </div>
+
+      <!-- Staff discount — admin booking only. Cash-only (loyalty-points
+           payments don't stack with a discount). Toggle reveals the
+           type/value/reason inputs and the price block above updates
+           live with the resolved ₪ amount. -->
+      <div
+        v-if="customerPicker && paymentMethod === 'cash'"
+        class="rounded-xl border-2 border-warning/30 bg-warning/5 p-4 space-y-3"
+      >
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            v-model="discountEnabled"
+            type="checkbox"
+            class="w-4 h-4 rounded border-2 border-warning text-warning focus:ring-warning"
+          />
+          <span class="text-sm font-bold text-text-primary">تطبيق خصم على هذا الحجز</span>
+        </label>
+
+        <div v-if="discountEnabled" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-bold text-text-secondary">نوع الخصم</span>
+              <select
+                v-model="discountType"
+                class="rounded-md border border-border-default bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+              >
+                <option value="percent">نسبة (%)</option>
+                <option value="fixed">مبلغ (₪)</option>
+              </select>
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-bold text-text-secondary">
+                القيمة {{ discountType === 'percent' ? '(%)' : '(₪)' }}
+              </span>
+              <Input
+                v-model="discountValue"
+                type="number"
+                step="0.01"
+                min="0.01"
+                :max="discountType === 'percent' ? 100 : undefined"
+                placeholder="0"
+              />
+            </label>
+          </div>
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-bold text-text-secondary">السبب (اختياري)</span>
+            <Input
+              v-model="discountReason"
+              type="text"
+              maxlength="500"
+              placeholder="عرض موسمي، خصم عائلي، ..."
+            />
+          </label>
+          <p v-if="errors.discount_value" class="text-xs text-danger">{{ errors.discount_value }}</p>
+          <p v-if="errors.discount_type" class="text-xs text-danger">{{ errors.discount_type }}</p>
+        </div>
       </div>
 
       <PaymentMethodPicker

@@ -121,3 +121,79 @@ it('receptionist cannot book with a customer_id belonging to a non-customer user
 
     $this->assertDatabaseCount('appointments', 0);
 });
+
+it('receptionist can book with a percent discount applied', function () {
+    [$doc, $svc, $date] = makeAdminFixture();
+    $receptionist = User::factory()->create(['role' => UserRole::Receptionist]);
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    CustomerProfile::create(['user_id' => $customer->id]);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    $start = $slots[0]['start']->toIso8601String();
+
+    $this->actingAs($receptionist)
+        ->post('/admin/booking', [
+            'doctor' => $doc->id,
+            'service' => $svc->id,
+            'start' => $start,
+            'delivery_mode' => 'center',
+            'customer_id' => $customer->id,
+            'discount_type' => 'percent',
+            'discount_value' => 20,
+            'discount_reason' => 'موسمي',
+        ])
+        ->assertRedirect(route('admin.appointments.index'));
+
+    // base 150₪ × 20% = 30₪ off. Net payment = 120₪.
+    $appt = App\Models\Appointment::where('customer_id', $customer->id)->latest('id')->first();
+    expect((string) $appt->discount_amount)->toBe('30.00');
+    expect((string) App\Models\Payment::where('appointment_id', $appt->id)->value('amount'))->toBe('120.00');
+});
+
+it('doctor is blocked from applying a discount on admin booking', function () {
+    [$doc, $svc, $date] = makeAdminFixture();
+    $docUser = User::factory()->create(['role' => UserRole::Doctor]);
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    CustomerProfile::create(['user_id' => $customer->id]);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    $start = $slots[0]['start']->toIso8601String();
+
+    $this->actingAs($docUser)
+        ->post('/admin/booking', [
+            'doctor' => $doc->id,
+            'service' => $svc->id,
+            'start' => $start,
+            'delivery_mode' => 'center',
+            'customer_id' => $customer->id,
+            'discount_type' => 'fixed',
+            'discount_value' => 10,
+        ])
+        ->assertSessionHasErrors('discount_type');
+
+    $this->assertDatabaseCount('appointments', 0);
+});
+
+it('percent discount > 100 fails validation', function () {
+    [$doc, $svc, $date] = makeAdminFixture();
+    $receptionist = User::factory()->create(['role' => UserRole::Receptionist]);
+    $customer = User::factory()->create(['role' => UserRole::Customer]);
+    CustomerProfile::create(['user_id' => $customer->id]);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    $start = $slots[0]['start']->toIso8601String();
+
+    $this->actingAs($receptionist)
+        ->post('/admin/booking', [
+            'doctor' => $doc->id,
+            'service' => $svc->id,
+            'start' => $start,
+            'delivery_mode' => 'center',
+            'customer_id' => $customer->id,
+            'discount_type' => 'percent',
+            'discount_value' => 150,
+        ])
+        ->assertSessionHasErrors('discount_value');
+
+    $this->assertDatabaseCount('appointments', 0);
+});

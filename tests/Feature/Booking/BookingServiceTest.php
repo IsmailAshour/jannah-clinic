@@ -6,7 +6,10 @@ use App\Domain\Booking\Exceptions\SlotUnavailableException;
 use App\Domain\Booking\Services\BookingService;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
+use App\Enums\DiscountType;
+use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
+use App\Models\Payment;
 use App\Models\DoctorProfile;
 use App\Models\HomeServiceCoverageArea;
 use App\Models\Service;
@@ -207,3 +210,107 @@ it('home surcharge is applied to the SUM of services, not per-line', function ()
         ->and((string) $appt->price_at_booking)->toBe('325.00');
 });
 
+// ---- Staff discount coverage ------------------------------------------
+
+it('applies a percent discount on the gross total', function () {
+    extract(bookingFixture()); /** @var Service $s; @var DoctorProfile $d; @var CarbonImmutable $date; @var User $cust */
+
+    $appt = app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center,
+        createdByRole: UserRole::Receptionist,
+        discountType: DiscountType::Percent, discountValue: '10', discountReason: 'موسمي',
+    ));
+
+    // 100 base * 10% = 10₪ off. Appointment price_at_booking stays GROSS.
+    expect($appt->discount_type)->toBe(DiscountType::Percent)
+        ->and((string) $appt->discount_value)->toBe('10.00')
+        ->and((string) $appt->discount_amount)->toBe('10.00')
+        ->and($appt->discount_reason)->toBe('موسمي')
+        ->and((string) $appt->price_at_booking)->toBe('100.00');
+
+    // Cash payment is net of discount.
+    $payment = Payment::where('appointment_id', $appt->id)->firstOrFail();
+    expect((string) $payment->amount)->toBe('90.00');
+});
+
+it('applies a fixed-amount discount', function () {
+    extract(bookingFixture()); /** @var Service $s; @var DoctorProfile $d; @var CarbonImmutable $date; @var User $cust */
+
+    $appt = app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center,
+        createdByRole: UserRole::Manager,
+        discountType: DiscountType::Fixed, discountValue: '25',
+    ));
+
+    expect((string) $appt->discount_amount)->toBe('25.00')
+        ->and($appt->discount_reason)->toBeNull();
+    $payment = Payment::where('appointment_id', $appt->id)->firstOrFail();
+    expect((string) $payment->amount)->toBe('75.00');
+});
+
+it('clamps a fixed discount that exceeds the total', function () {
+    extract(bookingFixture()); /** @var Service $s; @var DoctorProfile $d; @var CarbonImmutable $date; @var User $cust */
+
+    $appt = app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center,
+        createdByRole: UserRole::Receptionist,
+        discountType: DiscountType::Fixed, discountValue: '500',  // > 100₪ total
+    ));
+
+    // Capped at the gross total — patient pays 0, never negative.
+    expect((string) $appt->discount_amount)->toBe('100.00');
+    $payment = Payment::where('appointment_id', $appt->id)->firstOrFail();
+    expect((string) $payment->amount)->toBe('0.00');
+});
+
+it('refuses a discount when createdByRole is Customer', function () {
+    extract(bookingFixture()); /** @var Service $s; @var DoctorProfile $d; @var CarbonImmutable $date; @var User $cust */
+
+    expect(fn () => app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center,
+        createdByRole: UserRole::Customer,
+        discountType: DiscountType::Percent, discountValue: '10',
+    )))->toThrow(InvalidBookingException::class, 'لا يمكن للعميل');
+});
+
+it('refuses a discount stacked on loyalty-points payment', function () {
+    extract(bookingFixture()); /** @var Service $s; @var DoctorProfile $d; @var CarbonImmutable $date; @var User $cust */
+
+    expect(fn () => app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center,
+        createdByRole: UserRole::Receptionist,
+        paymentMethod: PaymentMethod::LoyaltyPoints,
+        discountType: DiscountType::Fixed, discountValue: '10',
+    )))->toThrow(InvalidBookingException::class, 'النقاط');
+});
+
+it('refuses a percent discount over 100%', function () {
+    extract(bookingFixture()); /** @var Service $s; @var DoctorProfile $d; @var CarbonImmutable $date; @var User $cust */
+
+    expect(fn () => app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center,
+        createdByRole: UserRole::Receptionist,
+        discountType: DiscountType::Percent, discountValue: '150',
+    )))->toThrow(InvalidBookingException::class, '100%');
+});
+
+it('booking without discount leaves the discount columns null', function () {
+    extract(bookingFixture()); /** @var Service $s; @var DoctorProfile $d; @var CarbonImmutable $date; @var User $cust */
+
+    $appt = app(BookingService::class)->book(new BookingData(
+        customerId: $cust->id, doctorProfileId: $d->id, serviceIds: [$s->id],
+        startAt: $date->setTime(9, 0), deliveryMode: DeliveryMode::Center,
+        createdByRole: UserRole::Customer,
+    ));
+
+    expect($appt->discount_type)->toBeNull()
+        ->and($appt->discount_value)->toBeNull()
+        ->and($appt->discount_amount)->toBeNull()
+        ->and($appt->discount_reason)->toBeNull();
+});

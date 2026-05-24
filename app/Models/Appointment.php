@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
+use App\Enums\DiscountType;
 use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
 use Carbon\CarbonImmutable;
@@ -23,13 +24,17 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property AppointmentStatus $status
  * @property PaymentMethod $payment_method
  * @property int|null $loyalty_points_spent
+ * @property DiscountType|null $discount_type
+ * @property string|null $discount_value
+ * @property string|null $discount_amount
+ * @property string|null $discount_reason
  * @property User $customer
  * @property DoctorProfile $doctor
  * @property Service $service
  * @property Payment|null $payment
  * @property MedicalEntry|null $medicalEntry
  */
-#[Fillable(['customer_id', 'doctor_profile_id', 'start_at', 'end_at', 'status', 'price_at_booking', 'delivery_mode', 'whatsapp_phone', 'home_surcharge_amount', 'created_by_role', 'cancellation_reason', 'rescheduled_from_id', 'payment_method', 'loyalty_points_spent'])]
+#[Fillable(['customer_id', 'doctor_profile_id', 'start_at', 'end_at', 'status', 'price_at_booking', 'delivery_mode', 'whatsapp_phone', 'home_surcharge_amount', 'created_by_role', 'cancellation_reason', 'rescheduled_from_id', 'payment_method', 'loyalty_points_spent', 'discount_type', 'discount_value', 'discount_amount', 'discount_reason'])]
 class Appointment extends Model
 {
     protected $casts = [
@@ -41,6 +46,9 @@ class Appointment extends Model
         'price_at_booking' => 'decimal:2',
         'home_surcharge_amount' => 'decimal:2',
         'payment_method' => PaymentMethod::class,
+        'discount_type' => DiscountType::class,
+        'discount_value' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
     ];
 
     public function customer(): BelongsTo

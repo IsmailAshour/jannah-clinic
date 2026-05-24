@@ -10,8 +10,10 @@ use App\Domain\Loyalty\Services\LoyaltyService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\AppointmentStatus;
 use App\Enums\DeliveryMode;
+use App\Enums\DiscountType;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\UserRole;
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
 use App\Models\HomeServiceCoverageArea;
@@ -92,6 +94,33 @@ class BookingService
 
             $quote = $this->pricing->quoteMulti($doctor, $orderedServices, $d->deliveryMode);
 
+            // Resolve staff discount (manager/receptionist only — Customer role
+            // rejected outright). discount_amount is computed from gross total
+            // and clamped at [0, total] so the patient can never owe negative.
+            // Loyalty-points payments cannot stack with a cash discount.
+            $discountAmount = null;
+            if ($d->discountType !== null) {
+                if ($d->createdByRole === UserRole::Customer) {
+                    throw new InvalidBookingException('لا يمكن للعميل تطبيق خصم على حجزه.');
+                }
+                if ($d->paymentMethod === PaymentMethod::LoyaltyPoints) {
+                    throw new InvalidBookingException('لا يمكن تطبيق خصم على دفع بالنقاط.');
+                }
+                if ($d->discountValue === null || ! is_numeric($d->discountValue) || (float) $d->discountValue <= 0) {
+                    throw new InvalidBookingException('قيمة الخصم غير صالحة.');
+                }
+                if ($d->discountType === DiscountType::Percent && (float) $d->discountValue > 100) {
+                    throw new InvalidBookingException('نسبة الخصم لا يمكن أن تتجاوز 100%.');
+                }
+                $discountAmount = $d->discountType === DiscountType::Percent
+                    ? bcdiv(bcmul($quote['total'], $d->discountValue, 4), '100', 2)
+                    : bcadd($d->discountValue, '0', 2);
+                // Clamp at total — a 200₪ fixed discount on a 150₪ visit caps at 150.
+                if (bccomp($discountAmount, $quote['total'], 2) > 0) {
+                    $discountAmount = $quote['total'];
+                }
+            }
+
             $apptAttrs = [
                 'customer_id' => $d->customerId,
                 'doctor_profile_id' => $doctor->id,
@@ -104,6 +133,10 @@ class BookingService
                 'home_surcharge_amount' => $quote['surcharge'],
                 'created_by_role' => $d->createdByRole,
                 'payment_method' => $d->paymentMethod,
+                'discount_type' => $discountAmount !== null ? $d->discountType : null,
+                'discount_value' => $discountAmount !== null ? $d->discountValue : null,
+                'discount_amount' => $discountAmount,
+                'discount_reason' => $discountAmount !== null ? $d->discountReason : null,
             ];
 
             if ($d->paymentMethod === PaymentMethod::LoyaltyPoints) {
@@ -149,10 +182,15 @@ class BookingService
 
             if ($d->paymentMethod === PaymentMethod::Cash) {
                 // P2: every cash Appointment gets a pending Payment created
-                // atomically. amount = total of all services + surcharge.
+                // atomically. amount = total of all services + surcharge -
+                // staff discount (if any). Loyalty-points payments cannot
+                // stack with a discount (rejected above).
+                $payAmount = $discountAmount !== null
+                    ? bcsub($quote['total'], $discountAmount, 2)
+                    : $quote['total'];
                 Payment::create([
                     'appointment_id' => $appt->id,
-                    'amount' => $quote['total'],
+                    'amount' => $payAmount,
                     'status' => PaymentStatus::Pending,
                 ]);
             } else {

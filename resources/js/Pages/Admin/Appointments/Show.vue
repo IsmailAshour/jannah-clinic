@@ -606,7 +606,21 @@ const receiptIsImage = computed(() => latestReceipt.value && latestReceipt.value
               />
               {{ appointment.delivery_mode === 'home' ? 'زيارة منزليّة' : (appointment.delivery_mode === 'online' ? 'موعد أونلاين' : 'في المركز') }}
             </h3>
-            <p class="text-sm">السعر: <span class="font-bold text-brand">{{ appointment.price_at_booking }} ₪</span></p>
+            <p class="text-sm">
+              السعر:
+              <span :class="['font-bold', appointment.discount_amount ? 'text-text-secondary line-through' : 'text-brand']">
+                {{ appointment.price_at_booking }} ₪
+              </span>
+            </p>
+            <p v-if="appointment.discount_amount" class="text-sm">
+              الخصم<template v-if="appointment.discount_type === 'percent'"> ({{ appointment.discount_value }}%)</template>:
+              <span class="font-bold text-danger">- {{ appointment.discount_amount }} ₪</span>
+            </p>
+            <p v-if="appointment.discount_amount" class="text-sm">
+              المبلغ المستحقّ:
+              <span class="font-bold text-brand">{{ (Number(appointment.price_at_booking) - Number(appointment.discount_amount)).toFixed(2) }} ₪</span>
+            </p>
+            <p v-if="appointment.discount_reason" class="text-xs text-text-tertiary">سبب الخصم: {{ appointment.discount_reason }}</p>
             <p v-if="appointment.service_address" class="text-xs text-text-secondary leading-relaxed">{{ appointment.service_address.address_text }}</p>
             <p v-if="appointment.service_address?.location_note" class="text-xs text-text-tertiary leading-relaxed">{{ appointment.service_address.location_note }}</p>
             <a

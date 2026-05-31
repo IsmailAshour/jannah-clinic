@@ -13,7 +13,7 @@ const props = defineProps({
 
 const form = useForm({
   doctor: null,
-  service: null,
+  services: [],
   start: null,
   delivery_mode: 'center',
   coverage_area_id: null,
@@ -27,7 +27,7 @@ const form = useForm({
 
 function handleSubmit(payload) {
   form.doctor = payload.doctor
-  form.service = payload.service
+  form.services = payload.services ?? []
   form.start = payload.start
   form.delivery_mode = payload.delivery_mode
   form.coverage_area_id = payload.coverage_area_id ?? null
@@ -52,6 +52,18 @@ function handleSubmit(payload) {
       </div>
       <div v-if="form.errors.whatsapp_phone" class="mb-4 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger" role="alert">
         {{ form.errors.whatsapp_phone }}
+      </div>
+      <!-- Catch-all banner so any validation error we don't render inline
+           still surfaces — silent failures make the page look frozen. -->
+      <div
+        v-if="Object.keys(form.errors).some(k => !['booking', 'whatsapp_phone'].includes(k))"
+        class="mb-4 rounded-md bg-danger/10 border border-danger/20 p-4 text-sm text-danger space-y-1"
+        role="alert"
+      >
+        <p class="font-bold">تعذّر إتمام الحجز — صحّح الأخطاء التالية:</p>
+        <ul class="list-disc list-inside">
+          <li v-for="(msg, key) in form.errors" :key="key">{{ msg }}</li>
+        </ul>
       </div>
 
       <BookingWizard

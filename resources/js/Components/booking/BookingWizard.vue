@@ -313,6 +313,20 @@ defineExpose({
   },
 })
 
+// Price preview — sum of all selected services + home surcharge.
+const previewPrice = computed(() => {
+  if (selectedServices.value.length === 0) return null
+  const base = selectedServices.value.reduce(
+    (acc, s) => acc + Number(s.price_override ?? s.base_price),
+    0,
+  )
+  if (deliveryMode.value === 'home') {
+    const surcharge = Math.round(base * Number(props.homeSurchargePct) / 100)
+    return { base, surcharge, total: base + surcharge }
+  }
+  return { base, surcharge: 0, total: base }
+})
+
 // Discount amount preview — mirrors BookingService::book() math so the
 // receptionist sees the same ₪ figure the backend will compute. Always
 // clamped at the gross total — a 200₪ fixed discount on a 150₪ visit
@@ -326,20 +340,6 @@ const discountAmountPreview = computed(() => {
     ? Math.round((total * v) / 100)
     : Math.round(v)
   return Math.min(amount, total)
-})
-
-// Price preview — sum of all selected services + home surcharge.
-const previewPrice = computed(() => {
-  if (selectedServices.value.length === 0) return null
-  const base = selectedServices.value.reduce(
-    (acc, s) => acc + Number(s.price_override ?? s.base_price),
-    0,
-  )
-  if (deliveryMode.value === 'home') {
-    const surcharge = Math.round(base * Number(props.homeSurchargePct) / 100)
-    return { base, surcharge, total: base + surcharge }
-  }
-  return { base, surcharge: 0, total: base }
 })
 
 // Navigation

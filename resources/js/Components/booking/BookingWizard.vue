@@ -1111,12 +1111,25 @@ function handleSubmit() {
             <span class="font-bold text-text-primary text-end">{{ selectedDoctor.name }}</span>
           </span>
         </li>
-        <li v-if="selectedService" class="px-4 py-2.5 flex items-start justify-between gap-3">
-          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+        <li v-if="selectedServices.length > 0" class="px-4 py-2.5 flex items-start justify-between gap-3">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary shrink-0">
             <CalendarDays class="w-3.5 h-3.5" aria-hidden="true" />
-            الخدمة
+            {{ selectedServices.length === 1 ? 'الخدمة' : `الخدمات (${selectedServices.length})` }}
           </span>
-          <span class="font-bold text-text-primary text-end">{{ selectedService.name }}</span>
+          <ul class="flex flex-col items-end gap-0.5 text-end min-w-0">
+            <li
+              v-for="s in selectedServices"
+              :key="s.id"
+              class="text-sm font-bold text-text-primary truncate max-w-[16rem]"
+            >
+              {{ s.name }}
+              <span class="text-xs text-text-tertiary font-normal">· {{ s.price_override ?? s.base_price }} ₪</span>
+            </li>
+          </ul>
+        </li>
+        <li v-if="selectedServices.length > 1 && totalDurationMinutes > 0" class="px-4 py-2 flex items-center justify-between gap-3 text-xs">
+          <span class="text-text-secondary">المدّة الكاملة</span>
+          <span class="font-bold text-text-primary">{{ totalDurationMinutes }} دقيقة</span>
         </li>
         <li v-if="selectedStart" class="px-4 py-2.5 flex items-start justify-between gap-3">
           <span class="inline-flex items-center gap-1.5 text-text-secondary">

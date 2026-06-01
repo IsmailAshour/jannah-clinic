@@ -197,3 +197,51 @@ it('percent discount > 100 fails validation', function () {
 
     $this->assertDatabaseCount('appointments', 0);
 });
+
+it('quick-create rejects a duplicate phone with a friendly error', function () {
+    [$doc, $svc, $date] = makeAdminFixture();
+    $receptionist = User::factory()->create(['role' => UserRole::Receptionist]);
+    User::factory()->create(['role' => UserRole::Customer, 'phone' => '593483141']);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    $start = $slots[0]['start']->toIso8601String();
+
+    $this->actingAs($receptionist)
+        ->post('/admin/booking', [
+            'doctor' => $doc->id,
+            'service' => $svc->id,
+            'start' => $start,
+            'delivery_mode' => 'center',
+            'new_customer' => [
+                'name' => 'عميل جديد',
+                'phone' => '593483141',
+            ],
+        ])
+        ->assertSessionHasErrors(['new_customer.phone']);
+
+    $this->assertDatabaseCount('appointments', 0);
+});
+
+it('quick-create rejects a duplicate email with a friendly error', function () {
+    [$doc, $svc, $date] = makeAdminFixture();
+    $receptionist = User::factory()->create(['role' => UserRole::Receptionist]);
+    User::factory()->create(['role' => UserRole::Customer, 'email' => 'taken@example.test']);
+
+    $slots = app(AvailabilityService::class)->slotsFor($doc, $svc, $date);
+    $start = $slots[0]['start']->toIso8601String();
+
+    $this->actingAs($receptionist)
+        ->post('/admin/booking', [
+            'doctor' => $doc->id,
+            'service' => $svc->id,
+            'start' => $start,
+            'delivery_mode' => 'center',
+            'new_customer' => [
+                'name' => 'عميل جديد',
+                'email' => 'taken@example.test',
+            ],
+        ])
+        ->assertSessionHasErrors(['new_customer.email']);
+
+    $this->assertDatabaseCount('appointments', 0);
+});

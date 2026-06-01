@@ -109,8 +109,11 @@ class BookingController extends Controller
             'customer_id' => ['nullable', 'integer'],
             'new_customer' => ['nullable', 'array'],
             'new_customer.name' => ['required_with:new_customer', 'string', 'max:255'],
-            'new_customer.email' => ['nullable', 'email', 'max:255'],
-            'new_customer.phone' => ['nullable', 'string', 'max:50'],
+            // Uniqueness check mirrors RegisteredUserController + CustomerController::store
+            // — without it a duplicate phone/email crashes as a PG 23505 (500),
+            // which the receptionist sees as a hung "تأكيد الحجز" button.
+            'new_customer.email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            'new_customer.phone' => ['nullable', 'string', 'max:50', 'unique:users,phone'],
             'discount_type' => ['nullable', 'in:percent,fixed'],
             'discount_value' => ['nullable', 'required_with:discount_type', 'numeric', 'min:0.01'],
             'discount_reason' => ['nullable', 'string', 'max:500'],
@@ -128,7 +131,11 @@ class BookingController extends Controller
             $rules['whatsapp_phone'] = ['required', 'string', 'min:8', 'max:32'];
         }
 
-        $v = $request->validate($rules);
+        $messages = [
+            'new_customer.email.unique' => 'هذا البريد مسجَّل لعميل آخر — ابحث عنه في القائمة بدلًا من إنشاء حساب جديد.',
+            'new_customer.phone.unique' => 'هذا الرقم مسجَّل لعميل آخر — ابحث عنه في القائمة بدلًا من إنشاء حساب جديد.',
+        ];
+        $v = $request->validate($rules, $messages);
 
         // Discount is a staff-only lever: manager + receptionist can apply it,
         // doctor cannot. Customer-created bookings can't reach this route at

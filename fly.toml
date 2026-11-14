@@ -2,7 +2,7 @@
 # Deployed by .github/workflows/fly-deploy.yml on every push to main.
 # Secrets (APP_KEY) live in `fly secrets`.
 
-app = 'istoria-jannah-center'
+app = 'ismail-jannah-center'
 primary_region = 'fra'
 console_command = 'php /var/www/html/artisan tinker'
 

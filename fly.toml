@@ -1,0 +1,75 @@
+# fly.io config for jannah.center (clinic booking site).
+# Deployed by .github/workflows/fly-deploy.yml on every push to main.
+# Secrets (APP_KEY) live in `fly secrets`.
+
+app = 'istoria-jannah-center'
+primary_region = 'fra'
+console_command = 'php /var/www/html/artisan tinker'
+
+[build]
+  [build.args]
+    NODE_VERSION = '26'
+    PHP_VERSION = '8.5'
+    VITE_APP_NAME = 'Jannah Center | مركز جنة'
+
+# No release_command: it runs on a machine without the volume, so migrations
+# run at boot instead (.fly/scripts/0-data.sh).
+
+[env]
+  APP_NAME = 'Jannah Center | مركز جنة'
+  APP_ENV = 'production'
+  APP_DEBUG = 'false'
+  APP_URL = 'https://jannah.center'
+  APP_TIMEZONE = 'Asia/Gaza'
+  APP_LOCALE = 'ar'
+  APP_FALLBACK_LOCALE = 'en'
+  APP_MAINTENANCE_DRIVER = 'file'
+  LOG_CHANNEL = 'stderr'
+  LOG_LEVEL = 'info'
+  # SQLite on the volume below; sessions, cache and queue use it too.
+  DB_CONNECTION = 'sqlite'
+  DB_DATABASE = '/data/database.sqlite'
+  DB_BUSY_TIMEOUT = '5000'
+  DB_JOURNAL_MODE = 'wal'
+  DB_SYNCHRONOUS = 'normal'
+  DB_TRANSACTION_MODE = 'IMMEDIATE'
+  SESSION_DRIVER = 'database'
+  SESSION_LIFETIME = '120'
+  CACHE_STORE = 'database'
+  QUEUE_CONNECTION = 'database'
+  FILESYSTEM_DISK = 'local'
+  BROADCAST_CONNECTION = 'log'
+  MAIL_MAILER = 'log'
+  MAIL_FROM_NAME = 'Jannah Center | مركز جنة'
+  # Small PHP-FPM pool: the machine also runs the queue worker.
+  PHP_PM_MAX_CHILDREN = '5'
+  PHP_PM_START_SERVERS = '2'
+  PHP_MIN_SPARE_SERVERS = '1'
+  PHP_MAX_SPARE_SERVERS = '3'
+  PHP_DATE_TIMEZONE = 'Asia/Gaza'
+
+[[mounts]]
+  source = 'jannah_data'
+  destination = '/data'
+  initial_size = '1gb'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = 'GET'
+    path = '/up'
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '30s'
+    [http_service.checks.headers]
+      X-Forwarded-Proto = 'https'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
